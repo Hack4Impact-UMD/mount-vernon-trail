@@ -1,0 +1,24 @@
+{
+  "name": "mount-vernon-trail",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hack4Impact-UMD/mount-vernon-trail.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Hack4Impact-UMD/mount-vernon-trail/issues"
+  },
+  "homepage": "https://github.com/Hack4Impact-UMD/mount-vernon-trail#readme",
+  "devDependencies": {
+    "prettier": "^3.8.1"
+  }
+}
