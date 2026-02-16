@@ -110,7 +110,7 @@ git merge main
     </td>
     <td align="center" width="150">
       <a href="https://www.linkedin.com/in/srinidhi-gubba/">
-        <img src="/profile-pictures/indira.png" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <img src="/profile-pictures/srinidhi_gubba.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Srinidhi Gubba</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
