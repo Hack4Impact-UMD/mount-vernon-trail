@@ -102,7 +102,7 @@ git merge main
   </tr>
   <tr>
     <td align="center" width="150">
-      <a href="linkedin.com/in/chloexthompson">
+      <a href="https://www.linkedin.com/in/chloexthompson">
         <img src="/profile-pictures/chloe_thompson.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Chloe Thompson</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
