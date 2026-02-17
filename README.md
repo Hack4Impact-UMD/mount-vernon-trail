@@ -1,12 +1,19 @@
 # mount-vernon-trail
+
 ## Intro
+
 Hello and welcome to the Friends of the Mount Vernon Trail project!
 We'll be working, communicating, and logging bugs here, as well as in our other communication channels.
 Check back here for more on project and environment setup soon!
+
 ## Procedures
+
 ### Cloning
+
 Please clone with SSH. [See here](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent) to set up a key for your device if it doesn't have one already. [Check this out](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) for step-by-step instructions on cloning a repo.
+
 ### Making branches, commits, + PRs
+
 [Explore the PR documentation](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-branches)
 
 Every task will be completed on its own branch. If there are multiple engineers on your task, you can all use the same branch. You can create the remote branch first or create locally and push it.
@@ -22,6 +29,7 @@ When you're done with the task and have tested your code, make a PR for us to re
 **Requesting review**: Our github usernames are `bsthapar` and `asea-aranion`.
 
 #### An example
+
 ```
 git checkout -b feature/login
 
@@ -55,9 +63,9 @@ git merge main
       </a>
     </td>
     <td align="center" width="150">
-      <a href="#">
-        <img src="/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
-        <b>Name</b><br/><br/>
+      <a href="https://www.linkedin.com/in/jameszhoudev/">
+        <img src="/profile-pictures/james_zhou.jpeg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>James Zhou</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
@@ -71,16 +79,16 @@ git merge main
   </tr>
   <tr>
     <td align="center" width="150">
-      <a href="http://www.linkedin.com/in/chloexthompson">
-        <img src="/profile-pictures/chloe_thompson.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
-        <b>Chloe Thompson</b><br/><br/>
+      <a href="#">
+        <img src="/profile-pictures/aaryan_patel.png" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Aaryan Patel</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
     <td align="center" width="150">
-      <a href="#">
-        <img src="/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
-        <b>Name</b><br/><br/>
+      <a href="http://linkedin.com/in/ryanzhao27/">
+        <img src="/profile-pictures/ryan_zhao.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Ryan Zhao</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
@@ -94,23 +102,23 @@ git merge main
   </tr>
   <tr>
     <td align="center" width="150">
-      <a href="#">
-        <img src="/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
-        <b>Name</b><br/><br/>
+      <a href="https://www.linkedin.com/in/chloexthompson">
+        <img src="/profile-pictures/chloe_thompson.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Chloe Thompson</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
     <td align="center" width="150">
-      <a href="#">
-        <img src="/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
-        <b>Name</b><br/><br/>
+      <a href="https://www.linkedin.com/in/srinidhi-gubba/">
+        <img src="/profile-pictures/srinidhi_gubba.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Srinidhi Gubba</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
     <td align="center" width="150">
-      <a href="#">
-        <img src="/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
-        <b>Name</b><br/><br/>
+      <a href="https://www.linkedin.com/in/indira-shafii/">
+        <img src="/profile-pictures/indira.png" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Indira Shafii</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
