@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>405328478335-j20f183vbg7i746sldn576si00u02hk6.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.405328478335-j20f183vbg7i746sldn576si00u02hk6</string>
+	<key>API_KEY</key>
+	<string>AIzaSyAEob8VrgUWOYBSriWY5btqsdzbDfRqOCs</string>
+	<key>GCM_SENDER_ID</key>
+	<string>405328478335</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.anonymous.mountvernontrail</string>
+	<key>PROJECT_ID</key>
+	<string>friends-of-mvt</string>
+	<key>STORAGE_BUCKET</key>
+	<string>friends-of-mvt.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:405328478335:ios:9edbdf31b1a3910b457f4a</string>
+</dict>
+</plist>

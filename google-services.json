@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "405328478335",
+    "project_id": "friends-of-mvt",
+    "storage_bucket": "friends-of-mvt.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:405328478335:android:d6571458dfaad5d0457f4a",
+        "android_client_info": {
+          "package_name": "com.anonymous.mountvernontrail"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "405328478335-k51732cpii9h90ppmou8ika8benq17hg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCG9tYKV8MHLbNgQoRtPvsYJadpFz1HqBw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "405328478335-k51732cpii9h90ppmou8ika8benq17hg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "405328478335-f1h9mglq3bgk32rus7o144ofr6aguu33.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.anonymous.mount-vernon-trail"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
