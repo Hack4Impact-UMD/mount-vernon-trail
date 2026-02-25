@@ -13,13 +13,17 @@ export interface StoredTokens {
 }
 
 // set
-export async function storeTokens(tokens: StoredTokens): Promise<void> {
-    await SecureStore.setItemAsync(KEYS.ACCESS_TOKEN, tokens.accessToken);
-    if (tokens.refreshToken) {
-        await SecureStore.setItemAsync(KEYS.REFRESH_TOKEN, tokens.refreshToken);
+export async function storeTokens(
+    accessToken: string,
+    refreshToken?: string | null,
+    tokenExpiry?: number | null,
+): Promise<void> {
+    await SecureStore.setItemAsync(KEYS.ACCESS_TOKEN, accessToken);
+    if (refreshToken) {
+        await SecureStore.setItemAsync(KEYS.REFRESH_TOKEN, refreshToken);
     }
-    if (tokens.tokenExpiry) {
-        const expiresAt = Date.now() + tokens.tokenExpiry * 1000;
+    if (tokenExpiry) {
+        const expiresAt = Date.now() + tokenExpiry * 1000;
         await SecureStore.setItemAsync(KEYS.TOKEN_EXPIRY, expiresAt.toString());
     }
 }
