@@ -3,7 +3,6 @@ import {
     GoogleAuthProvider,
     onAuthStateChanged,
     signInWithCredential,
-    Unsubscribe,
     User,
 } from "firebase/auth";
 import { auth } from "../config/firebase";
@@ -75,11 +74,7 @@ export async function handleGoogleAuthResponse(
             authentication.idToken,
             authentication.accessToken,
         );
-        const firebaseAuth = auth();
-        const userCredential = await signInWithCredential(
-            firebaseAuth,
-            credential,
-        );
+        const userCredential = await signInWithCredential(auth, credential);
         await storeTokens(
             authentication.accessToken,
             authentication.refreshToken,
@@ -153,15 +148,14 @@ export async function getAccessToken(): Promise<string> {
 
 // sign out
 export async function signOut(): Promise<void> {
-    const firebaseAuth = auth();
-    await firebaseSignOut(firebaseAuth);
+    await firebaseSignOut(auth);
     await deleteTokens();
 }
 
 // listen for auth state change
-export async function subscribeToAuthState(
+export function subscribeToAuthState(
     callback: (user: User | null) => void,
-): Promise<Unsubscribe> {
-    const firebaseAuth = auth();
-    return onAuthStateChanged(firebaseAuth, callback);
+): () => void {
+    const unsubscribe = onAuthStateChanged(auth, callback);
+    return () => unsubscribe();
 }
