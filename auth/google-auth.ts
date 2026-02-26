@@ -6,7 +6,7 @@ import {
     User,
 } from "firebase/auth";
 import { auth } from "../config/firebase";
-import { deleteTokens, getTokens, storeTokens } from "./token-storage";
+import { deleteTokens, getStoredTokens, storeTokens } from "./token-storage";
 
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || "";
 const GOOGLE_ANDROID_CLIENT_ID =
@@ -95,7 +95,7 @@ export async function handleGoogleAuthResponse(
 
 // token refresh
 export async function refreshAccessToken(): Promise<string> {
-    const { refreshToken } = await getTokens();
+    const { refreshToken } = await getStoredTokens();
     if (!refreshToken) {
         throw new AuthError(
             "TOKEN_REFRESH_FAILED",
@@ -131,8 +131,8 @@ export async function refreshAccessToken(): Promise<string> {
 }
 
 // get access token
-export async function getAccessToken(): Promise<string> {
-    const { accessToken, tokenExpiry } = await getTokens();
+export async function getValidAccessToken(): Promise<string> {
+    const { accessToken, tokenExpiry } = await getStoredTokens();
 
     // 5 minute buffer
     if (

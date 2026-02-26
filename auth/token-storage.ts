@@ -29,7 +29,7 @@ export async function storeTokens(
 }
 
 // get
-export async function getTokens(): Promise<StoredTokens> {
+export async function getStoredTokens(): Promise<StoredTokens> {
     const accessToken = await SecureStore.getItemAsync(KEYS.ACCESS_TOKEN);
     const refreshToken = await SecureStore.getItemAsync(KEYS.REFRESH_TOKEN);
     const tokenExpiryStr = await SecureStore.getItemAsync(KEYS.TOKEN_EXPIRY);
@@ -39,6 +39,17 @@ export async function getTokens(): Promise<StoredTokens> {
         refreshToken: refreshToken || "",
         tokenExpiry: tokenExpiryStr ? parseInt(tokenExpiryStr, 10) : 0,
     };
+}
+
+export async function getAccessToken(): Promise<string | null> {
+    const { accessToken, tokenExpiry } = await getStoredTokens();
+    if (!accessToken) {
+        return null;
+    }
+    if (tokenExpiry && Date.now() >= tokenExpiry) {
+        return null;
+    }
+    return accessToken;
 }
 
 export async function isAccessTokenValid(): Promise<boolean> {

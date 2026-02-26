@@ -1,7 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { Auth, getAuth, initializeAuth } from "firebase/auth";
-const { getReactNativePersistence } = require("firebase/auth/react-native");
+
+// @ts-ignore
+const { getReactNativePersistence } = require("firebase/auth");
 
 const firebaseConfig = {
     apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -13,11 +15,9 @@ const firebaseConfig = {
     measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// init
 export const firebaseApp =
-    getApps.length === 0 ? initializeApp(firebaseConfig) : getApp();
+    getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// auth w/ AsyncStorage persistence
 let auth: Auth;
 try {
     auth = initializeAuth(firebaseApp, {
