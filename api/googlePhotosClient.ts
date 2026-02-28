@@ -3,11 +3,7 @@
  * Handles raw HTTP calls to the Google Photos API.
  */
 
-/**
- * Google Photos album object as returned by the API.
- * There are some other fields, but the id and title should be most important for now.
- */
-
+// Google Photos album object returned by the API.
 export interface GooglePhotosAlbum {
     id: string;
     title: string;
@@ -42,6 +38,8 @@ export interface GooglePhotosMediaItem {
 const GOOGLE_PHOTOS_API_BASE = "https://photoslibrary.googleapis.com/v1";
 
 // Creates a new album in the user's Google Photos library. Returns the created album object.
+// NOTE: Use createGoogleAlbum from services/googlePhotosAlbumsService when actually creating albums
+// since it checks for duplicate album names.
 export async function createAlbum(
     accessToken: string,
     title: string,
