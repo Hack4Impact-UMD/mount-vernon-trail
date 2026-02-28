@@ -7,6 +7,8 @@ import {
 import dotenv from "dotenv";
 dotenv.config();
 
+const sleep = async (ms: number) => await new Promise((r) => setTimeout(r, ms));
+
 const REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -57,6 +59,7 @@ async function main() {
 
     const uploadTokens = [];
     const imageNames = [];
+    const urls = [];
     const count = 50;
 
     for (let i = 0; i < count; i++) {
@@ -68,10 +71,27 @@ async function main() {
         const imageUri = data.message;
         const uploadToken = await uploadPhotoBytes(accessToken, imageUri);
         uploadTokens.push(uploadToken);
+        urls.push(imageUri);
         imageNames.push(`Dog ${i + 1}`);
         console.log(`Uploaded image ${i + 1}/${count}`);
+        await sleep(100);
     }
-    await createMediaItems(accessToken, album.id, uploadTokens, imageNames);
+    const result = await createMediaItems(
+        accessToken,
+        album.id,
+        uploadTokens,
+        imageNames,
+    );
+    let idx = 0;
+    for (const elm of result) {
+        if (elm.status.message.includes("Failed")) {
+            console.log(`Status: ${elm.status.message}`);
+            console.log(`Media item ID: ${elm.mediaItem?.id}`);
+            console.log(urls[idx]);
+            console.log(elm.status);
+        }
+        idx++;
+    }
 }
 
 (async () => {
