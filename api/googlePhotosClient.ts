@@ -118,7 +118,7 @@ export async function uploadPhotoBytes(
         headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/octet-stream",
-            "X-Googl-Upload-Content-Type": "image/jpeg",
+            "X-Goog-Upload-Content-Type": "image/jpeg",
             "X-Goog-Upload-Protocol": "raw",
         },
         body: imageBlob,
