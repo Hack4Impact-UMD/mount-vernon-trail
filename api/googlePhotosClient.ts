@@ -10,10 +10,12 @@ export interface GooglePhotosAlbum {
     productUrl?: string;
     isWriteable?: boolean;
     coverPhotoBaseUrl?: string;
+    coverPhotoMediaItemId?: string;
 }
 
 export interface GooglePhotosAlbumsResponse {
     albums: GooglePhotosAlbum[];
+    nextPageToken?: string;
 }
 
 export interface GooglePhotosMediaItem {
@@ -84,8 +86,12 @@ export async function createAlbum(
 // Lists albums in the user's Google Photos library. Returns an array of album objects.
 export async function listAlbums(
     accessToken: string,
-): Promise<GooglePhotosAlbum[]> {
-    const url = `${GOOGLE_PHOTOS_API_BASE}/albums`;
+    pageToken?: string,
+): Promise<GooglePhotosAlbumsResponse> {
+    let url = `${GOOGLE_PHOTOS_API_BASE}/albums?pageSize=50`;
+    if (pageToken) {
+        url += `&pageToken=${encodeURIComponent(pageToken)}`;
+    }
     const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -99,7 +105,7 @@ export async function listAlbums(
         );
     }
     const data = await response.json();
-    return data?.albums ?? [];
+    return { albums: data?.albums ?? [], nextPageToken: data?.nextPageToken };
 }
 
 // Upload photo to Google Photos. Returns an upload token that is
@@ -110,13 +116,19 @@ export async function uploadPhotoBytes(
 ): Promise<string> {
     const uploadURL = `${GOOGLE_PHOTOS_API_BASE}/uploads`;
     const imageResponse = await fetch(imageUri);
+    if (!imageResponse.ok) {
+        throw new Error(
+            `Failed to fetch image from URI: ${imageUri}, status: ${imageResponse.status}`,
+        );
+    }
     const imageBlob = await imageResponse.blob();
+    const contentType = imageBlob.type || "image/jpeg";
     const response = await fetch(uploadURL, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/octet-stream",
-            "X-Goog-Upload-Content-Type": "image/jpeg",
+            "X-Goog-Upload-Content-Type": contentType,
             "X-Goog-Upload-Protocol": "raw",
         },
         body: imageBlob,

@@ -1,4 +1,9 @@
-import { createAlbum, GooglePhotosAlbum } from "@/api/googlePhotosClient";
+import {
+    createAlbum,
+    GooglePhotosAlbum,
+    listAlbums,
+} from "@/api/googlePhotosClient";
+
 import {
     collection,
     doc,
@@ -16,10 +21,7 @@ import {
 async function albumNameExists(title: string): Promise<boolean> {
     const db = getFirestore();
     const albumsRef = collection(db, "albums");
-    const q = query(
-        albumsRef,
-        where("title", "==", title.toLowerCase()),
-    );
+    const q = query(albumsRef, where("title", "==", title.toLowerCase()));
     const snapshot = await getDocs(q);
     return !snapshot.empty;
 }
@@ -40,7 +42,7 @@ async function storeAlbum(
 
 /**
  * Creates a new album in Google Photos and stores it in Firestore. Throws an error if a duplicate album name is found.
- * Otherwise, returns the created album object. 
+ * Otherwise, returns the created album object.
  */
 export async function createGoogleAlbum(
     accessToken: string,
@@ -60,4 +62,21 @@ export async function createGoogleAlbum(
     await storeAlbum(album.id, title, uid);
 
     return album;
+}
+
+// List all albums from Google Photos, handling pagination
+export async function listAllAlbums(
+    accessToken: string,
+): Promise<GooglePhotosAlbum[]> {
+    let albums: GooglePhotosAlbum[] = [];
+    let pageToken: string | undefined = undefined;
+    do {
+        const { albums: newAlbums, nextPageToken } = await listAlbums(
+            accessToken,
+            pageToken,
+        );
+        albums.push(...newAlbums);
+        pageToken = nextPageToken;
+    } while (pageToken);
+    return albums;
 }

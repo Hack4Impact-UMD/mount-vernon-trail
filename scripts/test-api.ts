@@ -1,9 +1,9 @@
 import {
     createAlbum,
     createMediaItems,
-    listAlbums,
     uploadPhotoBytes,
 } from "@/api/googlePhotosClient";
+import { listAllAlbums } from "@/services/googlePhotosAlbumsService";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -53,7 +53,7 @@ async function main() {
     const album = await createAlbum(accessToken, albumName);
     console.log(album);
     // Test album listing
-    const albumList = await listAlbums(accessToken);
+    const albumList = await listAllAlbums(accessToken);
     console.log(albumList);
     // Test image upload
 
@@ -95,5 +95,5 @@ async function main() {
 }
 
 (async () => {
-    main();
+    await main();
 })();
