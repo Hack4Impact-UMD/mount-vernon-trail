@@ -70,7 +70,6 @@ const styles = StyleSheet.create({
     },
     welcome: {
         fontSize: 36,
-        fontFamily: "Lato",
         color: "white",
         fontWeight: "700",
         textAlign: "center",
@@ -108,7 +107,6 @@ const styles = StyleSheet.create({
     googleText: {
         fontSize: 18,
         fontWeight: "600",
-        fontFamily: 'Roboto',
         color: "#000000",
     },
 });
