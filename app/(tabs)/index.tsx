@@ -74,6 +74,12 @@ export default function HomeScreen() {
           <ThemedText type="defaultSemiBold">app-example</ThemedText>.
         </ThemedText>
       </ThemedView>
+      {/* Temporarily view auth page */}
+        <Link href="/auth">
+          <Link.Trigger>
+            <ThemedText type="subtitle">Click to View Auth Page</ThemedText>
+          </Link.Trigger>
+        </Link>
     </ParallaxScrollView>
   );
 }
