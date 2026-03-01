@@ -11,7 +11,7 @@ type AuthPageUIProps = {
 
 export default function AuthPageUI({ onPressGoogle, isLoading = false}: AuthPageUIProps) { 
     return (
-        <ImageBackground source={require("../../assets/images/pattern-bg.png")} resizeMode="cover" style={styles.bg}>
+        <ImageBackground source={require("../../assets/images/splash-screen-bg.png")} resizeMode="cover" style={styles.bg}>
             <SafeAreaView style={styles.mainBody} >
                 <View style={styles.logoWrap}>
                     <Image source={require("../../assets/images/mvt-logo-white.png")} resizeMode="contain" style={styles.logo}/>
