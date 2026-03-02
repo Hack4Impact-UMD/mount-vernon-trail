@@ -31,8 +31,6 @@ const styles = StyleSheet.create({
   logo: {
       width: 195,
       height: 190,
-      justifyContent:'center',
-      alignItems: 'center',
       position:'absolute',
       }
 ,
