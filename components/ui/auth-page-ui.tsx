@@ -18,7 +18,7 @@ export default function AuthPageUI({ onPressGoogle, isLoading = false}: AuthPage
                 </View>
 
                 <View style={styles.welcomeWrap}>
-                    <Text style={styles.welcome}>Welcome to{"\n"}[app name]</Text>
+                    <Text style={styles.welcome}>Welcome to{"\n"}Mount Vernon Trail</Text>
                 </View>
 
                 <View style={styles.button}>
@@ -59,14 +59,14 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     logo: {
-        width: SCREEN_HEIGHT * 0.18,
-        height: SCREEN_HEIGHT * 0.18,
+        width: SCREEN_HEIGHT * 0.22,
+        height: SCREEN_HEIGHT * 0.22,
     },
     welcomeWrap: {
         alignItems: "center",
         flex: 1,
         justifyContent: "flex-end",
-        paddingBottom: 50,
+        paddingBottom: SCREEN_HEIGHT * 0.06,
     },
     welcome: {
         fontSize: 36,
@@ -100,9 +100,9 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     googleIcon: {
-        width: 28,
-        height: 28,
-        marginRight: 10,
+        width: SCREEN_HEIGHT * 0.033,
+        height: SCREEN_HEIGHT * 0.033,
+        marginRight: SCREEN_HEIGHT * 0.012,
     },
     googleText: {
         fontSize: 18,

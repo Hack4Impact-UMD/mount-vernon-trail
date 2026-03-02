@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View, Image, ImageBackground } from 'react-native';
+import { StyleSheet, Dimensions, Image, ImageBackground } from 'react-native';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export function SplashScreen() { 
    return (
@@ -29,14 +31,14 @@ const styles = StyleSheet.create({
   },
 
   logo: {
-      width: 195,
-      height: 190,
+      width: SCREEN_HEIGHT * 0.22,
+      height: SCREEN_HEIGHT * 0.22,
       position:'absolute',
       }
 ,
   beaver: {
-      width:300,
-      height: 300,
+      width: SCREEN_HEIGHT * 0.35,
+      height: SCREEN_HEIGHT * 0.35,
       marginTop: 'auto',
       },
 
