@@ -52,7 +52,7 @@ export async function getAccessToken(): Promise<string | null> {
     return accessToken;
 }
 
-export async function isAccessTokenValid(): Promise<boolean> {
+export async function hasAccessToken(): Promise<boolean> {
     const accessToken = await SecureStore.getItemAsync(KEYS.ACCESS_TOKEN);
     return accessToken !== null;
 }

@@ -32,8 +32,8 @@ export interface AuthResult {
 
 // AuthError
 export class AuthError extends Error {
-    code: String;
-    constructor(code: String, message: String) {
+    code: string;
+    constructor(code: string, message: string) {
         super(message.toString());
         this.code = code;
         this.name = "AuthError";
@@ -116,7 +116,7 @@ export async function refreshAccessToken(): Promise<string> {
 
         if (!res.ok) {
             const err = await res.text();
-            throw new Error(`token refresh failed: ${res.body}: ${err}`);
+            throw new Error(`token refresh failed: ${err}`);
         }
 
         const data = await res.json();

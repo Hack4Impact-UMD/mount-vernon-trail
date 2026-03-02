@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import {
     AuthError,
+    getValidAccessToken,
     googleAuthConfig,
     handleGoogleAuthResponse,
     signOut,
@@ -97,7 +98,7 @@ export function useGoogleAuth() {
 
     // getter for access token
     const getAccessToken = useCallback(async () => {
-        return getAccessToken();
+        return getValidAccessToken();
     }, []);
 
     return {
