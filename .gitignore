@@ -83,3 +83,6 @@ expo-env.d.ts
 # Editor
 .vscode-test
 .idea
+
+google-services.json
+GoogleService-Info.plist
