@@ -6,7 +6,6 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Link } from 'expo-router';
-import {SplashScreen} from '@/components/ui/splash-screen'
 
 export default function HomeScreen() {
   return (
