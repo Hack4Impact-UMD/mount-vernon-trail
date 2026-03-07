@@ -1,4 +1,5 @@
 import { useGoogleAuth } from "@/hooks/use-google-auth";
+import { testFunctionality } from "@/scripts/test-api";
 import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { getValidAccessToken } from "../auth/google-auth";
@@ -13,6 +14,9 @@ export default function AuthScreen() {
             router.replace("/(tabs)");
             getValidAccessToken().then((accessToken) => {
                 console.log("Access token on auth screen:", accessToken);
+                testFunctionality(accessToken, 20).catch((err) => {
+                    console.error("Error testing functionality:", err);
+                });
             });
         }
     }, [user, router]);

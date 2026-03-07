@@ -28,8 +28,6 @@ export function useGoogleAuth() {
         default: makeRedirectUri(),
     });
 
-    console.log("Redirect URI:", redirectUri);
-
     const [request, response, promptAsync] = Google.useAuthRequest({
         webClientId: googleAuthConfig.webClientId,
         androidClientId: googleAuthConfig.androidClientId,

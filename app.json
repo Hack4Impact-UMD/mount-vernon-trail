@@ -5,10 +5,7 @@
         "version": "1.0.0",
         "orientation": "portrait",
         "icon": "./assets/images/icon.png",
-        "scheme": [
-            "mount-vernon-trail",
-            "com.googleusercontent.apps.405328478335-jrjdhobgia6q5kp5fo35kspn4immrfn7"
-        ],
+        "scheme": "mount-vernon-trail",
         "userInterfaceStyle": "automatic",
         "newArchEnabled": true,
         "ios": {
