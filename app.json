@@ -42,7 +42,9 @@
                         "backgroundColor": "#000000"
                     }
                 }
-            ]
+            ],
+            "expo-camera",
+            "expo-image-picker"
         ],
         "experiments": {
             "typedRoutes": true,
