@@ -4,6 +4,7 @@ import {
     ThemeProvider,
 } from "@react-navigation/native";
 import { Stack, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { User } from "firebase/auth";
 import { useEffect, useState } from "react";
@@ -12,9 +13,8 @@ import "react-native-reanimated";
 import { subscribeToAuthState } from "@/auth/google-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-export const unstable_settings = {
-    anchor: "(tabs)",
-};
+SplashScreen.preventAutoHideAsync();
+
 
 export default function RootLayout() {
     const colorScheme = useColorScheme();
@@ -35,6 +35,7 @@ export default function RootLayout() {
 
     useEffect(() => {
         if (user === undefined) return;
+        SplashScreen.hideAsync();
         const inTabs = segments[0] === "(tabs)";
         const onAuth = segments[0] === "auth";
         if (user && !inTabs) {
@@ -44,17 +45,23 @@ export default function RootLayout() {
         }
     }, [user, segments]);
 
+    if (user === undefined) return null;
+
     return (
         <ThemeProvider
             value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
             <Stack>
                 <Stack.Screen
+                    name="index"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
                     name="auth"
-                    options={{ headerShown: false }}
+                    options={{ headerShown: false, animation: "fade" }}
                 />
                 <Stack.Screen
                     name="(tabs)"
-                    options={{ headerShown: false }}
+                    options={{ headerShown: false, animation: "fade" }}
                 />
                 <Stack.Screen
                     name="modal"
