@@ -18,12 +18,17 @@ export function useGoogleAuth() {
     const [initializing, setInitializing] = useState(true);
     const [error, setError] = useState<AuthError | null>(null);
 
-    const redirectUri =
-        Platform.OS === "ios"
-            ? makeRedirectUri({
-                  native: `com.googleusercontent.apps.${googleAuthConfig.iosClientId.split(".apps.")[0]}:/`,
-              })
-            : makeRedirectUri();
+    const redirectUri = Platform.select({
+        ios: makeRedirectUri({
+            native: `com.googleusercontent.apps.${googleAuthConfig.iosClientId.split(".apps.")[0]}:/`,
+        }),
+        android: makeRedirectUri({
+            native: `com.googleusercontent.apps.${googleAuthConfig.androidClientId.split(".apps.")[0]}:/`,
+        }),
+        default: makeRedirectUri(),
+    });
+
+    console.log("Redirect URI:", redirectUri);
 
     const [request, response, promptAsync] = Google.useAuthRequest({
         webClientId: googleAuthConfig.webClientId,
