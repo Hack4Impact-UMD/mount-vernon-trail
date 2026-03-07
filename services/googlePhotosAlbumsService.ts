@@ -4,6 +4,8 @@ import {
     listAlbums,
 } from "@/api/googlePhotosClient";
 
+import { AuthError, getValidAccessToken } from "@/auth/google-auth";
+import { auth } from "@/config/firebase";
 import {
     collection,
     doc,
@@ -41,14 +43,35 @@ async function storeAlbum(
 }
 
 /**
- * Creates a new album in Google Photos and stores it in Firestore. Throws an error if a duplicate album name is found.
+ * Creates a new album in the authenticated user's Google Photos and stores it in Firestore. Throws an error if a duplicate album name is found.
  * Otherwise, returns the created album object.
  */
 export async function createGoogleAlbum(
-    accessToken: string,
     title: string,
-    uid: string,
 ): Promise<GooglePhotosAlbum> {
+    let accessToken: string;
+    try {
+        accessToken = await getValidAccessToken();
+    } catch (error) {
+        if (error instanceof AuthError) {
+            throw error;
+        }
+        throw new AuthError(
+            "TOKEN_RETRIEVAL_FAILED",
+            `Failed to retrieve access token: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+    }
+
+    // Retrieve user ID from current user
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new AuthError(
+            "NOT_AUTHENTICATED",
+            "User is not authenticated. Please sign in to create an album.",
+        );
+    }
+    const uid = currentUser.uid;
+
     // Check Firestore for duplicate name
     const exists = await albumNameExists(title);
     if (exists) {
