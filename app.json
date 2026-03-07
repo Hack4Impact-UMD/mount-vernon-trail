@@ -10,8 +10,8 @@
         "newArchEnabled": true,
         "ios": {
             "supportsTablet": true,
-            "bundleIdentifier": "com.anonymous.mountvernontrail",
-            "googleServicesFile": "./GoogleService-Info.plist"
+            "bundleIdentifier": "com.anonymous.mountvernontrail"
+            // "googleServicesFile": "./GoogleService-Info.plist"
         },
         "android": {
             "adaptiveIcon": {
@@ -22,8 +22,8 @@
             },
             "edgeToEdgeEnabled": true,
             "predictiveBackGestureEnabled": false,
-            "package": "com.anonymous.mountvernontrail",
-            "googleServicesFile": "./google-services.json"
+            "package": "com.anonymous.mountvernontrail"
+            // "googleServicesFile": "./google-services.json"
         },
         "web": {
             "output": "static",

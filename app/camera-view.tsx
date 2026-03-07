@@ -1,19 +1,25 @@
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import { useState, useRef } from 'react';
-import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
+import React, { useRef, useState } from 'react';
+import { Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function App() {
     const [facing, setFacing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
+    const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
+    const [recentPhoto, setRecentPhoto] = useState<string | null>(null);
+    const [isCapturing, setIsCapturing] = useState(false);
+    const flashAnim = useRef(new Animated.Value(0)).current;
     const cameraRef = useRef<CameraView | null>(null);
 
     if (!permission) {
-        // Camera permissions are still loading.
+        // camera perms are still loading
         return <View />;
     }
 
     if (!permission.granted) {
-        // Camera permissions are not granted yet.
+        // user denies camera perms
         return (
             <View style={styles.container}>
             <Text style={styles.message}>We need your permission to show the camera</Text>
@@ -27,20 +33,113 @@ export default function App() {
     }
 
     async function takePhoto() {
-        const photo = await cameraRef.current?.takePictureAsync();
-        console.log(photo);
+        try {
+            setIsCapturing(true);
+            
+            // white flash to indicate photo capture
+            Animated.sequence([
+                Animated.timing(flashAnim, {
+                    toValue: 1,
+                    duration: 100,
+                    useNativeDriver: false,
+                }),
+                Animated.timing(flashAnim, {
+                    toValue: 0,
+                    duration: 200,
+                    useNativeDriver: false,
+                }),
+            ]).start();
+
+            const photo = await cameraRef.current?.takePictureAsync();
+            if (!photo) {
+                setIsCapturing(false);
+                return;
+            }
+
+            // requests media library perms if not granted
+            if (!mediaPermission?.granted) {
+                await requestMediaPermission();
+            }
+
+            // saves photo to camera roll
+            const asset = await MediaLibrary.createAssetAsync(photo.uri);
+            await MediaLibrary.createAlbumAsync('mount-vernon-trail', asset);
+            
+            // stores the photo as the little recent preview
+            setRecentPhoto(photo.uri);
+            console.log('Photo saved:', photo.uri);
+            setIsCapturing(false);
+        } catch (error) {
+            console.error('Error taking photo:', error);
+            setIsCapturing(false);
+        }
+    }
+
+    async function openPhotoLibrary() {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 1,
+            });
+
+            if (!result.canceled) {
+                console.log('Selected photo:', result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error opening photo library:', error);
+        }
     }
 
     return (
         <View style={styles.container}>
-        <CameraView style={styles.camera} facing={facing} ref={cameraRef} />
-        <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-        <Text style={styles.text}>Flip Camera</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={takePhoto}>
-        <Text style={styles.text}>Capture</Text>
-        </TouchableOpacity>
+        <CameraView 
+            style={styles.camera} 
+            facing={facing} 
+            // @ts-ignore
+            ref={cameraRef}
+        />
+        {/* white screen flash */}
+        <Animated.View
+            style={[
+                styles.flashOverlay,
+                {
+                    opacity: flashAnim,
+                },
+            ]}
+        />
+        <View style={styles.bottomContainer}>
+            {/* flip camera button (left position) */}
+            <TouchableOpacity style={styles.flipButton} onPress={toggleCameraFacing} disabled={isCapturing}>
+                <Text style={styles.buttonText}>⟲</Text>
+            </TouchableOpacity>
+
+            {/* take photo button (center position) */}
+            <TouchableOpacity 
+                style={[
+                    styles.captureButton,
+                    isCapturing && styles.captureButtonActive,
+                ]} 
+                onPress={takePhoto}
+                disabled={isCapturing}
+            >
+                <View 
+                    style={[
+                        styles.captureButtonInner,
+                        isCapturing && styles.captureButtonInnerActive,
+                    ]} 
+                />
+            </TouchableOpacity>
+
+            {/* gallery/recent photo preview (right position) */}
+            <TouchableOpacity style={styles.photoPreview} onPress={openPhotoLibrary} disabled={isCapturing}>
+                {recentPhoto ? (
+                    <Image source={{ uri: recentPhoto }} style={styles.previewImage} />
+                ) : (
+                    <View style={styles.emptyPreview} />
+                )}
+            </TouchableOpacity>
         </View>
         </View>
     );
@@ -48,31 +147,84 @@ export default function App() {
 
 const styles = StyleSheet.create({
     container: {
-    flex: 1,
-    justifyContent: 'center',
+        flex: 1,
+        justifyContent: 'center',
     },
     message: {
-    textAlign: 'center',
-    paddingBottom: 10,
+        textAlign: 'center',
+        paddingBottom: 10,
     },
     camera: {
-    flex: 1,
+        flex: 1,
     },
-    buttonContainer: {
-    position: 'absolute',
-    bottom: 64,
-    flexDirection: 'row',
-    backgroundColor: 'transparent',
-    width: '100%',
-    paddingHorizontal: 64,
+    bottomContainer: {
+        position: 'absolute',
+        bottom: 0,
+        width: '100%',
+        height: 120,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        paddingBottom: 20,
     },
-    button: {
-    flex: 1,
-    alignItems: 'center',
+    flipButton: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
+    captureButton: {
+        width: 76,
+        height: 76,
+        borderRadius: 38,
+        backgroundColor: 'white',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-});
+    captureButtonInner: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#FF3B30',
+    },
+    captureButtonActive: {
+        opacity: 0.7,
+    },
+    captureButtonInnerActive: {
+        backgroundColor: '#CC2E26',
+    },
+    flashOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'white',
+    },
+    photoPreview: {
+        width: 60,
+        height: 60,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        overflow: 'hidden',
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+    },
+    previewImage: {
+        width: '100%',
+        height: '100%',
+    },
+    emptyPreview: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    buttonText: {
+        fontSize: 28,
+        color: 'white',
+        fontWeight: 'bold',
+    },
+}); 
