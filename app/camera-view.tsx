@@ -2,16 +2,24 @@ import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import React, { useRef, useState } from 'react';
-import { Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
+import Slider from '@react-native-community/slider';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function App() {
     const [facing, setFacing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
-    const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
+    const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions({
+        writeOnly: true,
+        granularPermissions: ['photo'],
+    });
     const [recentPhoto, setRecentPhoto] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
     const flashAnim = useRef(new Animated.Value(0)).current;
     const cameraRef = useRef<CameraView | null>(null);
+    const [overlayUri, setOverlayUri] = useState<string | null>(null);
+    const [overlayOpacity, setOverlayOpacity] = useState(0.3);
 
     if (!permission) {
         // camera perms are still loading
@@ -57,8 +65,11 @@ export default function App() {
             }
 
             // requests media library perms if not granted
-            if (!mediaPermission?.granted) {
-                await requestMediaPermission();
+            const permissionResponse = await requestMediaPermission();
+            if (!permissionResponse.granted) {
+                setRecentPhoto(photo.uri);
+                setIsCapturing(false);
+                return;
             }
 
             // saves photo to camera roll
@@ -78,14 +89,13 @@ export default function App() {
     async function openPhotoLibrary() {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [4, 3],
+                mediaTypes: ['images'],
+                allowsEditing: false,
                 quality: 1,
             });
 
-            if (!result.canceled) {
-                console.log('Selected photo:', result.assets[0].uri);
+           if (!result.canceled && result.assets?.[0]?.uri) {
+                setOverlayUri(result.assets[0].uri);
             }
         } catch (error) {
             console.error('Error opening photo library:', error);
@@ -100,6 +110,34 @@ export default function App() {
             // @ts-ignore
             ref={cameraRef}
         />
+        {overlayUri && (
+            <Image
+                source={{ uri: overlayUri }}
+                style={[
+                    StyleSheet.absoluteFillObject,
+                    { opacity: overlayOpacity }
+                ]}
+            resizeMode="cover"
+            />
+        )}
+        {overlayUri && (
+            <View style={styles.sliderContainer}>
+            <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={1}
+                step={0.05}
+                value={overlayOpacity}
+                onValueChange={setOverlayOpacity}
+                minimumTrackTintColor="#ffffff"
+                maximumTrackTintColor="rgba(255,255,255,0.35)"
+                thumbTintColor="#ffffff"
+            />
+            <Text style={styles.controlLabel}>
+                {Math.round(overlayOpacity * 100)}%
+            </Text>
+            </View>
+        )}
         {/* white screen flash */}
         <Animated.View
             style={[
@@ -139,7 +177,7 @@ export default function App() {
                 ) : (
                     <View style={styles.emptyPreview} />
                 )}
-            </TouchableOpacity>
+        </TouchableOpacity>
         </View>
         </View>
     );
@@ -227,4 +265,28 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
     },
+    /* Overlay */
+    sliderContainer: {
+    position: 'absolute',
+    left: SCREEN_HEIGHT * 0.015,
+    top: '25%',
+    width: SCREEN_HEIGHT * 0.05,
+    height: SCREEN_HEIGHT * 0.26,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(30, 30, 30, 0.70)',
+    borderRadius: SCREEN_HEIGHT * 0.033,
+    paddingVertical: SCREEN_HEIGHT * 0.017,
+    overflow: 'hidden',
+},
+slider: {
+    width: SCREEN_HEIGHT * 0.2,
+    height: SCREEN_HEIGHT * 0.2,
+    transform: [{ rotate: '-90deg' }],
+},
+controlLabel: {
+    color: 'white',
+    fontSize: SCREEN_HEIGHT * 0.016,
+    fontWeight: '600',
+},
 }); 

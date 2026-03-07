@@ -44,7 +44,13 @@
                 }
             ],
             "expo-camera",
-            "expo-image-picker"
+            "expo-image-picker",
+            [
+                "expo-media-library",
+                {
+                    "granularPermissions": ["photo"]
+                }
+            ]
         ],
         "experiments": {
             "typedRoutes": true,
