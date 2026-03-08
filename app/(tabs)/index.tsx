@@ -1,9 +1,6 @@
-import { signOut, subscribeToAuthState } from "@/auth/google-auth";
-import { User } from "firebase/auth";
-import { useEffect, useState } from "react";
+import { useGoogleAuth } from "@/hooks/use-google-auth";
 import {
     ActivityIndicator,
-    Alert,
     Pressable,
     StyleSheet,
     Text,
@@ -12,27 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
-    const [user, setUser] = useState<User | null>(null);
-    const [signingOut, setSigningOut] = useState(false);
-
-    useEffect(() => {
-        const unsubscribe = subscribeToAuthState(setUser);
-        return () => unsubscribe();
-    }, []);
-
-    const handleSignOut = async () => {
-        setSigningOut(true);
-        try {
-            await signOut();
-        } catch {
-            Alert.alert(
-                "Sign-out failed",
-                "Please check your connection and try again",
-            );
-        } finally {
-            setSigningOut(false);
-        }
-    };
+    const { user, loading, error, handleSignOut } = useGoogleAuth();
 
     return (
         <SafeAreaView style={styles.container}>
@@ -49,16 +26,19 @@ export default function HomeScreen() {
                 <Pressable
                     style={[
                         styles.signOutButton,
-                        signingOut && styles.signOutDisabled,
+                        loading && styles.signOutDisabled,
                     ]}
                     onPress={handleSignOut}
-                    disabled={signingOut}>
-                    {signingOut ? (
+                    disabled={loading}>
+                    {loading ? (
                         <ActivityIndicator color="#fff" />
                     ) : (
                         <Text style={styles.signOutText}>Sign Out</Text>
                     )}
                 </Pressable>
+                {error && (
+                    <Text style={styles.errorText}>{error.message}</Text>
+                )}
             </View>
         </SafeAreaView>
     );
@@ -105,5 +85,10 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontWeight: "600",
         fontSize: 16,
+    },
+    errorText: {
+        color: "#c0392b",
+        fontSize: 14,
+        textAlign: "center",
     },
 });
