@@ -1,6 +1,6 @@
 import type { AxiosInstance } from "axios";
 import axios from "axios";
-import type { Board, Card, List } from "./types";
+import type { Board, Card, List } from "./trello-types";
 
 export class TrelloClient {
     private client: AxiosInstance;
