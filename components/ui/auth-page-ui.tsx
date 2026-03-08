@@ -7,9 +7,10 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 type AuthPageUIProps = {
     onPressGoogle: () => void;
     isLoading?: boolean;
+    errorMessage?: string;
 };
 
-export default function AuthPageUI({ onPressGoogle, isLoading = false}: AuthPageUIProps) { 
+export default function AuthPageUI({ onPressGoogle, isLoading = false, errorMessage }: AuthPageUIProps) {
     return (
         <ImageBackground source={require("../../assets/images/splash-screen-bg.png")} resizeMode="cover" style={styles.bg}>
             <SafeAreaView style={styles.mainBody} >
@@ -23,9 +24,9 @@ export default function AuthPageUI({ onPressGoogle, isLoading = false}: AuthPage
 
                 <View style={styles.button}>
                     <Pressable
-                        onPress={onPressGoogle} 
-                        disabled={isLoading} 
-                        accessibilityLabel="Sign in with Google" 
+                        onPress={onPressGoogle}
+                        disabled={isLoading}
+                        accessibilityLabel="Sign in with Google"
                         style={({ pressed }) => [
                             styles.googleButton,
                             pressed && !isLoading ? styles.googleButtonPressed : null,
@@ -38,6 +39,9 @@ export default function AuthPageUI({ onPressGoogle, isLoading = false}: AuthPage
                             {isLoading && <ActivityIndicator/>}
                         </View>
                     </Pressable>
+                    {errorMessage ? (
+                        <Text style={styles.errorText}>{errorMessage}</Text>
+                    ) : null}
                 </View>
                 
             </SafeAreaView>
@@ -108,5 +112,11 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: "600",
         color: "#000000",
+    },
+    errorText: {
+        marginTop: 12,
+        color: "white",
+        fontSize: 14,
+        textAlign: "center",
     },
 });
