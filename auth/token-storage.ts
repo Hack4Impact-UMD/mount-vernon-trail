@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 const KEYS = {
     ACCESS_TOKEN: "google_access_token",
@@ -30,9 +31,19 @@ export async function storeTokens(
 
 // get
 export async function getStoredTokens(): Promise<StoredTokens> {
-    const accessToken = await SecureStore.getItemAsync(KEYS.ACCESS_TOKEN);
-    const refreshToken = await SecureStore.getItemAsync(KEYS.REFRESH_TOKEN);
-    const tokenExpiryStr = await SecureStore.getItemAsync(KEYS.TOKEN_EXPIRY);
+    let accessToken: string | null = null;
+    let refreshToken: string | null = null;
+    let tokenExpiryStr: string | null = null;
+
+    if (Platform.OS === "web") {
+        accessToken = localStorage.getItem(KEYS.ACCESS_TOKEN);
+        refreshToken = localStorage.getItem(KEYS.REFRESH_TOKEN);
+        tokenExpiryStr = localStorage.getItem(KEYS.TOKEN_EXPIRY);
+    } else {
+        accessToken = await SecureStore.getItemAsync(KEYS.ACCESS_TOKEN);
+        refreshToken = await SecureStore.getItemAsync(KEYS.REFRESH_TOKEN);
+        tokenExpiryStr = await SecureStore.getItemAsync(KEYS.TOKEN_EXPIRY);
+    }
 
     return {
         accessToken: accessToken || "",

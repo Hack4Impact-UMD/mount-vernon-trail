@@ -37,7 +37,7 @@ export async function testFunctionality(
         urls.push(imageUri);
         imageNames.push(`Dog ${i + 1}`);
         console.log(`Uploaded image ${i + 1}/${count}`);
-        await sleep(100);
+        await sleep(300);
     }
     const result = await createMediaItems(
         accessToken,
