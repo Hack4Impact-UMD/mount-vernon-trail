@@ -96,7 +96,28 @@ export function useGoogleAuth() {
             setUser(null);
             setError(null);
         } catch (err) {
-            setError(new AuthError("UNKNOWN", (err as Error).message));
+            if (err instanceof AuthError) {
+                setError(err);
+            } else {
+                const code = (err as any)?.code as string | undefined;
+                if (code === "auth/network-request-failed") {
+                    setError(
+                        new AuthError(
+                            "NETWORK",
+                            "No internet connection. Please try again.",
+                        ),
+                    );
+                } else if (code === "auth/user-token-expired") {
+                    setError(
+                        new AuthError(
+                            "SESSION_EXPIRED",
+                            "Your session has expired. Please sign in again.",
+                        ),
+                    );
+                } else {
+                    setError(new AuthError("UNKNOWN", (err as Error).message));
+                }
+            }
         } finally {
             setLoading(false);
         }

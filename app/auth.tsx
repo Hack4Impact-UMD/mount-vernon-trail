@@ -1,39 +1,27 @@
-import { useGoogleAuth } from "@/hooks/use-google-auth";
-import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
-import { getValidAccessToken } from "../auth/google-auth";
+import React from "react";
 import AuthPageUI from "../components/ui/auth-page-ui";
-import { testFunctionality } from "../scripts/test-api";
+import { useGoogleAuth } from "../hooks/use-google-auth";
+
+function getErrorMessage(code: string): string {
+    switch (code) {
+        case "CANCELLED":
+        case "DISMISSED":
+            return "Sign-in Cancelled";
+        default:
+            return "Something went wrong";
+    }
+}
 
 export default function AuthScreen() {
-    const router = useRouter();
-    const { user, loading, initializing, promptSignIn, isReady } = useGoogleAuth();
+    const { promptSignIn, loading, error, isReady } = useGoogleAuth();
 
-    useEffect(() => {
-        if (user) {
-            console.log("User authenticated, navigating to main app...");
-            router.replace("/(tabs)");
-            getValidAccessToken().then((accessToken) => {
-                if (!accessToken) {
-                    console.error("No access token available after authentication");
-                    return;
-                }
-                console.log("Access token on auth screen:", accessToken);
-                testFunctionality(accessToken, 20).catch((err) => {
-                    console.error("Error testing functionality:", err);
-                });
-            });
-        }
-    }, [user, router]);
-    
-    const handleGooglePress = () => {
-        if (!isReady || loading) {
-            return;
-        }
-        promptSignIn();
-    }
+    const errorMessage = error ? getErrorMessage(error.code) : undefined;
 
     return (
-        <AuthPageUI onPressGoogle={handleGooglePress} isLoading={loading || initializing} />
+        <AuthPageUI
+            onPressGoogle={promptSignIn}
+            isLoading={loading || !isReady}
+            errorMessage={errorMessage}
+        />
     );
 }
