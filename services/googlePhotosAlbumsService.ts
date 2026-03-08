@@ -49,6 +49,22 @@ async function storeAlbum(
 export async function createGoogleAlbum(
     title: string,
 ): Promise<GooglePhotosAlbum> {
+    // Validate title
+    if (!title || title.trim().length === 0) {
+        throw new Error("Album title cannot be empty");
+    }
+
+    // Retrieve user ID from current user
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new AuthError(
+            "NOT_AUTHENTICATED",
+            "User is not authenticated. Please sign in to create an album.",
+        );
+    }
+    const uid = currentUser.uid;
+
+    // Get access token 
     let accessToken: string;
     try {
         accessToken = await getValidAccessToken();
@@ -62,16 +78,6 @@ export async function createGoogleAlbum(
         );
     }
 
-    // Retrieve user ID from current user
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-        throw new AuthError(
-            "NOT_AUTHENTICATED",
-            "User is not authenticated. Please sign in to create an album.",
-        );
-    }
-    const uid = currentUser.uid;
-
     // Check Firestore for duplicate name
     const exists = await albumNameExists(title);
     if (exists) {
@@ -79,7 +85,19 @@ export async function createGoogleAlbum(
     }
 
     // Create album via Google Photos API
-    const album = await createAlbum(accessToken, title);
+    let album: GooglePhotosAlbum;
+    try {
+        album = await createAlbum(accessToken, title);
+    } catch (error) {
+        const errorMessage = (error as Error).message;
+        if (errorMessage.includes("401")) {
+            // Token expired, refresh and retry 
+            accessToken = await getValidAccessToken();
+            album = await createAlbum(accessToken, title);
+        } else {
+            throw error;
+        }
+    }
 
     // Store in Firestore for future duplicate checks
     await storeAlbum(album.id, title, uid);
