@@ -1,14 +1,15 @@
+import { signOut, subscribeToAuthState } from "@/auth/google-auth";
+import { User } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    Alert,
     Pressable,
     StyleSheet,
     Text,
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { User } from "firebase/auth";
-import { signOut, subscribeToAuthState } from "@/auth/google-auth";
 
 export default function HomeScreen() {
     const [user, setUser] = useState<User | null>(null);
@@ -23,6 +24,11 @@ export default function HomeScreen() {
         setSigningOut(true);
         try {
             await signOut();
+        } catch {
+            Alert.alert(
+                "Sign-out failed",
+                "Please check your connection and try again",
+            );
         } finally {
             setSigningOut(false);
         }
