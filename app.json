@@ -3,7 +3,7 @@
         "name": "mount-vernon-trail",
         "slug": "mount-vernon-trail",
         "version": "1.0.0",
-        "orientation": "portrait",
+        "orientation": "default",
         "icon": "./assets/images/icon.png",
         "scheme": "mount-vernon-trail",
         "userInterfaceStyle": "automatic",

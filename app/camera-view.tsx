@@ -4,6 +4,7 @@ import * as MediaLibrary from 'expo-media-library';
 import React, { useRef, useState } from 'react';
 import { Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
 import Slider from '@react-native-community/slider';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -20,6 +21,9 @@ export default function App() {
     const cameraRef = useRef<CameraView | null>(null);
     const [overlayUri, setOverlayUri] = useState<string | null>(null);
     const [overlayOpacity, setOverlayOpacity] = useState(0.3);
+    const [zoom, setZoom] = useState(0);
+    const currentZoomRef = useRef(0);
+    const startZoomRef = useRef(0);
 
     if (!permission) {
         // camera perms are still loading
@@ -93,7 +97,7 @@ export default function App() {
                 allowsEditing: false,
                 quality: 1,
             });
-
+            // overlay
            if (!result.canceled && result.assets?.[0]?.uri) {
                 setOverlayUri(result.assets[0].uri);
             }
@@ -102,84 +106,100 @@ export default function App() {
         }
     }
 
+    const pinchGesture = Gesture.Pinch().runOnJS(true).onStart(() => {
+        startZoomRef.current = currentZoomRef.current;
+    }).onUpdate((e:any) => {
+        const target = Math.min(1, Math.max(0, startZoomRef.current + (e.scale - 1) * 0.12));
+        const smoothed = currentZoomRef.current + (target - currentZoomRef.current) * 0.25;
+        if (Math.abs(smoothed - currentZoomRef.current) > 0.003) {
+            currentZoomRef.current = smoothed;
+            setZoom(smoothed);
+        }
+    });
+
     return (
-        <View style={styles.container}>
-        <CameraView 
-            style={styles.camera} 
-            facing={facing} 
-            // @ts-ignore
-            ref={cameraRef}
-        />
-        {overlayUri && (
-            <Image
-                source={{ uri: overlayUri }}
-                style={[
-                    StyleSheet.absoluteFillObject,
-                    { opacity: overlayOpacity }
-                ]}
-            resizeMode="cover"
-            />
-        )}
-        {overlayUri && (
-            <View style={styles.sliderContainer}>
-            <Slider
-                style={styles.slider}
-                minimumValue={0}
-                maximumValue={1}
-                step={0.05}
-                value={overlayOpacity}
-                onValueChange={setOverlayOpacity}
-                minimumTrackTintColor="#ffffff"
-                maximumTrackTintColor="rgba(255,255,255,0.35)"
-                thumbTintColor="#ffffff"
-            />
-            <Text style={styles.controlLabel}>
-                {Math.round(overlayOpacity * 100)}%
-            </Text>
-            </View>
-        )}
-        {/* white screen flash */}
-        <Animated.View
-            style={[
-                styles.flashOverlay,
-                {
-                    opacity: flashAnim,
-                },
-            ]}
-        />
-        <View style={styles.bottomContainer}>
-            {/* flip camera button (left position) */}
-            <TouchableOpacity style={styles.flipButton} onPress={toggleCameraFacing} disabled={isCapturing}>
-                <Text style={styles.buttonText}>⟲</Text>
-            </TouchableOpacity>
-
-            {/* take photo button (center position) */}
-            <TouchableOpacity 
-                style={[
-                    styles.captureButton,
-                    isCapturing && styles.captureButtonActive,
-                ]} 
-                onPress={takePhoto}
-                disabled={isCapturing}
-            >
-                <View 
-                    style={[
-                        styles.captureButtonInner,
-                        isCapturing && styles.captureButtonInnerActive,
-                    ]} 
+        <GestureHandlerRootView style={styles.container}>
+            <GestureDetector gesture={pinchGesture}>
+                <View style={styles.container}>
+                <CameraView 
+                    style={styles.camera} 
+                    facing={facing} 
+                    // @ts-ignore
+                    ref={cameraRef}
+                    zoom={zoom}
                 />
-            </TouchableOpacity>
-
-            {/* gallery/recent photo preview (right position) */}
-            <TouchableOpacity style={styles.photoPreview} onPress={openPhotoLibrary} disabled={isCapturing}>
-                {recentPhoto ? (
-                    <Image source={{ uri: recentPhoto }} style={styles.previewImage} />
-                ) : (
-                    <View style={styles.emptyPreview} />
+                {overlayUri && (
+                    <View style={[ StyleSheet.absoluteFillObject, { opacity: overlayOpacity }]} pointerEvents="none">
+                        <Image 
+                            source={{ uri: overlayUri }} 
+                            resizeMode="cover" 
+                            style={{ flex : 1 }}
+                        />
+                    </View>
                 )}
-        </TouchableOpacity>
-        </View>
-        </View>
+                {/* Overlay opacity slider */}
+                {overlayUri && (
+                    <View style={styles.sliderContainer}>
+                    <Slider
+                        style={styles.slider}
+                        minimumValue={0}
+                        maximumValue={1}
+                        step={0.05}
+                        value={overlayOpacity}
+                        onValueChange={setOverlayOpacity}
+                        minimumTrackTintColor="#ffffff"
+                        maximumTrackTintColor="rgba(255,255,255,0.35)"
+                        thumbTintColor="#ffffff"
+                    />
+                    <Text style={styles.controlLabel}>
+                        {Math.round(overlayOpacity * 100)}%
+                    </Text>
+                    </View>
+                )}
+                {/* white screen flash */}
+                <Animated.View
+                    style={[
+                        styles.flashOverlay,
+                        {
+                            opacity: flashAnim,
+                        },
+                    ]}
+                />
+                <View style={styles.bottomContainer}>
+                    {/* flip camera button (left position) */}
+                    <TouchableOpacity style={styles.flipButton} onPress={toggleCameraFacing} disabled={isCapturing}>
+                        <Text style={styles.buttonText}>⟲</Text>
+                    </TouchableOpacity>
+
+                    {/* take photo button (center position) */}
+                    <TouchableOpacity 
+                        style={[
+                            styles.captureButton,
+                            isCapturing && styles.captureButtonActive,
+                        ]} 
+                        onPress={takePhoto}
+                        disabled={isCapturing}
+                    >
+                        <View 
+                            style={[
+                                styles.captureButtonInner,
+                                isCapturing && styles.captureButtonInnerActive,
+                            ]} 
+                        />
+                    </TouchableOpacity>
+
+                    {/* gallery/recent photo preview (right position) */}
+                    <TouchableOpacity style={styles.photoPreview} onPress={openPhotoLibrary} disabled={isCapturing}>
+                        {recentPhoto ? (
+                            <Image source={{ uri: recentPhoto }} style={styles.previewImage} />
+                        ) : (
+                            <View style={styles.emptyPreview} />
+                        )}
+                </TouchableOpacity>
+                </View>
+                </View>
+        </GestureDetector>
+        </GestureHandlerRootView>
     );
 }
 
@@ -267,26 +287,26 @@ const styles = StyleSheet.create({
     },
     /* Overlay */
     sliderContainer: {
-    position: 'absolute',
-    left: SCREEN_HEIGHT * 0.015,
-    top: '25%',
-    width: SCREEN_HEIGHT * 0.05,
-    height: SCREEN_HEIGHT * 0.26,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(30, 30, 30, 0.70)',
-    borderRadius: SCREEN_HEIGHT * 0.033,
-    paddingVertical: SCREEN_HEIGHT * 0.017,
-    overflow: 'hidden',
-},
-slider: {
-    width: SCREEN_HEIGHT * 0.2,
-    height: SCREEN_HEIGHT * 0.2,
-    transform: [{ rotate: '-90deg' }],
-},
-controlLabel: {
-    color: 'white',
-    fontSize: SCREEN_HEIGHT * 0.016,
-    fontWeight: '600',
-},
+        position: 'absolute',
+        top: '25%',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'rgba(30, 30, 30, 0.70)',
+        overflow: 'hidden',
+        left: SCREEN_HEIGHT * 0.015,
+        width: SCREEN_HEIGHT * 0.05,
+        height: SCREEN_HEIGHT * 0.26,
+        borderRadius: SCREEN_HEIGHT * 0.033, 
+        paddingVertical: SCREEN_HEIGHT * 0.017,
+    },
+    slider: {
+        transform: [{ rotate: '-90deg' }],
+        width: SCREEN_HEIGHT * 0.2, 
+        height: SCREEN_HEIGHT * 0.2,
+    },
+    controlLabel: {
+        color: 'white',
+        fontWeight: '600',
+        fontSize: SCREEN_HEIGHT * 0.016
+    },
 }); 
