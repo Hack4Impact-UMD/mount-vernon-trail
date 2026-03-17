@@ -48,4 +48,64 @@ async function Card(
     }
 }
 
-Card("MVT Mock Board", "Today", "clean up trail 5", "pick up trash");
+async function listIssues(boardName: string, listName: string) {
+    const boards = await trello.getBoards();
+    const targetBoard = boards.find((board) => board.name === boardName);
+    if (!targetBoard) {
+        console.error("board name not found");
+        return;
+    }
+    const lists = await trello.getLists(targetBoard.id);
+    if (lists.length > 0) {
+        const targetList = lists.find((list) => list.name === listName);
+        if (!targetList) {
+            console.error("list name not found");
+            return;
+        }
+        const cards = await trello.getCards(targetList.id);
+        console.log(`Cards in list "${targetList.name}":`);
+        for (const card of cards) {
+            console.log(`- ${card.name}: ${card.desc || "No description"}`);
+        }
+        console.log();
+    }
+}
+
+async function listEvents(
+    boardName: string,
+    listName: string,
+    removeDate: boolean = false,
+) {
+    const boards = await trello.getBoards();
+    const targetBoard = boards.find((board) => board.name === boardName);
+    if (!targetBoard) {
+        console.error("board name not found");
+        return;
+    }
+    const lists = await trello.getLists(targetBoard.id);
+    if (lists.length > 0) {
+        const targetList = lists.find((list) => list.name === listName);
+        if (!targetList) {
+            console.error("list name not found");
+            return;
+        }
+        const days = 30;
+        const cards = await trello.getCardsFiltered(
+            targetList.id,
+            days,
+            removeDate,
+        );
+        console.log(`Cards in list "${targetList.name}" (${days} days):`);
+        for (const card of cards) {
+            console.log(`- ${card.name}: ${card.desc}`);
+        }
+        console.log();
+    }
+}
+
+(async () => {
+    // Card("MVT Mock Board", "Today", "clean up trail 5", "pick up trash");
+    await listIssues("MVT Mock Board", "Trail Issues and Problems - Intake");
+    await listEvents("MVT Mock Board", "Scheduled Events", true);
+    await listEvents("MVT Mock Board", "Scheduled Events", false);
+})();
