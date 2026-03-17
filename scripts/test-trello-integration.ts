@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import { TrelloClient } from "./services/trello-funcs";
+import { TrelloClient } from "../services/trello-funcs";
 
 dotenv.config();
 
