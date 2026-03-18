@@ -48,7 +48,8 @@ async function Card(
     }
 }
 
-async function listIssues(boardName: string, listName: string) {
+async function listIssues(boardName: string) {
+    const listName = "Trail Issues and Problems - Intake";
     const boards = await trello.getBoards();
     const targetBoard = boards.find((board) => board.name === boardName);
     if (!targetBoard) {
@@ -62,20 +63,19 @@ async function listIssues(boardName: string, listName: string) {
             console.error("list name not found");
             return;
         }
-        const cards = await trello.getCards(targetList.id);
+        // sort by creation date, descending order
+        const cards = await trello.getCards(targetList.id, true);
         console.log(`Cards in list "${targetList.name}":`);
         for (const card of cards) {
             console.log(`- ${card.name}: ${card.desc || "No description"}`);
+            console.log(`  Created at: ${card.creationDate.toLocaleString()}`);
         }
         console.log();
     }
 }
 
-async function listEvents(
-    boardName: string,
-    listName: string,
-    removeDate: boolean = false,
-) {
+async function listEvents(boardName: string, removeDate: boolean = false) {
+    const listName = "Scheduled Events";
     const boards = await trello.getBoards();
     const targetBoard = boards.find((board) => board.name === boardName);
     if (!targetBoard) {
@@ -97,7 +97,8 @@ async function listEvents(
         );
         console.log(`Cards in list "${targetList.name}" (${days} days):`);
         for (const card of cards) {
-            console.log(`- ${card.name}: ${card.desc}`);
+            console.log(`- ${card.name}: ${card.desc || "No description"}`);
+            console.log(`  Created at: ${card.creationDate.toLocaleString()}`);
         }
         console.log();
     }
@@ -105,7 +106,7 @@ async function listEvents(
 
 (async () => {
     // Card("MVT Mock Board", "Today", "clean up trail 5", "pick up trash");
-    await listIssues("MVT Mock Board", "Trail Issues and Problems - Intake");
-    await listEvents("MVT Mock Board", "Scheduled Events", true);
-    await listEvents("MVT Mock Board", "Scheduled Events", false);
+    await listIssues("MVT Mock Board");
+    await listEvents("MVT Mock Board", true);
+    await listEvents("MVT Mock Board", false);
 })();

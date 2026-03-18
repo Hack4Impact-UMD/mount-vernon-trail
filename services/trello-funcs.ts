@@ -61,12 +61,28 @@ export class TrelloClient {
         }
     }
 
-    async getCards(listID: string): Promise<Card[]> {
+    async getCards(
+        listID: string,
+        sortByCreationDate: boolean = false,
+    ): Promise<Card[]> {
         try {
             const response = await this.client.get<Card[]>(
                 `/lists/${listID}/cards`,
             );
-            return response.data;
+            // map to get the creation time
+            // reference: https://support.atlassian.com/trello/docs/getting-the-time-a-card-or-board-was-created/
+            const cards = response.data.map((card) => {
+                card.creationDate = new Date(
+                    1000 * Number.parseInt(card.id.substring(0, 8), 16),
+                );
+                return card;
+            });
+            if (sortByCreationDate) {
+                cards.sort((a, b) =>
+                    a.creationDate > b.creationDate ? -1 : 1,
+                );
+            }
+            return cards;
         } catch (error) {
             console.error("unable to get cards:", error);
             throw error;
@@ -81,10 +97,7 @@ export class TrelloClient {
         removeDate: boolean = false,
     ): Promise<Card[]> {
         try {
-            const response = await this.client.get<Card[]>(
-                `/lists/${listID}/cards`,
-            );
-            const cards = response.data;
+            const cards = await this.getCards(listID, false);
             const now = new Date();
             const today = new Date(
                 now.getFullYear(),
