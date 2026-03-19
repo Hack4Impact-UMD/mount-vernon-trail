@@ -119,21 +119,26 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     sectionTitle: {
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: "700",
         color: "#000",
     },
     arrow: {
-        fontSize: 20,
+        fontSize: 16,
         color: "#000",
     },
     card: {
         flexDirection: "row",
-        alignItems: "center",
-        padding: 12,
-        borderRadius: 12,
-        backgroundColor: "#f5f5f5",
-        gap: 14,
+        alignItems: "flex-start",
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+        backgroundColor: "#FFFFFF",
+        gap: 12,
+        shadowColor: "#693895",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
     },
     cardPressed: {
         opacity: 0.7,
@@ -148,7 +153,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     cardTitle: {
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: "600",
         color: "#000",
     },
@@ -157,11 +162,11 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     emptyText: {
-        fontSize: 14,
+        fontSize: 12,
         color: "#555",
     },
     errorText: {
-        fontSize: 14,
+        fontSize: 12,
         color: "#c0392b",
     },
     showMoreButton: {
@@ -169,7 +174,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     showMoreText: {
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: "600",
         color: "#000",
         textDecorationLine: "underline",
