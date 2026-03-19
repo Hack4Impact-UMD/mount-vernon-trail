@@ -53,18 +53,21 @@ export function UpcomingEventsCard({
                 <Text style={styles.arrow}>→</Text>
             </View>
 
+            {/* Loading State */}
             {loading && (
                 <View style={styles.centeredState}>
                     <ActivityIndicator size="large" />
                 </View>
             )}
 
+            {/* Error State */}
             {!loading && error && (
                 <View style={styles.centeredState}>
                     <Text style={styles.errorText}>{error}</Text>
                 </View>
             )}
 
+            {/* Empty State */}
             {!loading && !error && events.length === 0 && (
                 <View style={styles.centeredState}>
                     <Text style={styles.emptyText}>No upcoming events</Text>
@@ -102,6 +105,7 @@ export function UpcomingEventsCard({
                     </Pressable>
                 ))}
 
+            {/* Show More Button */}
             {!loading && !error && hasMore && (
                 <Pressable
                     onPress={onShowMore}
