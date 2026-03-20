@@ -22,6 +22,7 @@ export const googleAuthConfig = {
         "profile",
         "email",
         "https://www.googleapis.com/auth/photoslibrary.readonly",
+        "https://www.googleapis.com/auth/spreadsheets",
     ],
 };
 
