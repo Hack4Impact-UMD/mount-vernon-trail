@@ -3,8 +3,8 @@ import { TrelloClient } from "../services/trello-funcs";
 
 dotenv.config();
 
-const API_KEY = process.env.TRELLO_API_KEY;
-const API_TOKEN = process.env.TRELLO_API_TOKEN;
+const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
+const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
 
 if (!API_KEY || !API_TOKEN) {
     console.error("Issue with API Key or Token");
