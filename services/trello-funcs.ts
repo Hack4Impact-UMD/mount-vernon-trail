@@ -123,7 +123,10 @@ export class TrelloClient {
                 .sort((a, b) => {
                     const [dateA] = a.name.split(" ");
                     const [dateB] = b.name.split(" ");
-                    return dateA < dateB ? -1 : 1;
+                    const parsedA = parseAndValidateDate(dateA);
+                    const parsedB = parseAndValidateDate(dateB);
+                    if (!parsedA || !parsedB) return 0;
+                    return parsedA.getTime() - parsedB.getTime();
                 });
             return removeDate
                 ? result.map((card) => {
