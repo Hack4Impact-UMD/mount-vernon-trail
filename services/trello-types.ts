@@ -18,3 +18,7 @@ export interface Card {
     idBoard: string;
     creationDate: Date;
 }
+
+export interface EventCard extends Card {
+    eventDate: Date;
+}

@@ -1,7 +1,7 @@
 // service layer between TrelloClient func and the UI
-import { TrelloClient } from "./trello-funcs";
 import type { TrailIssueItem } from "@/components/ui/trail-issues-card";
 import type { UpcomingEventItem } from "@/components/ui/upcoming-events-card";
+import { TrelloClient } from "./trello-funcs";
 
 const BOARD_NAME = "MVT Mock Board";
 const TRAIL_ISSUES_LIST = "Trail Issues and Problems - Intake";
@@ -33,7 +33,7 @@ export async function fetchTrailIssues(
                 description: card.desc ?? "",
                 imageUrl: null,
             };
-        })
+        }),
     );
 }
 
@@ -52,22 +52,17 @@ export async function fetchUpcomingEvents(
     const list = lists.find((l) => l.name === UPCOMING_EVENTS_LIST);
     if (!list) throw new Error(`List "${UPCOMING_EVENTS_LIST}" not found`);
 
-    const cards = await trello.getCardsFiltered(list.id, 30, false);
+    const cards = await trello.getEventCardsFiltered(list.id, 30, true);
 
     return Promise.all(
         cards.map(async (card) => {
-            // split date from rest of title
-            const [datePart, ...rest] = card.name.split(" ");
-            const [month, day, year] = datePart.split("/").map(Number);
-
             return {
                 id: card.id,
-                name: rest.join(" "),
+                name: card.name,
                 description: card.desc ?? "",
-                // normalize 2 digit year to 4 digit (26 -> show up as 2026)
-                date: new Date(2000 + (year % 100), month - 1, day),
+                date: card.eventDate,
                 imageUrl: null,
             };
-        })
+        }),
     );
 }

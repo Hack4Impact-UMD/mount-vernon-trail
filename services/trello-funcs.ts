@@ -1,12 +1,12 @@
 import { parseAndValidateDate } from "@/utils/date";
 import type { AxiosInstance } from "axios";
 import axios from "axios";
-import type { Board, Card, List } from "./trello-types";
+import type { Board, Card, EventCard, List } from "./trello-types";
 
 export class TrelloClient {
-    private client: AxiosInstance;
-    private key: string;
-    private token: string;
+    private readonly client: AxiosInstance;
+    private readonly key: string;
+    private readonly token: string;
 
     constructor(key: string, token: string) {
         this.key = key;
@@ -89,13 +89,35 @@ export class TrelloClient {
         }
     }
 
+    // Attempt to convert card to event card
+    // If date cannot be parsed from the begining of the card name, return null
+    private static cardToEventCard(
+        card: Card,
+        removeDate: boolean,
+    ): EventCard | null {
+        // get card date from name
+        const [date, ...rest] = card.name.split(" ");
+        const eventDate = parseAndValidateDate(date);
+        // if date is invalid, return null (not a valid event card)
+        if (!eventDate) {
+            return null;
+        }
+        const eventCard: EventCard = {
+            ...card,
+            // remove date from name if removeDate is true
+            name: removeDate ? rest.join(" ") : card.name,
+            eventDate,
+        };
+        return eventCard;
+    }
+
     // get cards that are within the next X days (only applicable for Upcoming Events list)
     // includes option to remove date from card name (for display only)
-    async getCardsFiltered(
+    async getEventCardsFiltered(
         listID: string,
         days: number = 30,
         removeDate: boolean = false,
-    ): Promise<Card[]> {
+    ): Promise<EventCard[]> {
         try {
             const cards = await this.getCards(listID, false);
             const now = new Date();
@@ -108,32 +130,18 @@ export class TrelloClient {
             const futureDate = new Date(
                 today.getTime() + days * daysMilliseconds,
             );
-            const result = cards
-                .filter((card) => {
-                    // get card date from name
-                    const [date] = card.name.split(" ");
-                    const result = parseAndValidateDate(date);
-                    if (result === null) {
-                        return false;
-                    }
-                    const dueDate = result;
-                    return dueDate >= today && dueDate <= futureDate;
-                })
+            const result: EventCard[] = cards
+                // convert to event cards
+                .map((card) => TrelloClient.cardToEventCard(card, removeDate))
+                .filter(
+                    (card): card is EventCard =>
+                        card !== null &&
+                        card.eventDate >= today &&
+                        card.eventDate <= futureDate,
+                )
                 // sort by date ascending
-                .sort((a, b) => {
-                    const [dateA] = a.name.split(" ");
-                    const [dateB] = b.name.split(" ");
-                    const parsedA = parseAndValidateDate(dateA);
-                    const parsedB = parseAndValidateDate(dateB);
-                    if (!parsedA || !parsedB) return 0;
-                    return parsedA.getTime() - parsedB.getTime();
-                });
-            return removeDate
-                ? result.map((card) => {
-                      card.name = card.name.split(" ").slice(1).join(" ");
-                      return card;
-                  })
-                : result;
+                .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
+            return result;
         } catch (error) {
             console.error("unable to get cards:", error);
             throw error;

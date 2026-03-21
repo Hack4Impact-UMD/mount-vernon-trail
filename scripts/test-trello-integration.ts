@@ -90,7 +90,7 @@ async function listEvents(boardName: string, removeDate: boolean = false) {
             return;
         }
         const days = 30;
-        const cards = await trello.getCardsFiltered(
+        const cards = await trello.getEventCardsFiltered(
             targetList.id,
             days,
             removeDate,
