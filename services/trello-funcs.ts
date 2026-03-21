@@ -78,8 +78,9 @@ export class TrelloClient {
                 return card;
             });
             if (sortByCreationDate) {
-                cards.sort((a, b) =>
-                    a.creationDate > b.creationDate ? -1 : 1,
+                cards.sort(
+                    (a, b) =>
+                        b.creationDate.getTime() - a.creationDate.getTime(),
                 );
             }
             return cards;
