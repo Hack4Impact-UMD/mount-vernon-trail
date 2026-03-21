@@ -7,7 +7,8 @@
         "icon": "./assets/images/icon.png",
         "scheme": [
             "mount-vernon-trail",
-            "com.googleusercontent.apps.405328478335-jrjdhobgia6q5kp5fo35kspn4immrfn7"
+            "com.googleusercontent.apps.405328478335-jrjdhobgia6q5kp5fo35kspn4immrfn7",
+            "com.googleusercontent.apps.405328478335-4gr2n100eq9g8tg8m4r89tm26gas4rcs"
         ],
         "userInterfaceStyle": "automatic",
         "newArchEnabled": true,
