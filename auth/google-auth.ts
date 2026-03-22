@@ -21,7 +21,8 @@ export const googleAuthConfig = {
         "openid",
         "profile",
         "email",
-        "https://www.googleapis.com/auth/photoslibrary.readonly",
+        "https://www.googleapis.com/auth/photoslibrary.appendonly",
+        "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
     ],
 };
 
