@@ -38,7 +38,8 @@ export default function RootLayout() {
         SplashScreen.hideAsync();
         const inTabs = segments[0] === "(tabs)";
         const onAuth = segments[0] === "auth";
-        if (user && !inTabs) {
+        const onTrello = segments[0] === "trello";
+        if (user && !inTabs && !onTrello) {
             router.replace("/(tabs)");
         } else if (!user && !onAuth) {
             router.replace("/auth");
