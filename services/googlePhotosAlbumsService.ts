@@ -4,6 +4,8 @@ import {
     listAlbums,
 } from "@/api/googlePhotosClient";
 
+import { AuthError, getValidAccessToken } from "@/auth/google-auth";
+import { auth } from "@/config/firebase";
 import {
     collection,
     doc,
@@ -41,14 +43,41 @@ async function storeAlbum(
 }
 
 /**
- * Creates a new album in Google Photos and stores it in Firestore. Throws an error if a duplicate album name is found.
+ * Creates a new album in the authenticated user's Google Photos and stores it in Firestore. Throws an error if a duplicate album name is found.
  * Otherwise, returns the created album object.
  */
 export async function createGoogleAlbum(
-    accessToken: string,
     title: string,
-    uid: string,
 ): Promise<GooglePhotosAlbum> {
+    // Validate title
+    if (!title || title.trim().length === 0) {
+        throw new Error("Album title cannot be empty");
+    }
+
+    // Retrieve user ID from current user
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new AuthError(
+            "NOT_AUTHENTICATED",
+            "User is not authenticated. Please sign in to create an album.",
+        );
+    }
+    const uid = currentUser.uid;
+
+    // Get access token 
+    let accessToken: string;
+    try {
+        accessToken = await getValidAccessToken();
+    } catch (error) {
+        if (error instanceof AuthError) {
+            throw error;
+        }
+        throw new AuthError(
+            "TOKEN_RETRIEVAL_FAILED",
+            `Failed to retrieve access token: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+    }
+
     // Check Firestore for duplicate name
     const exists = await albumNameExists(title);
     if (exists) {
@@ -56,7 +85,19 @@ export async function createGoogleAlbum(
     }
 
     // Create album via Google Photos API
-    const album = await createAlbum(accessToken, title);
+    let album: GooglePhotosAlbum;
+    try {
+        album = await createAlbum(accessToken, title);
+    } catch (error) {
+        const errorMessage = (error as Error).message;
+        if (errorMessage.includes("401")) {
+            // Token expired, refresh and retry 
+            accessToken = await getValidAccessToken();
+            album = await createAlbum(accessToken, title);
+        } else {
+            throw error;
+        }
+    }
 
     // Store in Firestore for future duplicate checks
     await storeAlbum(album.id, title, uid);

@@ -1,5 +1,6 @@
 import { makeRedirectUri } from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
 import { User } from "firebase/auth";
 import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
@@ -11,6 +12,8 @@ import {
     signOut,
     subscribeToAuthState,
 } from "../auth/google-auth";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export function useGoogleAuth() {
     const [user, setUser] = useState<User | null>(null);
