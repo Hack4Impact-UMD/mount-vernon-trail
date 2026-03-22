@@ -20,12 +20,19 @@ export default function TrelloTestScreen() {
     const [eventsError, setEventsError] = useState<string | null>(null);
 
     useEffect(() => {
-        fetchTrailIssues(API_KEY!, API_TOKEN!)
+        if (!API_KEY || !API_TOKEN) {
+            const msg = "Missing Trello API credentials";
+            setIssuesError(msg);
+            setEventsError(msg);
+            setIssuesLoading(false);
+            setEventsLoading(false);
+            return;
+        }
+        fetchTrailIssues(API_KEY, API_TOKEN)
             .then(setIssues)
             .catch((e) => setIssuesError(e.message))
             .finally(() => setIssuesLoading(false));
-
-        fetchUpcomingEvents(API_KEY!, API_TOKEN!)
+        fetchUpcomingEvents(API_KEY, API_TOKEN)
             .then(setEvents)
             .catch((e) => setEventsError(e.message))
             .finally(() => setEventsLoading(false));
