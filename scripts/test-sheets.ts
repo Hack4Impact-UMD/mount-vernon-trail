@@ -44,12 +44,14 @@ async function main() {
     );
 
     const improvementType = process.argv[2] ?? "Pothole";
-    console.log(`Logging event for: "${improvementType}"`);
-    await createEvent(accessToken, SPREADSHEET_ID, improvementType);
+    const sheetName = process.argv[3] ?? "Sheet1";
+
+    console.log(`Logging event for: "${improvementType}" on sheet: "${sheetName}"`);
+    await createEvent(accessToken, SPREADSHEET_ID, improvementType, sheetName);
     console.log("Done.");
 
     console.log("Fetching counts...");
-    const counts = await getImprovementCounts(accessToken, SPREADSHEET_ID);
+    const counts = await getImprovementCounts(accessToken, SPREADSHEET_ID, sheetName);
     console.log("Improvement counts:", counts);
 }
 
