@@ -1,11 +1,19 @@
 const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
+const HEADER_SEARCH_LIMIT = 50; // the search limit for headers to prevent an empty sheet
 
-// counts the number of improvement events of each type
-export async function getImprovementCounts(
+// searches the first 50 rows for a row containing all required headers
+// returns { headerRowIndex, columns }
+// maps column name to  index
+async function findHeaderRow(
     accessToken: string,
     spreadsheetId: string,
-    sheetName = "Sheet1",
-): Promise<Record<string, number>> {
+    sheetName: string,
+    required: string[],
+): Promise<{
+    headerRowIndex: number;
+    columns: Record<string, number>;
+    rows: string[][];
+}> {
     const range = encodeURIComponent(`${sheetName}!1:1000`);
     const res = await fetch(
         `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}`,
@@ -17,17 +25,43 @@ export async function getImprovementCounts(
         );
     }
     const rows: string[][] = (await res.json()).values ?? [];
-    if (rows.length === 0) return {};
 
-    const headers = rows[0].map((h) => h.trim().toLowerCase());
-    const improvementCol = headers.indexOf("improvement");
-    if (improvementCol === -1) {
-        throw new Error(`"improvement" header not found in row 1`);
+    for (let i = 0; i < Math.min(rows.length, HEADER_SEARCH_LIMIT); i++) {
+        const normalized = rows[i].map((h) => h.trim().toLowerCase());
+        const columns: Record<string, number> = {};
+        let allFound = true;
+        for (const header of required) {
+            const idx = normalized.indexOf(header);
+            if (idx === -1) {
+                allFound = false;
+                break;
+            }
+            columns[header] = idx;
+        }
+        if (allFound) return { headerRowIndex: i, columns, rows };
     }
 
+    throw new Error(
+        `Headers [${required.join(", ")}] not found in first ${HEADER_SEARCH_LIMIT} rows of "${sheetName}"`,
+    );
+}
+
+// counts the number of improvement events of each type
+export async function getImprovementCounts(
+    accessToken: string,
+    spreadsheetId: string,
+    sheetName = "Sheet1",
+): Promise<Record<string, number>> {
+    const { headerRowIndex, columns, rows } = await findHeaderRow(
+        accessToken,
+        spreadsheetId,
+        sheetName,
+        ["improvement"],
+    );
+
     const counts: Record<string, number> = {};
-    for (const row of rows.slice(1)) {
-        const type = row[improvementCol]?.trim();
+    for (const row of rows.slice(headerRowIndex + 1)) {
+        const type = row[columns["improvement"]]?.trim();
         if (type) counts[type] = (counts[type] ?? 0) + 1;
     }
     return counts;
@@ -40,40 +74,26 @@ export async function createEvent(
     improvementType: string,
     sheetName = "Sheet1",
 ): Promise<void> {
-    // search for column headers "Improvement" & "Date"
-    const headerRange = encodeURIComponent(`${sheetName}!1:1`);
-    const headerRes = await fetch(
-        `${SHEETS_API_BASE}/${spreadsheetId}/values/${headerRange}`,
-        { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
-    if (!headerRes.ok) {
-        throw new Error(
-            `Failed to read headers: ${headerRes.status} ${headerRes.statusText}`,
-        );
-    }
-    const headers: string[] = ((await headerRes.json()).values?.[0] ?? []).map(
-        (h: string) => h.trim().toLowerCase(),
+    const { columns, rows } = await findHeaderRow(
+        accessToken,
+        spreadsheetId,
+        sheetName,
+        ["date", "improvement"],
     );
 
-    const dateCol = headers.indexOf("date");
-    const improvementCol = headers.indexOf("improvement");
-    if (dateCol === -1 || improvementCol === -1) {
-        throw new Error(`"date" and "improvement" headers not found in row 1`);
-    }
-
-    // creates new rows
-    const numCols = headers.length;
+    const numCols = rows[0].length;
     const row: string[] = new Array(numCols).fill("");
     const d = new Date();
     const timestamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
-    row[dateCol] = timestamp;
-    row[improvementCol] = improvementType;
+    row[columns["date"]] = timestamp;
+    row[columns["improvement"]] = improvementType;
 
-    const appendRange = encodeURIComponent(`${sheetName}!A:A`);
+    const nextRow = rows.length + 1;
+    const writeRange = encodeURIComponent(`${sheetName}!A${nextRow}`);
     const res = await fetch(
-        `${SHEETS_API_BASE}/${spreadsheetId}/values/${appendRange}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+        `${SHEETS_API_BASE}/${spreadsheetId}/values/${writeRange}?valueInputOption=USER_ENTERED`,
         {
-            method: "POST",
+            method: "PUT",
             headers: {
                 Authorization: `Bearer ${accessToken}`,
                 "Content-Type": "application/json",
