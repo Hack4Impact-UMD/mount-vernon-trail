@@ -68,9 +68,15 @@ export async function createAlbum(
             errorData.error?.message ||
             `HTTP ${response.status}: ${response.statusText}`;
 
-        if (response.status === 401 || response.status === 403) {
+        if (response.status === 401) {
             throw new Error(
-                `Google Photos authentication failed: ${errorMessage}`,
+                `Google Photos authentication failed (401): ${errorMessage}`,
+            );
+        }
+
+        if (response.status === 403) {
+            throw new Error(
+                `Google Photos access forbidden (403): ${errorMessage}`,
             );
         }
 

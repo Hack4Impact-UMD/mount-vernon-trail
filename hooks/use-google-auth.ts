@@ -1,5 +1,6 @@
 import { makeRedirectUri } from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
 import { User } from "firebase/auth";
 import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
@@ -12,18 +13,23 @@ import {
     subscribeToAuthState,
 } from "../auth/google-auth";
 
+WebBrowser.maybeCompleteAuthSession();
+
 export function useGoogleAuth() {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(false);
     const [initializing, setInitializing] = useState(true);
     const [error, setError] = useState<AuthError | null>(null);
 
-    const redirectUri =
-        Platform.OS === "ios"
-            ? makeRedirectUri({
-                  native: `com.googleusercontent.apps.${googleAuthConfig.iosClientId.split(".apps.")[0]}:/`,
-              })
-            : makeRedirectUri();
+    const redirectUri = Platform.select({
+        ios: makeRedirectUri({
+            native: `com.googleusercontent.apps.${googleAuthConfig.iosClientId.split(".apps.")[0]}:/`,
+        }),
+        android: makeRedirectUri({
+            native: `com.googleusercontent.apps.${googleAuthConfig.androidClientId.split(".apps.")[0]}:/`,
+        }),
+        default: makeRedirectUri(),
+    });
 
     const [request, response, promptAsync] = Google.useAuthRequest({
         webClientId: googleAuthConfig.webClientId,
