@@ -34,7 +34,7 @@ async function main() {
         console.error(
             "Missing GOOGLE_REFRESH_TOKEN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, or GOOGLE_SPREADSHEET_ID in .env",
         );
-        return;
+        process.exit(1);
     }
 
     const accessToken = await getAccessToken(
