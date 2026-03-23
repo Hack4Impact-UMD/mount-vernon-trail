@@ -1,7 +1,7 @@
 import { createEvent, getImprovementCounts } from "@/api/googleSheetsClient";
 import * as dotenv from "dotenv";
 dotenv.config();
-
+// run with npx tsx scripts/test-sheets.ts "IMPROVEMENTTYPE" "SHEETNAME"
 const REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -46,12 +46,18 @@ async function main() {
     const improvementType = process.argv[2] ?? "Pothole";
     const sheetName = process.argv[3] ?? "Sheet1";
 
-    console.log(`Logging event for: "${improvementType}" on sheet: "${sheetName}"`);
+    console.log(
+        `Logging event for: "${improvementType}" on sheet: "${sheetName}"`,
+    );
     await createEvent(accessToken, SPREADSHEET_ID, improvementType, sheetName);
     console.log("Done.");
 
     console.log("Fetching counts...");
-    const counts = await getImprovementCounts(accessToken, SPREADSHEET_ID, sheetName);
+    const counts = await getImprovementCounts(
+        accessToken,
+        SPREADSHEET_ID,
+        sheetName,
+    );
     console.log("Improvement counts:", counts);
 }
 
