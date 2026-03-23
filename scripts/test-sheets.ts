@@ -1,5 +1,5 @@
-import { incrementImprovementCount } from "@/api/googleSheetsClient";
-import * as dotenv from 'dotenv';
+import { createEvent } from "@/api/googleSheetsClient";
+import * as dotenv from "dotenv";
 dotenv.config();
 
 const REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
@@ -37,11 +37,15 @@ async function main() {
         return;
     }
 
-    const accessToken = await getAccessToken(REFRESH_TOKEN, CLIENT_ID, CLIENT_SECRET);
+    const accessToken = await getAccessToken(
+        REFRESH_TOKEN,
+        CLIENT_ID,
+        CLIENT_SECRET,
+    );
 
     const improvementType = process.argv[2] ?? "Pothole";
-    console.log(`Incrementing count for: "${improvementType}"`);
-    await incrementImprovementCount(accessToken, SPREADSHEET_ID, improvementType);
+    console.log(`Logging event for: "${improvementType}"`);
+    await createEvent(accessToken, SPREADSHEET_ID, improvementType);
     console.log("Done.");
 }
 
