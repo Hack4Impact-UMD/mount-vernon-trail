@@ -1,4 +1,4 @@
-import { createEvent } from "@/api/googleSheetsClient";
+import { createEvent, getImprovementCounts } from "@/api/googleSheetsClient";
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -47,6 +47,10 @@ async function main() {
     console.log(`Logging event for: "${improvementType}"`);
     await createEvent(accessToken, SPREADSHEET_ID, improvementType);
     console.log("Done.");
+
+    console.log("Fetching counts...");
+    const counts = await getImprovementCounts(accessToken, SPREADSHEET_ID);
+    console.log("Improvement counts:", counts);
 }
 
 (async () => {

@@ -1,5 +1,39 @@
 const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 
+// counts the number of improvement events of each type
+export async function getImprovementCounts(
+    accessToken: string,
+    spreadsheetId: string,
+    sheetName = "Sheet1",
+): Promise<Record<string, number>> {
+    const range = encodeURIComponent(`${sheetName}!1:1000`);
+    const res = await fetch(
+        `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) {
+        throw new Error(
+            `Failed to read sheet: ${res.status} ${res.statusText}`,
+        );
+    }
+    const rows: string[][] = (await res.json()).values ?? [];
+    if (rows.length === 0) return {};
+
+    const headers = rows[0].map((h) => h.trim().toLowerCase());
+    const improvementCol = headers.indexOf("improvement");
+    if (improvementCol === -1) {
+        throw new Error(`"improvement" header not found in row 1`);
+    }
+
+    const counts: Record<string, number> = {};
+    for (const row of rows.slice(1)) {
+        const type = row[improvementCol]?.trim();
+        if (type) counts[type] = (counts[type] ?? 0) + 1;
+    }
+    return counts;
+}
+
+// creates an improvement event within sheets
 export async function createEvent(
     accessToken: string,
     spreadsheetId: string,
@@ -30,7 +64,8 @@ export async function createEvent(
     // creates new rows
     const numCols = headers.length;
     const row: string[] = new Array(numCols).fill("");
-    const timestamp = new Date().toISOString();
+    const d = new Date();
+    const timestamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
     row[dateCol] = timestamp;
     row[improvementCol] = improvementType;
 
