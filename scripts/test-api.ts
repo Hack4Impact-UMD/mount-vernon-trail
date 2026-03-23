@@ -4,50 +4,13 @@ import {
     uploadPhotoBytes,
 } from "@/api/googlePhotosClient";
 import { listAllAlbums } from "@/services/googlePhotosAlbumsService";
-import dotenv from "dotenv";
-dotenv.config();
 
 const sleep = async (ms: number) => await new Promise((r) => setTimeout(r, ms));
 
-const REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-
-// Generate new access token using refresh token
-async function getAccessToken(
-    refreshToken: string,
-    clientId: string,
-    clientSecret: string,
-): Promise<string> {
-    const response = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            refresh_token: refreshToken,
-            grant_type: "refresh_token",
-        }),
-    });
-    if (!response.ok) {
-        throw new Error(`Failed to get access token: ${response.statusText}`);
-    }
-    const data = await response.json();
-    return data.access_token;
-}
-
-async function main() {
-    if (!REFRESH_TOKEN || !CLIENT_ID || !CLIENT_SECRET) {
-        console.error(
-            "Missing GOOGLE_REFRESH_TOKEN, GOOGLE_CLIENT_ID, or GOOGLE_CLIENT_SECRET in .env",
-        );
-        return;
-    }
-    const accessToken = await getAccessToken(
-        REFRESH_TOKEN,
-        CLIENT_ID,
-        CLIENT_SECRET,
-    );
+export async function testFunctionality(
+    accessToken: string,
+    imageCount: number = 50,
+) {
     // Test album creation
     const albumName = `test-${Date.now()}`;
     const album = await createAlbum(accessToken, albumName);
@@ -60,7 +23,7 @@ async function main() {
     const uploadTokens = [];
     const imageNames = [];
     const urls = [];
-    const count = 50;
+    const count = imageCount;
 
     for (let i = 0; i < count; i++) {
         const response = await fetch(`https://dog.ceo/api/breeds/image/random`);
@@ -74,7 +37,7 @@ async function main() {
         urls.push(imageUri);
         imageNames.push(`Dog ${i + 1}`);
         console.log(`Uploaded image ${i + 1}/${count}`);
-        await sleep(100);
+        await sleep(300);
     }
     const result = await createMediaItems(
         accessToken,
@@ -93,7 +56,3 @@ async function main() {
         idx++;
     }
 }
-
-(async () => {
-    await main();
-})();

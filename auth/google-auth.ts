@@ -21,8 +21,9 @@ export const googleAuthConfig = {
         "openid",
         "profile",
         "email",
-        "https://www.googleapis.com/auth/photoslibrary.readonly",
         "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/photoslibrary.appendonly",
+        "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
     ],
 };
 
@@ -75,12 +76,12 @@ export async function handleGoogleAuthResponse(
             authentication.idToken,
             authentication.accessToken,
         );
-        const userCredential = await signInWithCredential(auth, credential);
         await storeTokens(
             authentication.accessToken,
             authentication.refreshToken,
             authentication.expiresIn,
         );
+        const userCredential = await signInWithCredential(auth, credential);
 
         return {
             user: userCredential.user,
@@ -132,18 +133,26 @@ export async function refreshAccessToken(): Promise<string> {
 }
 
 // get access token
-export async function getValidAccessToken(): Promise<string> {
-    const { accessToken, tokenExpiry } = await getStoredTokens();
+export async function getValidAccessToken(): Promise<string | null> {
+    try {
+        const { accessToken, refreshToken, tokenExpiry } =
+            await getStoredTokens();
 
-    // 5 minute buffer
-    if (
-        accessToken &&
-        tokenExpiry &&
-        Date.now() < tokenExpiry - 5 * 60 * 1000
-    ) {
-        return accessToken;
-    } else {
-        return refreshAccessToken();
+        // 5 minute buffer
+        if (
+            accessToken &&
+            tokenExpiry &&
+            Date.now() < tokenExpiry - 5 * 60 * 1000
+        ) {
+            return accessToken;
+        }
+        if (refreshToken) {
+            return await refreshAccessToken();
+        }
+        return null;
+    } catch (error) {
+        console.error("Error getting valid access token:", error);
+        return null;
     }
 }
 

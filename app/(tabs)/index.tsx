@@ -1,4 +1,5 @@
 import { useGoogleAuth } from "@/hooks/use-google-auth";
+import { useRouter } from "expo-router";
 import {
     ActivityIndicator,
     Pressable,
@@ -9,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
+    const router = useRouter();
     const { user, loading, error, handleSignOut } = useGoogleAuth();
 
     return (
@@ -23,6 +25,12 @@ export default function HomeScreen() {
                         <Text style={styles.email}>{user.email}</Text>
                     </>
                 )}
+                {/* Add temporary Trello button */}
+                <Pressable
+                    style={styles.trelloButton}
+                    onPress={() => router.push("/trello")}>
+                    <Text style={styles.trelloButtonText}>Go to Trello Test</Text>
+                </Pressable>
                 <Pressable
                     style={[
                         styles.signOutButton,
@@ -90,5 +98,18 @@ const styles = StyleSheet.create({
         color: "#c0392b",
         fontSize: 14,
         textAlign: "center",
+    },
+    trelloButton: {
+        backgroundColor: "#0a7ea4",
+        paddingVertical: 12,
+        paddingHorizontal: 32,
+        borderRadius: 8,
+        minWidth: 120,
+        alignItems: "center",
+    },
+    trelloButtonText: {
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 16,
     },
 });
