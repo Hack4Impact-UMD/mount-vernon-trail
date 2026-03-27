@@ -1,23 +1,60 @@
 import { parseAndValidateDate } from "@/utils/date";
-import type { AxiosInstance } from "axios";
+import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 import type { Board, Card, EventCard, List } from "./trello-types";
+import { TrelloAuthError } from "./trello-auth-error";
 
 export class TrelloClient {
     private readonly client: AxiosInstance;
     private readonly key: string;
-    private readonly token: string;
+    private token: string; // no longer readonly!!
 
     constructor(key: string, token: string) {
         this.key = key;
         this.token = token;
         this.client = axios.create({
             baseURL: "https://api.trello.com/1",
-            params: {
-                key: this.key,
-                token: this.token,
-            },
         });
+
+        
+        // params on axios.create(). This lets us swap the token without rebuilding the client.
+        this.client.interceptors.request.use(
+            (config: InternalAxiosRequestConfig) => {
+                config.params = {
+                    ...config.params,
+                    key: this.key,
+                    token: this.token,
+                };
+                return config;
+            },
+        );
+
+        // Map HTTP auth failures to typed TrelloAuthError so callers can know what error for what
+        this.client.interceptors.response.use(
+            (response) => response,
+            (error: unknown) => {
+                if (axios.isAxiosError(error)) {
+                    if (error.response?.status === 401) {
+                        throw new TrelloAuthError("TOKEN_EXPIRED");
+                    }
+                    if (error.response?.status === 403) {
+                        throw new TrelloAuthError("PERMISSION_DENIED");
+                    }
+                    if (!error.response) {
+                        throw new TrelloAuthError("NETWORK_ERROR");
+                    }
+                }
+                throw error;
+            },
+        );
+    }
+
+    /**
+     * Replace the current token (e.g. after re-authentication).
+     * The new token will be used for all subsequent requests.
+     */
+    updateToken(newToken: string): void {
+        this.token = newToken;
     }
 
     async getBoards(): Promise<Board[]> {
@@ -26,6 +63,7 @@ export class TrelloClient {
                 await this.client.get<Board[]>("/members/me/boards");
             return response.data;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error("error finding boards:", error);
             throw error;
         }
@@ -38,6 +76,7 @@ export class TrelloClient {
             );
             return response.data;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error(`error getting lists:`, error);
             throw error;
         }
@@ -56,6 +95,7 @@ export class TrelloClient {
             });
             return response.data;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error("unable to create card:", error);
             throw error;
         }
@@ -69,8 +109,6 @@ export class TrelloClient {
             const response = await this.client.get<Card[]>(
                 `/lists/${listID}/cards`,
             );
-            // map to get the creation time
-            // reference: https://support.atlassian.com/trello/docs/getting-the-time-a-card-or-board-was-created/
             const cards = response.data.map((card) => {
                 card.creationDate = new Date(
                     1000 * Number.parseInt(card.id.substring(0, 8), 16),
@@ -85,35 +123,29 @@ export class TrelloClient {
             }
             return cards;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error("unable to get cards:", error);
             throw error;
         }
     }
 
-    // Attempt to convert card to event card
-    // If date cannot be parsed from the begining of the card name, return null
     private static cardToEventCard(
         card: Card,
         removeDate: boolean,
     ): EventCard | null {
-        // get card date from name
         const [date, ...rest] = card.name.split(" ");
         const eventDate = parseAndValidateDate(date);
-        // if date is invalid, return null (not a valid event card)
         if (!eventDate) {
             return null;
         }
         const eventCard: EventCard = {
             ...card,
-            // remove date from name if removeDate is true
             name: removeDate ? rest.join(" ") : card.name,
             eventDate,
         };
         return eventCard;
     }
 
-    // get cards that are within the next X days (only applicable for Upcoming Events list)
-    // includes option to remove date from card name (for display only)
     async getEventCardsFiltered(
         listID: string,
         days: number = 30,
@@ -132,7 +164,6 @@ export class TrelloClient {
                 today.getTime() + days * daysMilliseconds,
             );
             const result: EventCard[] = cards
-                // convert to event cards
                 .map((card) => TrelloClient.cardToEventCard(card, removeDate))
                 .filter(
                     (card): card is EventCard =>
@@ -140,10 +171,10 @@ export class TrelloClient {
                         card.eventDate >= today &&
                         card.eventDate <= futureDate,
                 )
-                // sort by date ascending
                 .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
             return result;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error("unable to get cards:", error);
             throw error;
         }
