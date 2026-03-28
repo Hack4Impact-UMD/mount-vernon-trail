@@ -29,6 +29,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     screen: {
         flex: 1,
+        backgroundColor: '#ffffff',
     },
     content: {
         flex: 1,

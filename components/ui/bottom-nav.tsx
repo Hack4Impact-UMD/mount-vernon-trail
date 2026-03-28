@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { House, PlusCircle, Clock, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Palette } from '@/constants/theme';
 
 type TabKey = 'home' | 'new-event' | 'history' | 'profile';
 
@@ -39,7 +40,7 @@ export default function BottomNav({ active, onTabPress, }: BottomNavProps) {
         <View style={[styles.container, { paddingBottom: insets.bottom }]}>
             {navItems.map((item) => {
                 const isActive = active === item.key;
-                const color = isActive ? '#6F3FB3' : '#A9A9A9';
+                const color = isActive ? Palette.primaryPurple100 : '#A9A9A9';
 
                 return (
                     <TouchableOpacity key={item.key} style={styles.navItem} activeOpacity={0.8} onPress={() => onTabPress(item.key)}>
@@ -59,7 +60,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-around',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#ffffff',
         borderTopWidth: 1,
         borderTopColor: '#e0e0e0',
         paddingTop: 10,
