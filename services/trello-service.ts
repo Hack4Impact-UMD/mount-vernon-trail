@@ -11,9 +11,8 @@ const UPCOMING_EVENTS_LIST = "Scheduled Events";
 // key and token are passed as parameters so auth can be swapped later
 export async function fetchTrailIssues(
     key: string,
-    token: string,
 ): Promise<TrailIssueItem[]> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     // find target board and list
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
@@ -40,9 +39,8 @@ export async function fetchTrailIssues(
 // fetches upcoming event cards within the next 30 days
 export async function fetchUpcomingEvents(
     key: string,
-    token: string,
 ): Promise<UpcomingEventItem[]> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     // find target board and list
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
@@ -65,4 +63,25 @@ export async function fetchUpcomingEvents(
             };
         }),
     );
+}
+
+// Add this to trello-service.ts
+export async function createTrailIssue(
+    key: string,
+    name: string,
+    description?: string
+): Promise<void> {
+    const trello = new TrelloClient(key);
+    
+    // Find board and list
+    const boards = await trello.getBoards();
+    const board = boards.find((b) => b.name === BOARD_NAME);
+    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+
+    const lists = await trello.getLists(board.id);
+    const list = lists.find((l) => l.name === TRAIL_ISSUES_LIST);
+    if (!list) throw new Error(`List "${TRAIL_ISSUES_LIST}" not found`);
+
+    // Actually create the card
+    await trello.createCard(list.id, name, description);
 }

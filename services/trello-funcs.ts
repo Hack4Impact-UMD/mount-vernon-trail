@@ -1,32 +1,51 @@
 import { parseAndValidateDate } from "@/utils/date";
 import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
-import type { Board, Card, EventCard, List } from "./trello-types";
+import {getTrelloToken} from "./trello-auth";
 import { TrelloAuthError } from "./trello-auth-error";
+import type { Board, Card, EventCard, List } from "./trello-types";
 
+function handleHttpError(status: number): never {
+    if (status === 401) {
+        throw new TrelloAuthError("TOKEN_EXPIRED");
+    }
+    if (status === 403) {
+        throw new TrelloAuthError("PERMISSION_DENIED");
+    }
+    throw new TrelloAuthError("AUTH_FAILED");
+}
 export class TrelloClient {
     private readonly client: AxiosInstance;
     private readonly key: string;
-    private token: string; // no longer readonly!!
+    //private token: string; // no longer readonly!!
 
-    constructor(key: string, token: string) {
+    constructor(key: string) {
         this.key = key;
-        this.token = token;
+        // this.token = token;
         this.client = axios.create({
             baseURL: "https://api.trello.com/1",
         });
 
-        
         // params on axios.create(). This lets us swap the token without rebuilding the client.
+        // trello-funcs.ts (Response Interceptor update)
+        
         this.client.interceptors.request.use(
-            (config: InternalAxiosRequestConfig) => {
-                config.params = {
-                    ...config.params,
-                    key: this.key,
-                    token: this.token,
-                };
-                return config;
-            },
+            async (config: InternalAxiosRequestConfig) => {
+                try {
+                    const token = await getTrelloToken();
+                    config.params = {
+                        ...config.params,
+                        key: this.key,
+                        token,
+                    }
+                    return config;
+                } catch (error:any) {
+                    if(error instanceof TrelloAuthError){
+                        throw error;
+                    }
+                    throw new TrelloAuthError("AUTH_FAILED");
+                }
+            }
         );
 
         // Map HTTP auth failures to typed TrelloAuthError so callers can know what error for what
@@ -34,27 +53,17 @@ export class TrelloClient {
             (response) => response,
             (error: unknown) => {
                 if (axios.isAxiosError(error)) {
-                    if (error.response?.status === 401) {
-                        throw new TrelloAuthError("TOKEN_EXPIRED");
-                    }
-                    if (error.response?.status === 403) {
-                        throw new TrelloAuthError("PERMISSION_DENIED");
+                    if (error.response?.status) {
+                        handleHttpError(error.response.status);
                     }
                     if (!error.response) {
                         throw new TrelloAuthError("NETWORK_ERROR");
                     }
+                    throw new TrelloAuthError("AUTH_FAILED");
                 }
                 throw error;
             },
         );
-    }
-
-    /**
-     * Replace the current token (e.g. after re-authentication).
-     * The new token will be used for all subsequent requests.
-     */
-    updateToken(newToken: string): void {
-        this.token = newToken;
     }
 
     async getBoards(): Promise<Board[]> {
