@@ -65,6 +65,7 @@ const styles = StyleSheet.create({
     textContainer: {
         flex: 1,
         marginLeft: 120,
+        fontFamily: "Lato_700Bold",
     },
 
     titleRow: {
@@ -83,13 +84,14 @@ const styles = StyleSheet.create({
         color: '#FFFFFF99',
         fontSize: 14,
         marginTop: 4,
+        fontFamily: "Lato_400Regular",
     },
 
     arrowContainer: {
         width: 30,
         height: 30,
         borderRadius: 18,
-        backgroundColor: '#3BA34C',
+        backgroundColor: Palette.green,
         alignItems: 'center',
         justifyContent: 'center',
     },

@@ -52,8 +52,8 @@ const styles = StyleSheet.create({
         paddingBottom: 10,
     },
     greeting: {
+        fontFamily: "Lato_700Bold",
         fontSize: 22,
-        fontWeight: '500',
         color: '#000000',
     },
     name: {

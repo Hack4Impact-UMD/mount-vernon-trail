@@ -83,5 +83,6 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 12,
+        fontFamily: "Lato_400Regular",
     },
 });

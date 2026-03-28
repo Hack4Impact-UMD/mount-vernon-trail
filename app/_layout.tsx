@@ -13,6 +13,13 @@ import "react-native-reanimated";
 import { subscribeToAuthState } from "@/auth/google-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
+import {
+  useFonts,
+  Lato_300Light,
+  Lato_400Regular,
+  Lato_700Bold,
+} from "@expo-google-fonts/lato";
+
 SplashScreen.preventAutoHideAsync();
 
 
@@ -24,7 +31,11 @@ export default function RootLayout() {
     // null = not signed in
     // User = signed in
     const [user, setUser] = useState<User | null | undefined>(undefined);
-
+    const [fontsLoaded] = useFonts({
+        Lato_300Light,
+        Lato_400Regular,
+        Lato_700Bold,
+    });
     // whenever auth state changes, user is updated
     useEffect(() => {
         const unsubscribe = subscribeToAuthState((firebaseUser) => {
@@ -34,7 +45,7 @@ export default function RootLayout() {
     }, []);
 
     useEffect(() => {
-        if (user === undefined) return;
+        if (user === undefined || !fontsLoaded) return;
         SplashScreen.hideAsync();
         const inTabs = segments[0] === "(tabs)";
         const onAuth = segments[0] === "auth";
@@ -44,9 +55,9 @@ export default function RootLayout() {
         } else if (!user && !onAuth) {
             router.replace("/auth");
         }
-    }, [user, segments]);
+    }, [user, fontsLoaded, segments]);
 
-    if (user === undefined) return null;
+    if (user === undefined || !fontsLoaded) return null;
 
     return (
         <ThemeProvider

@@ -77,6 +77,7 @@ const styles = StyleSheet.create({
         color: "white",
         fontWeight: "700",
         textAlign: "center",
+        fontFamily: "Lato_700Bold",
     },
     button: {
         alignItems: "center",
