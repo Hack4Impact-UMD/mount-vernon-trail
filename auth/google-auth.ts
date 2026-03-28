@@ -1,3 +1,4 @@
+import { createOrUpdateUser } from "@/services/event-service";
 import {
     signOut as firebaseSignOut,
     GoogleAuthProvider,
@@ -81,6 +82,13 @@ export async function handleGoogleAuthResponse(
             authentication.expiresIn,
         );
         const userCredential = await signInWithCredential(auth, credential);
+
+        // create or update user document in Firestore
+        await createOrUpdateUser(
+            userCredential.user.uid,
+            userCredential.user.email || "",
+            userCredential.user.displayName || userCredential.user.email || "",
+        );
 
         return {
             user: userCredential.user,

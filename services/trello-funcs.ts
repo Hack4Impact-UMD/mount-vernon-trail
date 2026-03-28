@@ -148,4 +148,29 @@ export class TrelloClient {
             throw error;
         }
     }
+
+    async getCard(cardID: string): Promise<Card> {
+        try {
+            const response = await this.client.get<Card>(`/cards/${cardID}`);
+            return response.data;
+        } catch (error) {
+            console.error(`unable to get card ${cardID}:`, error);
+            throw error;
+        }
+    }
+
+    async updateCardDescription(
+        cardID: string,
+        newDescription: string,
+    ): Promise<Card> {
+        try {
+            const response = await this.client.put<Card>(`/cards/${cardID}`, {
+                desc: newDescription,
+            });
+            return response.data;
+        } catch (error) {
+            console.error(`unable to update card ${cardID}:`, error);
+            throw error;
+        }
+    }
 }

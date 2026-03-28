@@ -66,3 +66,21 @@ export async function fetchUpcomingEvents(
         }),
     );
 }
+
+// adds album link to a trello event card description
+export async function addAlbumLinkToCard(
+    cardID: string,
+    albumUrl: string,
+    key: string,
+    token: string,
+): Promise<void> {
+    const trello = new TrelloClient(key, token);
+    const card = await trello.getCard(cardID);
+    const currentDescription = card.desc ?? "";
+    
+    // append album link to description
+    const linkText = `\n\n📷 Album Link: ${albumUrl}`;
+    const updatedDescription = currentDescription + linkText;
+    
+    await trello.updateCardDescription(cardID, updatedDescription);
+}
