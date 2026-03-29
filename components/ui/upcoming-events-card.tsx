@@ -17,6 +17,7 @@ export interface UpcomingEventItem {
 }
 
 interface UpcomingEventsCardProps {
+    title?: string;
     events: UpcomingEventItem[];
     loading: boolean;
     error: string | null;
@@ -52,6 +53,7 @@ function formatEventDate(date: Date): string {
 }
 
 export function UpcomingEventsCard({
+    title = "Upcoming Events",
     events,
     loading,
     error,
@@ -67,7 +69,7 @@ export function UpcomingEventsCard({
     return (
         <View style={styles.container}>
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Upcoming Events</Text>
+                <Text style={styles.sectionTitle}>{title}</Text>
             </View>
 
             {/* Loading State */}
