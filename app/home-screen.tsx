@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     eventsSection: {
-        marginTop: 24,
+        marginTop: 35,
         paddingHorizontal: 20,
     },
 });
