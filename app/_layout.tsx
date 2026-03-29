@@ -39,7 +39,9 @@ export default function RootLayout() {
         const inTabs = segments[0] === "(tabs)";
         const onAuth = segments[0] === "auth";
         const onTrello = segments[0] === "trello";
-        if (user && !inTabs && !onTrello) {
+        const onSetupEvent = segments[0] === "setup-event";
+        const onActiveEvent = segments[0] === "active-event";
+        if (user && !inTabs && !onTrello && !onSetupEvent && !onActiveEvent) {
             router.replace("/(tabs)");
         } else if (!user && !onAuth) {
             router.replace("/auth");
@@ -63,6 +65,14 @@ export default function RootLayout() {
                 <Stack.Screen
                     name="(tabs)"
                     options={{ headerShown: false, animation: "fade" }}
+                />
+                <Stack.Screen
+                    name="setup-event"
+                    options={{ headerShown: true, title: "Set Up Event" }}
+                />
+                <Stack.Screen
+                    name="active-event"
+                    options={{ headerShown: false }}
                 />
                 <Stack.Screen
                     name="modal"

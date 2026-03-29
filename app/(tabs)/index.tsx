@@ -1,5 +1,7 @@
+import { getActiveEvent } from "@/services/event-service";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
 import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -12,6 +14,30 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function HomeScreen() {
     const router = useRouter();
     const { user, loading, error, handleSignOut } = useGoogleAuth();
+    const [checkingEvent, setCheckingEvent] = useState(true);
+
+    // Auto-redirect to active event if one exists for this user
+    useEffect(() => {
+        if (!user) {
+            setCheckingEvent(false);
+            return;
+        }
+        getActiveEvent()
+            .then((event) => {
+                if (event) {
+                    router.replace("/active-event");
+                }
+            })
+            .finally(() => setCheckingEvent(false));
+    }, [user]);
+
+    if (checkingEvent) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <ActivityIndicator size="large" style={styles.centered} />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -25,11 +51,15 @@ export default function HomeScreen() {
                         <Text style={styles.email}>{user.email}</Text>
                     </>
                 )}
-                {/* Add temporary Trello button */}
                 <Pressable
-                    style={styles.trelloButton}
+                    style={styles.button}
+                    onPress={() => router.push("/setup-event")}>
+                    <Text style={styles.buttonText}>Set Up New Event</Text>
+                </Pressable>
+                <Pressable
+                    style={styles.button}
                     onPress={() => router.push("/trello")}>
-                    <Text style={styles.trelloButtonText}>Go to Trello Test</Text>
+                    <Text style={styles.buttonText}>Go to Trello Test</Text>
                 </Pressable>
                 <Pressable
                     style={[
@@ -57,6 +87,9 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#fff",
     },
+    centered: {
+        flex: 1,
+    },
     content: {
         flex: 1,
         justifyContent: "center",
@@ -77,9 +110,22 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: "#555",
     },
-    signOutButton: {
-        marginTop: 32,
+    button: {
         backgroundColor: "#0a7ea4",
+        paddingVertical: 12,
+        paddingHorizontal: 32,
+        borderRadius: 8,
+        minWidth: 200,
+        alignItems: "center",
+    },
+    buttonText: {
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 16,
+    },
+    signOutButton: {
+        marginTop: 20,
+        backgroundColor: "#555",
         paddingVertical: 12,
         paddingHorizontal: 32,
         borderRadius: 8,
@@ -98,18 +144,5 @@ const styles = StyleSheet.create({
         color: "#c0392b",
         fontSize: 14,
         textAlign: "center",
-    },
-    trelloButton: {
-        backgroundColor: "#0a7ea4",
-        paddingVertical: 12,
-        paddingHorizontal: 32,
-        borderRadius: 8,
-        minWidth: 120,
-        alignItems: "center",
-    },
-    trelloButtonText: {
-        color: "#fff",
-        fontWeight: "600",
-        fontSize: 16,
     },
 });
