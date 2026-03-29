@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Menu } from 'lucide-react-native';
+import React from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Menu } from "lucide-react-native";
 
 export default function HomeHeader({ userName }: { userName: string }) {
     const insets = useSafeAreaInsets();
@@ -10,16 +10,24 @@ export default function HomeHeader({ userName }: { userName: string }) {
             <View style={[styles.container, { paddingTop: insets.top }]}>
                 <View style={styles.topRow}>
                     <View>
-                        <Image source={require("../../assets/images/mvt-logo-white.png")} resizeMode="contain" style={styles.logo}/>
+                        <Image
+                            source={require("../../assets/images/mvt-logo-white.png")}
+                            resizeMode="contain"
+                            style={styles.logo}
+                        />
                     </View>
                     <TouchableOpacity>
-                        <Menu size={28} color="white" strokeWidth={1.5} />
+                        <Menu
+                            size={28}
+                            color="white"
+                            strokeWidth={1.5}
+                        />
                     </TouchableOpacity>
                 </View>
             </View>
             <View style={styles.greetingContainer}>
                 <Text style={styles.greeting}>
-                    Ready to make an impact,{'\n'}
+                    Ready to make an impact,{"\n"}
                     <Text style={styles.name}>{userName}</Text>?
                 </Text>
             </View>
@@ -29,35 +37,35 @@ export default function HomeHeader({ userName }: { userName: string }) {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: '#693894',
+        backgroundColor: "#693894",
         paddingHorizontal: 20,
         paddingBottom: 20,
     },
     topRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
     },
     logo: {
         width: 51,
         height: 51,
     },
     menu: {
-        color: 'white',
+        color: "white",
     },
     greetingContainer: {
-        backgroundColor: '#F5F5F5',
+        backgroundColor: "#FFFFFF",
         paddingHorizontal: 20,
         paddingTop: 20,
         paddingBottom: 10,
     },
     greeting: {
         fontSize: 22,
-        fontWeight: '500',
-        color: '#000000',
+        fontWeight: "500",
+        color: "#000000",
     },
     name: {
-        color: '#693894',
-        fontWeight: '700',
+        color: "#693894",
+        fontWeight: "700",
     },
 });
