@@ -59,8 +59,10 @@ export function UpcomingEventsCard({
     onShowMore,
     onPressItem,
 }: UpcomingEventsCardProps) {
+    const [expanded, setExpanded] = React.useState(false);
     const hasMore = events.length > maxItems;
-    const visibleEvents = hasMore ? events.slice(0, maxItems) : events;
+    const visibleEvents =
+        hasMore && !expanded ? events.slice(0, maxItems) : events;
 
     return (
         <View style={styles.container}>
@@ -91,7 +93,6 @@ export function UpcomingEventsCard({
 
             {!loading &&
                 !error &&
-                // This is just placeholder code right now to loop through every event type
                 visibleEvents.map((event, index) => {
                     const typePill = EVENT_TYPES[index % EVENT_TYPES.length];
                     return (
@@ -160,12 +161,21 @@ export function UpcomingEventsCard({
                     );
                 })}
 
-            {/* Show More Button */}
+            {/* Show More / Show Less Button */}
             {!loading && !error && hasMore && (
                 <Pressable
-                    onPress={onShowMore}
+                    onPress={() => {
+                        if (expanded) {
+                            setExpanded(false);
+                        } else {
+                            setExpanded(true);
+                            onShowMore();
+                        }
+                    }}
                     style={styles.showMoreButton}>
-                    <Text style={styles.showMoreText}>Show more</Text>
+                    <Text style={styles.showMoreText}>
+                        {expanded ? "Show less" : "Show more"}
+                    </Text>
                 </Pressable>
             )}
         </View>
@@ -261,6 +271,8 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: "600",
         color: "#000",
-        textDecorationLine: "underline",
+        borderBottomWidth: 1,
+        borderBottomColor: "#000",
+        paddingBottom: 0.5,
     },
 });

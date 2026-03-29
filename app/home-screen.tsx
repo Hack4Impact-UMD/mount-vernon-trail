@@ -22,7 +22,6 @@ export default function HomeScreen() {
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
-    const [eventsMax, setEventsMax] = useState(3);
 
     useEffect(() => {
         if (!API_KEY || !API_TOKEN) {
@@ -54,8 +53,8 @@ export default function HomeScreen() {
                             events={events}
                             loading={eventsLoading}
                             error={eventsError}
-                            maxItems={eventsMax}
-                            onShowMore={() => setEventsMax((prev) => prev + 3)}
+                            maxItems={3}
+                            onShowMore={() => {}}
                             onPressItem={(event) =>
                                 console.log("pressed:", event.name)
                             }
