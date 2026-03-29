@@ -28,8 +28,17 @@ export default function HomeScreen() {
                 {/* Add temporary Trello button */}
                 <Pressable
                     style={styles.trelloButton}
+                    onPress={() => router.push("/home-screen")}>
+                    <Text style={styles.trelloButtonText}>
+                        Go to Home Screen
+                    </Text>
+                </Pressable>
+                <Pressable
+                    style={styles.trelloButton}
                     onPress={() => router.push("/trello")}>
-                    <Text style={styles.trelloButtonText}>Go to Trello Test</Text>
+                    <Text style={styles.trelloButtonText}>
+                        Go to Trello Test
+                    </Text>
                 </Pressable>
                 <Pressable
                     style={[
@@ -44,9 +53,7 @@ export default function HomeScreen() {
                         <Text style={styles.signOutText}>Sign Out</Text>
                     )}
                 </Pressable>
-                {error && (
-                    <Text style={styles.errorText}>{error.message}</Text>
-                )}
+                {error && <Text style={styles.errorText}>{error.message}</Text>}
             </View>
         </SafeAreaView>
     );

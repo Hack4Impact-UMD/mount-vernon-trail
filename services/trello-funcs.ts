@@ -64,10 +64,11 @@ export class TrelloClient {
     async getCards(
         listID: string,
         sortByCreationDate: boolean = false,
+        getAttachments: boolean = false,
     ): Promise<Card[]> {
         try {
             const response = await this.client.get<Card[]>(
-                `/lists/${listID}/cards`,
+                `/lists/${listID}/cards${getAttachments ? "?attachments=cover" : ""}`,
             );
             // map to get the creation time
             // reference: https://support.atlassian.com/trello/docs/getting-the-time-a-card-or-board-was-created/
@@ -117,10 +118,11 @@ export class TrelloClient {
     async getEventCardsFiltered(
         listID: string,
         days: number = 30,
+        getAttachments: boolean = false,
         removeDate: boolean = false,
     ): Promise<EventCard[]> {
         try {
-            const cards = await this.getCards(listID, false);
+            const cards = await this.getCards(listID, false, getAttachments);
             const now = new Date();
             const today = new Date(
                 now.getFullYear(),
@@ -146,6 +148,35 @@ export class TrelloClient {
         } catch (error) {
             console.error("unable to get cards:", error);
             throw error;
+        }
+    }
+
+    async loadTrelloImage(imageUrl: string): Promise<string | null> {
+        try {
+            const response = await fetch(imageUrl, {
+                method: "GET",
+                headers: {
+                    Authorization: `OAuth oauth_consumer_key="${this.key}", oauth_token="${this.token}"`,
+                },
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status}`);
+            }
+            const blob = await response.blob();
+            // convert blob to base64 string
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    resolve(reader.result as string);
+                };
+                reader.onerror = () => {
+                    reject(new Error("Failed to convert blob to Base64"));
+                };
+                reader.readAsDataURL(blob);
+            });
+        } catch (error) {
+            console.error("Error loading image:", error);
+            return null;
         }
     }
 }

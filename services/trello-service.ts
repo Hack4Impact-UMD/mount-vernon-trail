@@ -23,15 +23,18 @@ export async function fetchTrailIssues(
     const list = lists.find((l) => l.name === TRAIL_ISSUES_LIST);
     if (!list) throw new Error(`List "${TRAIL_ISSUES_LIST}" not found`);
 
-    const cards = await trello.getCards(list.id, true);
-    // imageUrl is set to null for now
-    return Promise.all(
+    const cards = await trello.getCards(list.id, true, true);
+    return await Promise.all(
         cards.map(async (card) => {
+            const imageUrl =
+                card.attachments && card.attachments.length > 0
+                    ? await trello.loadTrelloImage(card.attachments[0].url)
+                    : null;
             return {
                 id: card.id,
                 name: card.name,
                 description: card.desc ?? "",
-                imageUrl: null,
+                imageUrl,
             };
         }),
     );
@@ -52,16 +55,20 @@ export async function fetchUpcomingEvents(
     const list = lists.find((l) => l.name === UPCOMING_EVENTS_LIST);
     if (!list) throw new Error(`List "${UPCOMING_EVENTS_LIST}" not found`);
 
-    const cards = await trello.getEventCardsFiltered(list.id, 30, true);
+    const cards = await trello.getEventCardsFiltered(list.id, 30, true, true);
 
     return Promise.all(
         cards.map(async (card) => {
+            const imageUrl =
+                card.attachments && card.attachments.length > 0
+                    ? await trello.loadTrelloImage(card.attachments[0].url)
+                    : null;
             return {
                 id: card.id,
                 name: card.name,
                 description: card.desc ?? "",
                 date: card.eventDate,
-                imageUrl: null,
+                imageUrl,
             };
         }),
     );
