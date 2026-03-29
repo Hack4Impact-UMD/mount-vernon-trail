@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/Hack4Impact-UMD/mount-vernon-trail#readme",
   "dependencies": {
+    "@expo-google-fonts/lato": "^0.4.1",
     "@expo/ngrok": "^4.1.3",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^1.24.0",

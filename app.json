@@ -1,64 +1,65 @@
 {
-    "expo": {
-        "name": "mount-vernon-trail",
-        "slug": "mount-vernon-trail",
-        "version": "1.0.0",
-        "orientation": "default",
-        "icon": "./assets/images/icon.png",
-        "scheme": [
-            "mount-vernon-trail",
-            "com.googleusercontent.apps.405328478335-jrjdhobgia6q5kp5fo35kspn4immrfn7",
-            "com.googleusercontent.apps.405328478335-4gr2n100eq9g8tg8m4r89tm26gas4rcs"
-        ],
-        "userInterfaceStyle": "automatic",
-        "newArchEnabled": true,
-        "ios": {
-            "supportsTablet": true,
-            "bundleIdentifier": "com.anonymous.mountvernontrail"
-            // "googleServicesFile": "./GoogleService-Info.plist"
-        },
-        "android": {
-            "adaptiveIcon": {
-                "backgroundColor": "#E6F4FE",
-                "foregroundImage": "./assets/images/android-icon-foreground.png",
-                "backgroundImage": "./assets/images/android-icon-background.png",
-                "monochromeImage": "./assets/images/android-icon-monochrome.png"
-            },
-            "edgeToEdgeEnabled": true,
-            "predictiveBackGestureEnabled": false,
-            "package": "com.anonymous.mountvernontrail"
-            // "googleServicesFile": "./google-services.json"
-        },
-        "web": {
-            "output": "static",
-            "favicon": "./assets/images/favicon.png"
-        },
-        "plugins": [
-            "expo-router",
-            [
-                "expo-splash-screen",
-                {
-                    "image": "./assets/images/splash-icon.png",
-                    "imageWidth": 200,
-                    "resizeMode": "contain",
-                    "backgroundColor": "#ffffff",
-                    "dark": {
-                        "backgroundColor": "#000000"
-                    }
-                }
-            ],
-            "expo-camera",
-            "expo-image-picker",
-            [
-                "expo-media-library",
-                {
-                    "granularPermissions": ["photo"]
-                }
-            ]
-        ],
-        "experiments": {
-            "typedRoutes": true,
-            "reactCompiler": true
+  "expo": {
+    "name": "mount-vernon-trail",
+    "slug": "mount-vernon-trail",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/images/icon.png",
+    "scheme": [
+      "mount-vernon-trail",
+      "com.googleusercontent.apps.405328478335-jrjdhobgia6q5kp5fo35kspn4immrfn7",
+      "com.googleusercontent.apps.405328478335-4gr2n100eq9g8tg8m4r89tm26gas4rcs"
+    ],
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.mountvernontrail"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.mountvernontrail"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
         }
+      ],
+      "expo-camera",
+      "expo-image-picker",
+      [
+        "expo-media-library",
+        {
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
     }
+  }
 }

@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Menu } from "lucide-react-native";
+import { Palette } from "@/constants/theme";
 
 export default function HomeHeader({ userName }: { userName: string }) {
     const insets = useSafeAreaInsets();
@@ -37,7 +38,7 @@ export default function HomeHeader({ userName }: { userName: string }) {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: "#693894",
+        backgroundColor: Palette.primaryPurple100,
         paddingHorizontal: 20,
         paddingBottom: 20,
     },
@@ -54,18 +55,17 @@ const styles = StyleSheet.create({
         color: "white",
     },
     greetingContainer: {
-        backgroundColor: "#FFFFFF",
         paddingHorizontal: 20,
         paddingTop: 20,
         paddingBottom: 10,
     },
     greeting: {
+        fontFamily: "Lato_700Bold",
         fontSize: 22,
-        fontWeight: "500",
         color: "#000000",
     },
     name: {
-        color: "#693894",
         fontWeight: "700",
+        color: Palette.primaryPurple100,
     },
 });
