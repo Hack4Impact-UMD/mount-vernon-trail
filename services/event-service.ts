@@ -1,4 +1,4 @@
-import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, where, getDocs, Timestamp } from "firebase/firestore";
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, where, getDocs, Timestamp, arrayUnion } from "firebase/firestore";
 import { auth } from "@/config/firebase";
 
 export interface Event {
@@ -11,6 +11,7 @@ export interface Event {
     albumUrl: string;
     isActive: boolean;
     associatedUsers: string[];
+    associatedEmails: string[];
     createdBy: string;
     createdAt: Timestamp;
 }
@@ -51,6 +52,24 @@ export async function createOrUpdateUser(
     }
 }
 
+// when a user signs in, link their UID to any events that have their email in associatedEmails
+export async function linkUserToEventsByEmail(
+    uid: string,
+    email: string,
+): Promise<void> {
+    const db = getFirestore();
+    const q = query(
+        collection(db, EVENTS_COLLECTION),
+        where("associatedEmails", "array-contains", email.toLowerCase()),
+    );
+    const snapshot = await getDocs(q);
+    for (const docSnapshot of snapshot.docs) {
+        await updateDoc(docSnapshot.ref, {
+            associatedUsers: arrayUnion(uid),
+        });
+    }
+}
+
 // creates a new event with album and add to albums collection
 export async function createEvent(
     title: string,
@@ -59,7 +78,7 @@ export async function createEvent(
     trelloCardId: string,
     albumId: string,
     albumUrl: string,
-    associatedUserIds: string[],
+    associatedEmails: string[],
 ): Promise<string> {
     const db = getFirestore();
     const currentUser = auth.currentUser;
@@ -78,8 +97,9 @@ export async function createEvent(
         trelloCardId,
         albumId,
         albumUrl,
-        isActive: true,
-        associatedUsers: associatedUserIds,
+        isActive: false,
+        associatedUsers: [],
+        associatedEmails: associatedEmails.map((e) => e.toLowerCase()),
         createdBy: currentUser.uid,
         createdAt: Timestamp.now(),
     };
@@ -87,17 +107,14 @@ export async function createEvent(
     await setDoc(eventRef, eventData);
 
     const albumRef = doc(db, ALBUMS_COLLECTION, albumId);
-    const albumDoc = await getDoc(albumRef);
-    if (!albumDoc.exists()) {
-        await setDoc(albumRef, {
-            albumId,
-            title,
-            albumUrl,
-            eventId: eventRef.id,
-            createdBy: currentUser.uid,
-            createdAt: Timestamp.now(),
-        });
-    }
+    await setDoc(albumRef, {
+        albumId,
+        title,
+        albumUrl,
+        eventId: eventRef.id,
+        createdBy: currentUser.uid,
+        createdAt: Timestamp.now(),
+    });
 
     return eventRef.id;
 }
@@ -184,6 +201,12 @@ export async function addUserToEvent(
     await updateDoc(eventRef, {
         associatedUsers: updatedUsers,
     });
+}
+
+export async function getAllUsers(): Promise<FirebaseUser[]> {
+    const db = getFirestore();
+    const snapshot = await getDocs(collection(db, USERS_COLLECTION));
+    return snapshot.docs.map((doc) => doc.data() as FirebaseUser);
 }
 
 export async function removeUserFromEvent(
