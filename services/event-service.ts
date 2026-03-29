@@ -1,5 +1,17 @@
-import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, where, getDocs, Timestamp, arrayUnion } from "firebase/firestore";
 import { auth } from "@/config/firebase";
+import {
+    arrayUnion,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    getFirestore,
+    query,
+    setDoc,
+    Timestamp,
+    updateDoc,
+    where,
+} from "firebase/firestore";
 
 export interface Event {
     eventId: string;
@@ -70,7 +82,7 @@ export async function linkUserToEventsByEmail(
     }
 }
 
-// creates a new event with album and add to albums collection
+// creates a new event and adds album doc to albums collection
 export async function createEvent(
     title: string,
     description: string,
@@ -84,10 +96,11 @@ export async function createEvent(
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
-        throw new Error("User is not authenticated. Please sign in to create an event.");
+        throw new Error(
+            "User is not authenticated. Please sign in to create an event.",
+        );
     }
 
-    // create the actual event document
     const eventRef = doc(collection(db, EVENTS_COLLECTION));
     const eventData: Event = {
         eventId: eventRef.id,
@@ -97,7 +110,7 @@ export async function createEvent(
         trelloCardId,
         albumId,
         albumUrl,
-        isActive: false,
+        isActive: true,
         associatedUsers: [],
         associatedEmails: associatedEmails.map((e) => e.toLowerCase()),
         createdBy: currentUser.uid,
@@ -106,8 +119,7 @@ export async function createEvent(
 
     await setDoc(eventRef, eventData);
 
-    const albumRef = doc(db, ALBUMS_COLLECTION, albumId);
-    await setDoc(albumRef, {
+    await setDoc(doc(db, ALBUMS_COLLECTION, albumId), {
         albumId,
         title,
         albumUrl,
@@ -119,7 +131,6 @@ export async function createEvent(
     return eventRef.id;
 }
 
-
 // get active event for the current user
 export async function getActiveEvent(): Promise<Event | null> {
     const db = getFirestore();
@@ -129,7 +140,6 @@ export async function getActiveEvent(): Promise<Event | null> {
         return null;
     }
 
-    // query for active events where user is in associatedUsers
     const q = query(
         collection(db, EVENTS_COLLECTION),
         where("isActive", "==", true),
@@ -141,90 +151,12 @@ export async function getActiveEvent(): Promise<Event | null> {
         return null;
     }
 
-    // should ideally be only one active event but takes the first one in case there are multiple
-    const doc = snapshot.docs[0];
-    return doc.data() as Event;
-}
-
-// gets all the events, active and inactive
-export async function getAllEvents(): Promise<Event[]> {
-    const db = getFirestore();
-    const snapshot = await getDocs(collection(db, EVENTS_COLLECTION));
-    return snapshot.docs.map((doc) => doc.data() as Event);
-}
-
-export async function getEventById(eventId: string): Promise<Event | null> {
-    const db = getFirestore();
-    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
-    const eventDoc = await getDoc(eventRef);
-
-    if (!eventDoc.exists()) {
-        return null;
-    }
-
-    return eventDoc.data() as Event;
+    return snapshot.docs[0].data() as Event;
 }
 
 export async function setEventInactive(eventId: string): Promise<void> {
     const db = getFirestore();
-    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
-    await updateDoc(eventRef, {
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         isActive: false,
-    });
-}
-
-export async function setEventActive(eventId: string): Promise<void> {
-    const db = getFirestore();
-    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
-    await updateDoc(eventRef, {
-        isActive: true,
-    });
-}
-
-// adds a user to the events user list like rsvping to an event
-// **note this does not check if the user is already in the list, but Firestore does handle duplicates from testing
-export async function addUserToEvent(
-    eventId: string,
-    userId: string,
-): Promise<void> {
-    const db = getFirestore();
-    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
-    const eventDoc = await getDoc(eventRef);
-
-    if (!eventDoc.exists()) {
-        throw new Error(`Event ${eventId} not found`);
-    }
-
-    const event = eventDoc.data() as Event;
-    const updatedUsers = [...new Set([...event.associatedUsers, userId])]; // Remove duplicates
-
-    await updateDoc(eventRef, {
-        associatedUsers: updatedUsers,
-    });
-}
-
-export async function getAllUsers(): Promise<FirebaseUser[]> {
-    const db = getFirestore();
-    const snapshot = await getDocs(collection(db, USERS_COLLECTION));
-    return snapshot.docs.map((doc) => doc.data() as FirebaseUser);
-}
-
-export async function removeUserFromEvent(
-    eventId: string,
-    userId: string,
-): Promise<void> {
-    const db = getFirestore();
-    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
-    const eventDoc = await getDoc(eventRef);
-
-    if (!eventDoc.exists()) {
-        throw new Error(`Event ${eventId} not found`);
-    }
-
-    const event = eventDoc.data() as Event;
-    const updatedUsers = event.associatedUsers.filter((uid) => uid !== userId);
-
-    await updateDoc(eventRef, {
-        associatedUsers: updatedUsers,
     });
 }
