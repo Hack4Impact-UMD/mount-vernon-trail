@@ -96,6 +96,7 @@ async function listEvents(boardName: string, removeDate: boolean = false) {
         const cards = await trello.getEventCardsFiltered(
             targetList.id,
             days,
+            true,
             removeDate,
         );
         console.log(`Cards in list "${targetList.name}" (${days} days):`);

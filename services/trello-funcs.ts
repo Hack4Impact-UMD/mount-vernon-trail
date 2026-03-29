@@ -118,10 +118,11 @@ export class TrelloClient {
     async getEventCardsFiltered(
         listID: string,
         days: number = 30,
+        getAttachments: boolean = false,
         removeDate: boolean = false,
     ): Promise<EventCard[]> {
         try {
-            const cards = await this.getCards(listID, false);
+            const cards = await this.getCards(listID, false, getAttachments);
             const now = new Date();
             const today = new Date(
                 now.getFullYear(),
