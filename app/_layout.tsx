@@ -15,7 +15,6 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 
 SplashScreen.preventAutoHideAsync();
 
-
 export default function RootLayout() {
     const colorScheme = useColorScheme();
     const router = useRouter();
@@ -39,7 +38,8 @@ export default function RootLayout() {
         const inTabs = segments[0] === "(tabs)";
         const onAuth = segments[0] === "auth";
         const onTrello = segments[0] === "trello";
-        if (user && !inTabs && !onTrello) {
+        const onHomeScreen = segments[0] === "home-screen";
+        if (user && !inTabs && !onTrello && !onHomeScreen) {
             router.replace("/(tabs)");
         } else if (!user && !onAuth) {
             router.replace("/auth");
