@@ -62,21 +62,30 @@ export default function ActiveEventScreen() {
         );
     }
 
+    if (fetchError || !event) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.content}>
+                    <Text style={styles.errorText}>
+                        {fetchError ?? "No active event found."}
+                    </Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.content}>
-                {fetchError && (
-                    <Text style={styles.errorText}>{fetchError}</Text>
-                )}
                 <View style={styles.badgeRow}>
                     <View style={styles.badge}>
                         <Text style={styles.badgeText}>ONGOING EVENT</Text>
                     </View>
                 </View>
 
-                <Text style={styles.title}>{event?.title ?? "Event"}</Text>
+                <Text style={styles.title}>{event.title}</Text>
 
-                {event?.description ? (
+                {event.description ? (
                     <Text style={styles.description}>{event.description}</Text>
                 ) : null}
 
