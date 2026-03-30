@@ -11,6 +11,7 @@ import {
     Timestamp,
     updateDoc,
     where,
+    writeBatch,
 } from "firebase/firestore";
 
 export interface Event {
@@ -117,9 +118,9 @@ export async function createEvent(
         createdAt: Timestamp.now(),
     };
 
-    await setDoc(eventRef, eventData);
-
-    await setDoc(doc(db, ALBUMS_COLLECTION, albumId), {
+    const batch = writeBatch(db);
+    batch.set(eventRef, eventData);
+    batch.set(doc(db, ALBUMS_COLLECTION, albumId), {
         albumId,
         title,
         albumUrl,
@@ -127,6 +128,7 @@ export async function createEvent(
         createdBy: currentUser.uid,
         createdAt: Timestamp.now(),
     });
+    await batch.commit();
 
     return eventRef.id;
 }
