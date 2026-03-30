@@ -26,7 +26,7 @@ export class TrelloClient {
                 await this.client.get<Board[]>("/members/me/boards");
             return response.data;
         } catch (error) {
-            console.error("error finding boards:", error);
+            console.error("error finding boards:", (error as Error).message);
             throw error;
         }
     }
@@ -38,7 +38,7 @@ export class TrelloClient {
             );
             return response.data;
         } catch (error) {
-            console.error(`error getting lists:`, error);
+            console.error(`error getting lists:`, (error as Error).message);
             throw error;
         }
     }
@@ -56,7 +56,7 @@ export class TrelloClient {
             });
             return response.data;
         } catch (error) {
-            console.error("unable to create card:", error);
+            console.error("unable to create card:", (error as Error).message);
             throw error;
         }
     }
@@ -85,7 +85,7 @@ export class TrelloClient {
             }
             return cards;
         } catch (error) {
-            console.error("unable to get cards:", error);
+            console.error("unable to get cards:", (error as Error).message);
             throw error;
         }
     }
@@ -144,7 +144,7 @@ export class TrelloClient {
                 .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
             return result;
         } catch (error) {
-            console.error("unable to get cards:", error);
+            console.error("unable to get cards:", (error as Error).message);
             throw error;
         }
     }
@@ -154,7 +154,7 @@ export class TrelloClient {
             const response = await this.client.get<Card>(`/cards/${cardID}`);
             return response.data;
         } catch (error) {
-            console.error(`unable to get card ${cardID}:`, error);
+            console.error(`unable to get card ${cardID}:`, (error as Error).message);
             throw error;
         }
     }
@@ -169,7 +169,7 @@ export class TrelloClient {
             });
             return response.data;
         } catch (error) {
-            console.error(`unable to update card ${cardID}:`, error);
+            console.error(`unable to update card ${cardID}:`, (error as Error).message);
             throw error;
         }
     }
