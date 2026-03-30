@@ -64,11 +64,14 @@ async function listIssues(boardName: string) {
             return;
         }
         // sort by creation date, descending order
-        const cards = await trello.getCards(targetList.id, true);
+        const cards = await trello.getCards(targetList.id, true, true);
         console.log(`Cards in list "${targetList.name}":`);
         for (const card of cards) {
             console.log(`- ${card.name}: ${card.desc || "No description"}`);
             console.log(`  Created at: ${card.creationDate.toLocaleString()}`);
+            console.log(
+                ` Attachments: ${card.attachments ? card.attachments.length : 0}`,
+            );
         }
         console.log();
     }
@@ -93,6 +96,7 @@ async function listEvents(boardName: string, removeDate: boolean = false) {
         const cards = await trello.getEventCardsFiltered(
             targetList.id,
             days,
+            true,
             removeDate,
         );
         console.log(`Cards in list "${targetList.name}" (${days} days):`);
@@ -107,6 +111,6 @@ async function listEvents(boardName: string, removeDate: boolean = false) {
 (async () => {
     // Card("MVT Mock Board", "Today", "clean up trail 5", "pick up trash");
     await listIssues("MVT Mock Board");
-    await listEvents("MVT Mock Board", true);
-    await listEvents("MVT Mock Board", false);
+    // await listEvents("MVT Mock Board", true);
+    // await listEvents("MVT Mock Board", false);
 })();

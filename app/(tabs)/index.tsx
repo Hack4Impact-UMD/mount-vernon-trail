@@ -60,6 +60,11 @@ export default function HomeScreen() {
                 </Pressable>
                 <Pressable
                     style={styles.button}
+                    onPress={() => router.push("/home-screen")}>
+                    <Text style={styles.buttonText}>Go to Home Screen</Text>
+                </Pressable>
+                <Pressable
+                    style={styles.button}
                     onPress={() => router.push("/trello")}>
                     <Text style={styles.buttonText}>Go to Trello Test</Text>
                 </Pressable>

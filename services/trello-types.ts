@@ -17,6 +17,11 @@ export interface Card {
     idList: string;
     idBoard: string;
     creationDate: Date;
+    attachments?: TrelloAttachment[];
+}
+
+export interface TrelloAttachment {
+    url: string;
 }
 
 export interface EventCard extends Card {
