@@ -17,10 +17,12 @@ export default function ActiveEventScreen() {
     const [event, setEvent] = useState<Event | null>(null);
     const [loading, setLoading] = useState(true);
     const [ending, setEnding] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
     useEffect(() => {
         getActiveEvent()
             .then(setEvent)
+            .catch((e) => setFetchError((e as Error).message))
             .finally(() => setLoading(false));
     }, []);
 
@@ -63,6 +65,9 @@ export default function ActiveEventScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.content}>
+                {fetchError && (
+                    <Text style={styles.errorText}>{fetchError}</Text>
+                )}
                 <View style={styles.badgeRow}>
                     <View style={styles.badge}>
                         <Text style={styles.badgeText}>ONGOING EVENT</Text>
@@ -161,5 +166,10 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontWeight: "700",
         fontSize: 16,
+    },
+    errorText: {
+        color: "#c0392b",
+        fontSize: 14,
+        textAlign: "center",
     },
 });

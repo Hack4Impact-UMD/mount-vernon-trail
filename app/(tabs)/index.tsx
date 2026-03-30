@@ -15,6 +15,7 @@ export default function HomeScreen() {
     const router = useRouter();
     const { user, loading, error, handleSignOut } = useGoogleAuth();
     const [checkingEvent, setCheckingEvent] = useState(true);
+    const [eventError, setEventError] = useState<string | null>(null);
 
     // Auto-redirect to active event if one exists for this user
     useEffect(() => {
@@ -28,6 +29,7 @@ export default function HomeScreen() {
                     router.replace("/active-event");
                 }
             })
+            .catch((e) => setEventError((e as Error).message))
             .finally(() => setCheckingEvent(false));
     }, [user]);
 
@@ -74,6 +76,9 @@ export default function HomeScreen() {
                         <Text style={styles.signOutText}>Sign Out</Text>
                     )}
                 </Pressable>
+                {eventError && (
+                    <Text style={styles.errorText}>{eventError}</Text>
+                )}
                 {error && (
                     <Text style={styles.errorText}>{error.message}</Text>
                 )}
