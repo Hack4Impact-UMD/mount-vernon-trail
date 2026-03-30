@@ -111,7 +111,7 @@ export async function createEvent(
         albumId,
         albumUrl,
         isActive: true,
-        associatedUsers: [],
+        associatedUsers: [currentUser.uid],
         associatedEmails: associatedEmails.map((e) => e.toLowerCase()),
         createdBy: currentUser.uid,
         createdAt: Timestamp.now(),
