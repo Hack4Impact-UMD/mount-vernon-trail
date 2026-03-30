@@ -5,14 +5,13 @@ import {getTrelloToken} from "./trello-auth";
 import { TrelloAuthError } from "./trello-auth-error";
 import type { Board, Card, EventCard, List } from "./trello-types";
 
-function handleHttpError(status: number): never {
+function handleHttpError(status: number): void {
     if (status === 401) {
         throw new TrelloAuthError("TOKEN_EXPIRED");
     }
     if (status === 403) {
         throw new TrelloAuthError("PERMISSION_DENIED");
     }
-    throw new TrelloAuthError("AUTH_FAILED");
 }
 export class TrelloClient {
     private readonly client: AxiosInstance;
