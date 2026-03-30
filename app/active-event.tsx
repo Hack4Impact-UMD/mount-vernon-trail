@@ -1,5 +1,6 @@
 import type { Event } from "@/services/event-service";
 import { getActiveEvent, setEventInactive } from "@/services/event-service";
+import { useNavigation } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -14,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ActiveEventScreen() {
     const router = useRouter();
+    const navigation = useNavigation();
     const [event, setEvent] = useState<Event | null>(null);
     const [loading, setLoading] = useState(true);
     const [ending, setEnding] = useState(false);
@@ -69,6 +71,11 @@ export default function ActiveEventScreen() {
                     <Text style={styles.errorText}>
                         {fetchError ?? "No active event found."}
                     </Text>
+                    <Pressable
+                        style={styles.backButton}
+                        onPress={() => navigation.goBack()}>
+                        <Text style={styles.backButtonText}>Go Back</Text>
+                    </Pressable>
                 </View>
             </SafeAreaView>
         );
@@ -180,5 +187,17 @@ const styles = StyleSheet.create({
         color: "#c0392b",
         fontSize: 14,
         textAlign: "center",
+    },
+    backButton: {
+        marginTop: 16,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        backgroundColor: "#3498db",
+        borderRadius: 8,
+    },
+    backButtonText: {
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 14,
     },
 });

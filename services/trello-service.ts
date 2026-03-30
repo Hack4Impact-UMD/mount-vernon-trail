@@ -110,9 +110,21 @@ export async function addAlbumLinkToCard(
     const card = await trello.getCard(cardID);
     const currentDescription = card.desc ?? "";
 
-    // append album link to description
-    const linkText = `\n\n📷 Album Link: ${albumUrl}`;
-    const updatedDescription = currentDescription + linkText;
+    // album link pattern to detect and replace existing album links
+    const albumLinkPattern = /\n\n📷 Album Link: .*/;
+    const newLinkText = `\n\n📷 Album Link: ${albumUrl}`;
+
+    let updatedDescription: string;
+    if (albumLinkPattern.test(currentDescription)) {
+        // replace existing album link to make operation idempotent
+        updatedDescription = currentDescription.replace(
+            albumLinkPattern,
+            newLinkText,
+        );
+    } else {
+        // append new album link if none exists
+        updatedDescription = currentDescription + newLinkText;
+    }
 
     await trello.updateCardDescription(cardID, updatedDescription);
 }

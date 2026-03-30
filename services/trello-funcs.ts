@@ -3,6 +3,17 @@ import type { AxiosInstance } from "axios";
 import axios from "axios";
 import type { Board, Card, EventCard, List } from "./trello-types";
 
+// helper for error message from unknown error type
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+    if (typeof error === "string") {
+        return error;
+    }
+    return String(error) || "Unknown error";
+}
+
 export class TrelloClient {
     private readonly client: AxiosInstance;
     private readonly key: string;
@@ -26,7 +37,7 @@ export class TrelloClient {
                 await this.client.get<Board[]>("/members/me/boards");
             return response.data;
         } catch (error) {
-            console.error("error finding boards:", (error as Error).message);
+            console.error("error finding boards:", getErrorMessage(error));
             throw error;
         }
     }
@@ -38,7 +49,7 @@ export class TrelloClient {
             );
             return response.data;
         } catch (error) {
-            console.error(`error getting lists:`, (error as Error).message);
+            console.error(`error getting lists:`, getErrorMessage(error));
             throw error;
         }
     }
@@ -56,7 +67,7 @@ export class TrelloClient {
             });
             return response.data;
         } catch (error) {
-            console.error("unable to create card:", (error as Error).message);
+            console.error("unable to create card:", getErrorMessage(error));
             throw error;
         }
     }
@@ -86,7 +97,7 @@ export class TrelloClient {
             }
             return cards;
         } catch (error) {
-            console.error("unable to get cards:", (error as Error).message);
+            console.error("unable to get cards:", getErrorMessage(error));
             throw error;
         }
     }
@@ -146,7 +157,7 @@ export class TrelloClient {
                 .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
             return result;
         } catch (error) {
-            console.error("unable to get cards:", (error as Error).message);
+            console.error("unable to get cards:", getErrorMessage(error));
             throw error;
         }
     }
@@ -156,7 +167,7 @@ export class TrelloClient {
             const response = await this.client.get<Card>(`/cards/${cardID}`);
             return response.data;
         } catch (error) {
-            console.error(`unable to get card ${cardID}:`, (error as Error).message);
+            console.error(`unable to get card ${cardID}:`, getErrorMessage(error));
             throw error;
         }
     }
@@ -171,7 +182,7 @@ export class TrelloClient {
             });
             return response.data;
         } catch (error) {
-            console.error(`unable to update card ${cardID}:`, (error as Error).message);
+            console.error(`unable to update card ${cardID}:`, getErrorMessage(error));
             throw error;
         }
     }
