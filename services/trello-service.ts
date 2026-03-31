@@ -23,7 +23,7 @@ export async function fetchTrailIssues(
     const list = lists.find((l) => l.name === TRAIL_ISSUES_LIST);
     if (!list) throw new Error(`List "${TRAIL_ISSUES_LIST}" not found`);
 
-    const cards = await trello.getCards(list.id, true, true);
+    const cards = await trello.getCards(list.id, true, "cover");
     return await Promise.all(
         cards.map(async (card) => {
             const imageUrl =
