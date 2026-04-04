@@ -1,5 +1,6 @@
 import { useGoogleAuth } from "@/hooks/use-google-auth";
 import { useRouter } from "expo-router";
+import React from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -12,6 +13,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function HomeScreen() {
     const router = useRouter();
     const { user, loading, error, handleSignOut } = useGoogleAuth();
+    
+    // temporary for testing trail document screen 
+    const eventCardID = "69b9c0d995522b9b514f88fb";
 
     return (
         <SafeAreaView style={styles.container}>
@@ -38,6 +42,16 @@ export default function HomeScreen() {
                     onPress={() => router.push("/trello")}>
                     <Text style={styles.trelloButtonText}>
                         Go to Trello Test
+                    </Text>
+                </Pressable>
+                <Pressable
+                    style={styles.trelloButton}
+                    onPress={() => router.push({
+                        pathname: "/trail-document-screen",
+                        params: { eventCardID }
+                    })}>
+                    <Text style={styles.trelloButtonText}>
+                        Go to Trail Document
                     </Text>
                 </Pressable>
                 <Pressable

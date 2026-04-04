@@ -201,6 +201,25 @@ export class TrelloClient {
         }
     }
 
+    async getEventCardByID(
+        cardID: string,
+        getAttachments: boolean | "cover" = false,
+    ): Promise<EventCard> {
+        try {
+            const card = await this.getCardByID(cardID, getAttachments);
+            const eventCard = TrelloClient.cardToEventCard(card, true);
+            if (!eventCard) {
+                throw new Error(
+                    `Card with ID "${cardID}" is not a valid event card`,
+                );
+            }
+            return eventCard;
+        } catch (error) {
+            console.error("unable to get event card:", error);
+            throw error;
+        }
+    }
+
     async loadTrelloImage(imageUrl: string): Promise<string | null> {
         try {
             const response = await fetch(imageUrl, {
