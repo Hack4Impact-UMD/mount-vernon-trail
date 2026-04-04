@@ -21,6 +21,7 @@ export interface Event {
     albumUrl: string;
     isActive: boolean;
     startDate?: Timestamp;
+    endDate: Timestamp | null;
     createdAt: Timestamp;
 }
 
@@ -55,6 +56,7 @@ export async function createEvent(
         albumId,
         albumUrl,
         isActive: true,
+        endDate: null,
         createdAt: Timestamp.now(),
     };
 
@@ -93,5 +95,6 @@ export async function setEventInactive(eventId: string): Promise<void> {
     const db = getFirestore();
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         isActive: false,
+        endDate: Timestamp.now(),
     });
 }

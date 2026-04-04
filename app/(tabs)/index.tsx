@@ -69,6 +69,16 @@ export default function HomeScreen() {
                     <Text style={styles.buttonText}>Go to Trello Test</Text>
                 </Pressable>
                 <Pressable
+                    style={styles.button}
+                    onPress={() => router.push("/trail-document-screen")}>
+                    <Text style={styles.buttonText}>Trail Document Screen</Text>
+                </Pressable>
+                <Pressable
+                    style={styles.button}
+                    onPress={() => router.push("/trail-summary-screen")}>
+                    <Text style={styles.buttonText}>Trail Summary Screen</Text>
+                </Pressable>
+                <Pressable
                     style={[
                         styles.signOutButton,
                         loading && styles.signOutDisabled,
