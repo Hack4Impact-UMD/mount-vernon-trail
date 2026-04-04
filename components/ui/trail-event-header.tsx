@@ -22,7 +22,7 @@ const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN ?? "";
 interface TrailEventHeaderProps {
     event: Event;
     onStop?: () => void;
-    variant?: "default" | "document";
+    variant?: "default" | "document" | "summary";
 }
 
 function formatDuration(seconds: number): string {
@@ -41,7 +41,14 @@ export default function TrailEventHeader({
     const [elapsed, setElapsed] = useState(0);
     const [stopping, setStopping] = useState(false);
 
+    const staticDuration = (() => {
+        if (!event.startDate) return 0;
+        const end = event.endDate ? event.endDate.toMillis() : Date.now();
+        return Math.max(0, Math.floor((end - event.startDate.toMillis()) / 1000));
+    })();
+
     useEffect(() => {
+        if (variant === "summary") return;
         if (!event.startDate) return;
 
         const startMs = event.startDate.toMillis();
@@ -54,7 +61,7 @@ export default function TrailEventHeader({
         tick();
         const id = setInterval(tick, 1000);
         return () => clearInterval(id);
-    }, [event.startDate]);
+    }, [event.startDate, variant]);
 
     const handleStop = () => {
         Alert.alert(
@@ -94,6 +101,58 @@ export default function TrailEventHeader({
             console.error("Failed to share event:", e);
         }
     };
+
+    if (variant === "summary") {
+        return (
+            <View style={docStyles.container}>
+                <View style={docStyles.left}>
+                    <Text style={docStyles.eventName}>{event.title}</Text>
+                    <Text style={docStyles.duration}>
+                        Duration: {formatDuration(staticDuration)}
+                    </Text>
+                </View>
+
+                <View style={docStyles.right}>
+                    {event.albumUrl ? (
+                        <Pressable
+                            style={docStyles.actionRow}
+                            onPress={() => Linking.openURL(event.albumUrl)}>
+                            <View
+                                style={[
+                                    docStyles.iconCircle,
+                                    { backgroundColor: Palette.teal },
+                                ]}>
+                                <Image
+                                    source={require("../../assets/images/image-icon.svg")}
+                                    style={docStyles.iconImageSmall}
+                                    contentFit="contain"
+                                />
+                            </View>
+                            <Text style={docStyles.actionLabel}>
+                                View album
+                            </Text>
+                        </Pressable>
+                    ) : null}
+                    <Pressable
+                        style={docStyles.actionRow}
+                        onPress={handleShareEvent}>
+                        <View
+                            style={[
+                                docStyles.iconCircle,
+                                { backgroundColor: Palette.blue },
+                            ]}>
+                            <Image
+                                source={require("../../assets/images/send-icon.svg")}
+                                style={docStyles.iconImage}
+                                contentFit="contain"
+                            />
+                        </View>
+                        <Text style={docStyles.actionLabel}>Share event</Text>
+                    </Pressable>
+                </View>
+            </View>
+        );
+    }
 
     if (variant === "document") {
         return (

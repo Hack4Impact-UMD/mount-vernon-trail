@@ -1,21 +1,20 @@
 import BottomNav from "@/components/ui/bottom-nav";
+import HomeHeader from "@/components/ui/header";
+import TrailEventHeader from "@/components/ui/trail-event-header";
 import { Palette } from "@/constants/theme";
-import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import type { Event } from "@/services/event-service";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Menu } from "lucide-react-native";
+import { Timestamp } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
     Animated,
-    Image,
-    Linking,
     Pressable,
     ScrollView,
-    Share,
     StyleSheet,
     Text,
-    TouchableOpacity,
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,11 +23,18 @@ const GREEN = "#3BA34C";
 const BLUE = "#215EAC";
 const TEAL = "#2D8682";
 
-const MOCK = {
-    title: "Fort Hunt Park",
-    duration: "01:19:09",
-    albumUrl: "https://photos.google.com",
-    trelloCardUrl: "https://trello.com/c/example",
+const MOCK_EVENT: Event = {
+    eventId: "mock",
+    title: "Mock Event",
+    description: "",
+    date: Timestamp.now(),
+    trelloCardId: "",
+    albumId: "",
+    albumUrl: "",
+    isActive: true,
+    startDate: Timestamp.now(),
+    endDate: null,
+    createdAt: Timestamp.now(),
     trailImprovements: 14,
     trashBags: 11,
     hoursOfService: 2,
@@ -97,6 +103,7 @@ export default function EventSummaryScreen() {
     >("home");
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [event, setEvent] = useState<Event>(MOCK_EVENT);
 
     const handleSave = async () => {
         if (saving || saved) return;
@@ -111,85 +118,20 @@ export default function EventSummaryScreen() {
         }
     };
 
-    const handleViewAlbum = async () => {
-        const canOpen = await Linking.canOpenURL(MOCK.albumUrl);
-        if (canOpen) await Linking.openURL(MOCK.albumUrl);
-        else Alert.alert("Cannot open album URL");
-    };
-
-    const handleShare = async () => {
-        await Share.share({
-            message: MOCK.trelloCardUrl,
-            url: MOCK.trelloCardUrl,
-        });
-    };
-
     return (
         <View style={styles.screen}>
-            <View style={[styles.headerBar, { paddingTop: insets.top }]}>
-                <Image
-                    source={require("../assets/images/mvt-logo-white.png")}
-                    resizeMode="contain"
-                    style={styles.logo}
+            <View>
+                <HomeHeader userName="Sarah" />
+                <TrailEventHeader
+                    event={event}
+                    variant="summary"
                 />
-                <TouchableOpacity>
-                    <Menu
-                        size={28}
-                        color="white"
-                        strokeWidth={1.5}
-                    />
-                </TouchableOpacity>
             </View>
 
             <ScrollView
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}>
-                <View style={styles.eventInfoRow}>
-                    <View style={styles.eventInfoLeft}>
-                        <Text style={styles.eventTitle}>{MOCK.title}</Text>
-                        <Text style={styles.eventDuration}>
-                            Duration: {MOCK.duration}
-                        </Text>
-                    </View>
-                    <View style={styles.eventInfoRight}>
-                        <Pressable
-                            style={styles.actionBtn}
-                            onPress={handleViewAlbum}>
-                            <View
-                                style={[
-                                    styles.actionBtnCircle,
-                                    { backgroundColor: TEAL },
-                                ]}>
-                                <MaterialIcons
-                                    name="image"
-                                    size={20}
-                                    color="#fff"
-                                />
-                            </View>
-                            <Text style={styles.actionBtnText}>View album</Text>
-                        </Pressable>
-                        <Pressable
-                            style={styles.actionBtn}
-                            onPress={handleShare}>
-                            <View
-                                style={[
-                                    styles.actionBtnCircle,
-                                    { backgroundColor: BLUE },
-                                ]}>
-                                <MaterialIcons
-                                    name="send"
-                                    size={18}
-                                    color="#fff"
-                                />
-                            </View>
-                            <Text style={styles.actionBtnText}>
-                                Share event
-                            </Text>
-                        </Pressable>
-                    </View>
-                </View>
-
                 <View style={styles.divider} />
 
                 <View style={styles.summaryRow}>
@@ -206,21 +148,21 @@ export default function EventSummaryScreen() {
                 <MetricCard
                     label="Trail Improvements"
                     sublabel="in review"
-                    value={MOCK.trailImprovements}
+                    value={event.trailImprovements}
                     accentColor={GREEN}
                     delay={60}
                 />
                 <MetricCard
                     label="Trash collection"
                     sublabel="# of bags"
-                    value={MOCK.trashBags}
+                    value={event.trashBags}
                     accentColor={BLUE}
                     delay={160}
                 />
                 <MetricCard
                     label="Hours of service"
                     sublabel="hrs"
-                    value={MOCK.hoursOfService}
+                    value={event.hoursOfService}
                     accentColor={TEAL}
                     delay={260}
                 />
