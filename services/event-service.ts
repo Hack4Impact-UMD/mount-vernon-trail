@@ -56,6 +56,7 @@ export async function createEvent(
         albumId,
         albumUrl,
         isActive: true,
+        startDate: Timestamp.now(),
         endDate: null,
         createdAt: Timestamp.now(),
     };

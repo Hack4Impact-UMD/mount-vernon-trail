@@ -81,7 +81,7 @@ export async function createEventCard(
     description: string,
     key: string,
     token: string,
-): Promise<string> {
+): Promise<{ cardId: string; cardUrl: string }> {
     const trello = new TrelloClient(key, token);
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
@@ -96,7 +96,7 @@ export async function createEventCard(
         `${dateStr} ${title}`,
         description,
     );
-    return card.id;
+    return { cardId: card.id, cardUrl: card.shortUrl };
 }
 
 // fetches the short URL of a trello card
