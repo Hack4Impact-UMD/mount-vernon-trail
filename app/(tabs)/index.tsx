@@ -1,5 +1,5 @@
-import { getActiveEvent } from "@/services/event-service";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
+import { getActiveEvent } from "@/services/event-service";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -36,7 +36,10 @@ export default function HomeScreen() {
     if (checkingEvent) {
         return (
             <SafeAreaView style={styles.container}>
-                <ActivityIndicator size="large" style={styles.centered} />
+                <ActivityIndicator
+                    size="large"
+                    style={styles.centered}
+                />
             </SafeAreaView>
         );
     }
@@ -69,6 +72,11 @@ export default function HomeScreen() {
                     <Text style={styles.buttonText}>Go to Trello Test</Text>
                 </Pressable>
                 <Pressable
+                    style={styles.devButton}
+                    onPress={() => router.push("/event-summary")}>
+                    <Text style={styles.buttonText}>Event Summary Preview</Text>
+                </Pressable>
+                <Pressable
                     style={[
                         styles.signOutButton,
                         loading && styles.signOutDisabled,
@@ -84,9 +92,7 @@ export default function HomeScreen() {
                 {eventError && (
                     <Text style={styles.errorText}>{eventError}</Text>
                 )}
-                {error && (
-                    <Text style={styles.errorText}>{error.message}</Text>
-                )}
+                {error && <Text style={styles.errorText}>{error.message}</Text>}
             </View>
         </SafeAreaView>
     );
@@ -154,5 +160,13 @@ const styles = StyleSheet.create({
         color: "#c0392b",
         fontSize: 14,
         textAlign: "center",
+    },
+    devButton: {
+        backgroundColor: "#8B6914",
+        paddingVertical: 12,
+        paddingHorizontal: 32,
+        borderRadius: 8,
+        minWidth: 200,
+        alignItems: "center",
     },
 });
