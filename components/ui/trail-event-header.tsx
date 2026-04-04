@@ -44,7 +44,10 @@ export default function TrailEventHeader({
     const staticDuration = (() => {
         if (!event.startDate) return 0;
         const end = event.endDate ? event.endDate.toMillis() : Date.now();
-        return Math.max(0, Math.floor((end - event.startDate.toMillis()) / 1000));
+        return Math.max(
+            0,
+            Math.floor((end - event.startDate.toMillis()) / 1000),
+        );
     })();
 
     useEffect(() => {
@@ -270,9 +273,8 @@ const docStyles = StyleSheet.create({
         alignItems: "center",
         backgroundColor: "#fff",
         paddingHorizontal: 24,
-        paddingVertical: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
+        paddingBottom: 10,
+        paddingTop: 20,
     },
     left: {
         gap: 10,
