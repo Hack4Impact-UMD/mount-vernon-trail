@@ -77,6 +77,8 @@ export default function RootLayout() {
         const onSetupEvent = segments[0] === "setup-event";
         const onActiveEvent = segments[0] === "active-event";
         const onHomeScreen = segments[0] === "home-screen";
+        const onTrailDocument = segments[0] === "trail-document-screen";
+        const onTrailSummary = segments[0] === "trail-summary-screen";
         const onEventSummary = segments[0] === "event-summary";
         if (
             user &&
@@ -85,6 +87,8 @@ export default function RootLayout() {
             !onSetupEvent &&
             !onActiveEvent &&
             !onHomeScreen &&
+            !onTrailDocument &&
+            !onTrailSummary &&
             !onEventSummary
         ) {
             router.replace("/(tabs)");
@@ -118,6 +122,14 @@ export default function RootLayout() {
                 <Stack.Screen
                     name="active-event"
                     options={{ headerShown: true, title: "Active Event" }}
+                />
+                <Stack.Screen
+                    name="trail-document-screen"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="trail-summary-screen"
+                    options={{ headerShown: false }}
                 />
                 <Stack.Screen
                     name="modal"
