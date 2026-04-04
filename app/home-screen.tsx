@@ -2,6 +2,7 @@ import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
+import TrailEventCard from "@/components/ui/trail-event-card";
 import { fetchUpcomingEvents } from "@/services/trello-service";
 import { Stack } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -54,6 +55,8 @@ export default function HomeScreen() {
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
+    const [selectedEvent, setSelectedEvent] =
+        useState<UpcomingEventItem | null>(null);
 
     useEffect(() => {
         if (!API_KEY || !API_TOKEN) {
@@ -87,9 +90,7 @@ export default function HomeScreen() {
                             error={eventsError}
                             maxItems={3}
                             onShowMore={() => {}}
-                            onPressItem={(event) =>
-                                console.log("pressed:", event.name)
-                            }
+                            onPressItem={(event) => setSelectedEvent(event)}
                         />
                     </View>
 
@@ -111,6 +112,16 @@ export default function HomeScreen() {
                 <BottomNav
                     active={active}
                     onTabPress={(tab) => setActive(tab)}
+                />
+
+                <TrailEventCard
+                    event={selectedEvent}
+                    visible={selectedEvent !== null}
+                    onClose={() => setSelectedEvent(null)}
+                    onStartEvent={(event) => {
+                        console.log("Start Event:", event.name);
+                        setSelectedEvent(null);
+                    }}
                 />
             </View>
         </>

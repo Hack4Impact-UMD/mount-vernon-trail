@@ -44,7 +44,7 @@ const EVENT_STATUS = {
 
 // const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder.png");
 
-function formatEventDate(date: Date): string {
+export function formatEventDate(date: Date): string {
     return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
