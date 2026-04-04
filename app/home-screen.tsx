@@ -76,7 +76,7 @@ export default function HomeScreen() {
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}>
-                    <Header userName="Sarah" />
+                    <Header userName="Sarah" showGreeting />
                     <View style={styles.cardWrapper}>
                         <StartEventCard />
                     </View>
