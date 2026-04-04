@@ -2,6 +2,7 @@ import { auth } from "@/config/firebase";
 import {
     collection,
     doc,
+    getDoc,
     getDocs,
     getFirestore,
     query,
@@ -23,6 +24,9 @@ export interface Event {
     startDate?: Timestamp;
     endDate: Timestamp | null;
     createdAt: Timestamp;
+    trailImprovements: number;
+    trashBags: number;
+    hoursOfService: number;
 }
 
 const EVENTS_COLLECTION = "events";
@@ -59,6 +63,9 @@ export async function createEvent(
         startDate: Timestamp.now(),
         endDate: null,
         createdAt: Timestamp.now(),
+        trailImprovements: 0,
+        trashBags: 0,
+        hoursOfService: 0,
     };
 
     const batch = writeBatch(db);
@@ -90,6 +97,13 @@ export async function getActiveEvent(): Promise<Event | null> {
     }
 
     return snapshot.docs[0].data() as Event;
+}
+
+export async function getEventById(eventId: string): Promise<Event | null> {
+    const db = getFirestore();
+    const snapshot = await getDoc(doc(db, EVENTS_COLLECTION, eventId));
+    if (!snapshot.exists()) return null;
+    return snapshot.data() as Event;
 }
 
 export async function setEventInactive(eventId: string): Promise<void> {
