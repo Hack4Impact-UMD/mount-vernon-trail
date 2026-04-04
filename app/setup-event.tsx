@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    Linking,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -53,7 +54,7 @@ export default function SetupEventScreen() {
             const albumUrl = album.productUrl ?? "";
 
             // creates a trello card and adds it to the Scheduled Events list
-            const cardId = await createEventCard(
+            const { cardId, cardUrl } = await createEventCard(
                 title.trim(),
                 getDateString(eventDate),
                 description.trim(),
@@ -80,6 +81,7 @@ export default function SetupEventScreen() {
             );
 
             Alert.alert("Event Created", `"${title.trim()}" has been set up!`, [
+                { text: "Open Trello Card", onPress: () => Linking.openURL(cardUrl) },
                 { text: "OK", onPress: () => router.back() },
             ]);
         } catch (e) {

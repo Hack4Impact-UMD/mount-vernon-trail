@@ -16,6 +16,7 @@ export interface Card {
     desc: string;
     idList: string;
     idBoard: string;
+    shortUrl: string;
     creationDate: Date;
     attachments?: TrelloAttachment[];
 }
