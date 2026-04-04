@@ -7,17 +7,17 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { User } from "firebase/auth";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import "react-native-reanimated";
 
 import { subscribeToAuthState } from "@/auth/google-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 import {
-  useFonts,
-  Lato_300Light,
-  Lato_400Regular,
-  Lato_700Bold,
+    Lato_300Light,
+    Lato_400Regular,
+    Lato_700Bold,
+    useFonts,
 } from "@expo-google-fonts/lato";
 
 SplashScreen.preventAutoHideAsync();
@@ -46,16 +46,29 @@ export default function RootLayout() {
     useEffect(() => {
         if (user === undefined || !fontsLoaded) return;
         SplashScreen.hideAsync();
-        const inTabs = segments[0] === "(tabs)";
-        const onAuth = segments[0] === "auth";
-        const onTrello = segments[0] === "trello";
-        const onHomeScreen = segments[0] === "home-screen";
-        if (user && !inTabs && !onTrello && !onHomeScreen) {
-            router.replace("/(tabs)");
-        } else if (!user && !onAuth) {
-            router.replace("/auth");
+
+        const route = segments[0] ?? "";
+
+        const nonAuthRoutes = new Set(["auth"]);
+        const authRoutes = new Set([
+            "(tabs)", 
+            "trello", 
+            "home-screen",
+            "trail-document-screen", 
+            "camera-view"
+        ]);
+        // if user not authenticated, re-route to /auth if an auth route is being accessed 
+        if (!user) {
+            if (!nonAuthRoutes.has(route)) {
+                router.replace("/auth");
+            }
+            return;
         }
-    }, [user, fontsLoaded, segments]);
+        // if user is authenticated, re-route to "home" if non-auth route is being accessed  
+        if (!authRoutes.has(route)) {
+            router.replace("/(tabs)");
+        }
+    }, [user, fontsLoaded, segments, router]);
 
     if (user === undefined || !fontsLoaded) return null;
 
