@@ -111,7 +111,11 @@ export async function refreshAccessToken(): Promise<string> {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
-                client_id: Platform.OS === "ios" ? GOOGLE_IOS_CLIENT_ID : GOOGLE_ANDROID_CLIENT_ID,
+                client_id: Platform.OS === "ios"
+                    ? GOOGLE_IOS_CLIENT_ID
+                    : Platform.OS === "android"
+                      ? GOOGLE_ANDROID_CLIENT_ID
+                      : GOOGLE_WEB_CLIENT_ID,
                 grant_type: "refresh_token",
                 refresh_token: refreshToken,
             }).toString(),
