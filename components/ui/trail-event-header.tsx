@@ -1,11 +1,28 @@
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
+import { setEventInactive } from "@/services/event-service";
+import { fetchCardUrl } from "@/services/trello-service";
+import { Image } from "expo-image";
+import { Square } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+    Alert,
+    Linking,
+    Pressable,
+    Share,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
+const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN ?? "";
 
 interface TrailEventHeaderProps {
     event: Event;
+    onStop?: () => void;
+    variant?: "default" | "document";
 }
 
 function formatDuration(seconds: number): string {
@@ -15,9 +32,14 @@ function formatDuration(seconds: number): string {
     return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
 }
 
-export default function TrailEventHeader({ event }: TrailEventHeaderProps) {
+export default function TrailEventHeader({
+    event,
+    onStop,
+    variant = "default",
+}: TrailEventHeaderProps) {
     const insets = useSafeAreaInsets();
     const [elapsed, setElapsed] = useState(0);
+    const [stopping, setStopping] = useState(false);
 
     useEffect(() => {
         if (!event.startDate) return;
@@ -34,12 +56,134 @@ export default function TrailEventHeader({ event }: TrailEventHeaderProps) {
         return () => clearInterval(id);
     }, [event.startDate]);
 
+    const handleStop = () => {
+        Alert.alert(
+            "Stop Event",
+            `Are you sure you want to stop "${event.title}"?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Stop Event",
+                    style: "destructive",
+                    onPress: async () => {
+                        setStopping(true);
+                        try {
+                            await setEventInactive(event.eventId);
+                            onStop?.();
+                        } catch (e) {
+                            Alert.alert("Error", (e as Error).message);
+                        } finally {
+                            setStopping(false);
+                        }
+                    },
+                },
+            ],
+        );
+    };
+
+    const handleShareEvent = async () => {
+        if (!event.trelloCardId) return;
+        try {
+            const url = await fetchCardUrl(
+                event.trelloCardId,
+                API_KEY,
+                API_TOKEN,
+            );
+            await Share.share({ message: url });
+        } catch (e) {
+            console.error("Failed to share event:", e);
+        }
+    };
+
+    if (variant === "document") {
+        return (
+            <View style={docStyles.container}>
+                <View style={docStyles.left}>
+                    <View style={docStyles.badgeRow}>
+                        <View style={docStyles.badge}>
+                            <Text style={docStyles.badgeText}>In Progress</Text>
+                        </View>
+                        <Text style={docStyles.duration}>
+                            {formatDuration(elapsed)}
+                        </Text>
+                    </View>
+                    <View style={docStyles.titleRow}>
+                        <Pressable
+                            style={[
+                                docStyles.stopCircle,
+                                stopping && docStyles.stopCircleDisabled,
+                            ]}
+                            onPress={handleStop}
+                            disabled={stopping}>
+                            <Square
+                                size={14}
+                                color="#fff"
+                                fill="#fff"
+                            />
+                        </Pressable>
+                        <Text style={docStyles.eventName}>{event.title}</Text>
+                    </View>
+                </View>
+
+                <View style={docStyles.right}>
+                    {event.albumUrl ? (
+                        <Pressable
+                            style={docStyles.actionRow}
+                            onPress={() => Linking.openURL(event.albumUrl)}>
+                            <View
+                                style={[
+                                    docStyles.iconCircle,
+                                    { backgroundColor: Palette.teal },
+                                ]}>
+                                <Image
+                                    source={require("../../assets/images/image-icon.svg")}
+                                    style={docStyles.iconImageSmall}
+                                    contentFit="contain"
+                                />
+                            </View>
+                            <Text style={docStyles.actionLabel}>
+                                View album
+                            </Text>
+                        </Pressable>
+                    ) : null}
+                    <Pressable
+                        style={docStyles.actionRow}
+                        onPress={handleShareEvent}>
+                        <View
+                            style={[
+                                docStyles.iconCircle,
+                                { backgroundColor: Palette.blue },
+                            ]}>
+                            <Image
+                                source={require("../../assets/images/send-icon.svg")}
+                                style={docStyles.iconImage}
+                                contentFit="contain"
+                            />
+                        </View>
+                        <Text style={docStyles.actionLabel}>Share event</Text>
+                    </Pressable>
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <View style={styles.topRow}>
                 <View style={styles.badge}>
                     <Text style={styles.badgeText}>LIVE EVENT</Text>
                 </View>
+                <Pressable
+                    style={[
+                        styles.stopButton,
+                        stopping && styles.stopButtonDisabled,
+                    ]}
+                    onPress={handleStop}
+                    disabled={stopping}>
+                    <Text style={styles.stopButtonText}>
+                        {stopping ? "Stopping..." : "Stop Event"}
+                    </Text>
+                </Pressable>
             </View>
             <Text style={styles.eventName}>{event.title}</Text>
             {event.startDate && (
@@ -47,16 +191,108 @@ export default function TrailEventHeader({ event }: TrailEventHeaderProps) {
                     Duration: {formatDuration(elapsed)}
                 </Text>
             )}
-            {event.albumUrl ? (
-                <Pressable
-                    style={styles.albumButton}
-                    onPress={() => Linking.openURL(event.albumUrl)}>
-                    <Text style={styles.albumButtonText}>View Album</Text>
-                </Pressable>
-            ) : null}
+            <View style={styles.buttonRow}>
+                {event.albumUrl ? (
+                    <Pressable
+                        style={styles.actionButton}
+                        onPress={() => Linking.openURL(event.albumUrl)}>
+                        <Text style={styles.actionButtonText}>View Album</Text>
+                    </Pressable>
+                ) : null}
+            </View>
         </View>
     );
 }
+
+const docStyles = StyleSheet.create({
+    container: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: "#fff",
+        paddingHorizontal: 24,
+        paddingVertical: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: "#f0f0f0",
+    },
+    left: {
+        gap: 10,
+        flex: 1,
+    },
+    badgeRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+    },
+    badge: {
+        backgroundColor: "#D4930D18",
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 20,
+    },
+    badgeText: {
+        color: "#D4930D",
+        fontSize: 13,
+        fontWeight: "600",
+    },
+    duration: {
+        fontSize: 15,
+        fontWeight: "300",
+        color: Palette.primaryBlack100,
+    },
+    titleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+    },
+    stopCircle: {
+        width: 34,
+        height: 34,
+        borderRadius: 18,
+        backgroundColor: "#e74c3c",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    stopCircleDisabled: {
+        opacity: 0.6,
+    },
+    eventName: {
+        fontSize: 22,
+        fontFamily: "Lato_700Bold",
+        fontWeight: "700",
+        color: Palette.primaryBlack100,
+        flexShrink: 1,
+    },
+    right: {
+        gap: 12,
+        alignItems: "flex-start",
+    },
+    actionRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+    },
+    iconCircle: {
+        width: 35,
+        height: 35,
+        borderRadius: 20,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    iconImage: {
+        width: 18,
+        height: 18,
+    },
+    iconImageSmall: {
+        width: 15,
+        height: 15,
+    },
+    actionLabel: {
+        fontSize: 14,
+        fontWeight: "500",
+        color: Palette.primaryBlack100,
+    },
+});
 
 const styles = StyleSheet.create({
     container: {
@@ -69,10 +305,6 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-    },
-    logo: {
-        width: 51,
-        height: 51,
     },
     badge: {
         backgroundColor: Palette.chartreuse,
@@ -98,15 +330,33 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         letterSpacing: 0.5,
     },
-    albumButton: {
+    buttonRow: {
+        flexDirection: "row",
+        gap: 8,
+    },
+    actionButton: {
         alignSelf: "flex-start",
         backgroundColor: Palette.chartreuse,
         paddingHorizontal: 14,
         paddingVertical: 6,
         borderRadius: 8,
     },
-    albumButtonText: {
+    actionButtonText: {
         color: Palette.primaryBlack100,
+        fontSize: 13,
+        fontWeight: "700",
+    },
+    stopButton: {
+        backgroundColor: "#EB1B1B",
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    stopButtonDisabled: {
+        opacity: 0.6,
+    },
+    stopButtonText: {
+        color: "#fff",
         fontSize: 13,
         fontWeight: "700",
     },
