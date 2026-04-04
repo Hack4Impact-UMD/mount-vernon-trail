@@ -1,36 +1,30 @@
 import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event } from "@/services/event-service";
-import { getActiveEvent } from "@/services/event-service";
-import { Timestamp } from "firebase/firestore";
+import { getEventById } from "@/services/event-service";
+import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-const MOCK_EVENT: Event = {
-    eventId: "mock",
-    title: "Mock Event",
-    description: "",
-    date: Timestamp.now(),
-    trelloCardId: "",
-    albumId: "",
-    albumUrl: "",
-    isActive: true,
-    startDate: Timestamp.now(),
-    endDate: null,
-    createdAt: Timestamp.now(),
-};
-
 export default function TrailDocumentScreen() {
-    const [event, setEvent] = useState<Event>(MOCK_EVENT);
+    const { eventId } = useLocalSearchParams<{ eventId: string }>();
+    const [event, setEvent] = useState<Event>();
 
     useEffect(() => {
-        getActiveEvent().then((e) => { if (e) setEvent(e); });
-    }, []);
+        if (!eventId) return;
+        getEventById(eventId).then((e) => {
+            if (e) setEvent(e);
+        });
+    }, [eventId]);
+    if (!event) return null;
 
     return (
         <View style={styles.container}>
             <HomeHeader userName="Sarah" />
-            <TrailEventHeader event={event} />
+            <TrailEventHeader
+                event={event}
+                variant="document"
+            />
         </View>
     );
 }

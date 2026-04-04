@@ -73,12 +73,22 @@ export default function HomeScreen() {
                 </Pressable>
                 <Pressable
                     style={styles.button}
-                    onPress={() => router.push("/trail-document-screen")}>
+                    onPress={() =>
+                        router.push({
+                            pathname: "/trail-document-screen",
+                            params: { eventId: "86GmFC2kF1384quV5UEM" },
+                        })
+                    }>
                     <Text style={styles.buttonText}>Trail Document Screen</Text>
                 </Pressable>
                 <Pressable
                     style={styles.button}
-                    onPress={() => router.push("/event-summary")}>
+                    onPress={() =>
+                        router.push({
+                            pathname: "/event-summary",
+                            params: { eventId: "86GmFC2kF1384quV5UEM" },
+                        })
+                    }>
                     <Text style={styles.buttonText}>Event Summary Preview</Text>
                 </Pressable>
                 <Pressable

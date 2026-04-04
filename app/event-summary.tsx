@@ -3,8 +3,9 @@ import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
+import { getEventById } from "@/services/event-service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Timestamp } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -98,12 +99,20 @@ function MetricCard({
 export default function EventSummaryScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { eventId } = useLocalSearchParams<{ eventId: string }>();
     const [activeTab, setActiveTab] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [event, setEvent] = useState<Event>(MOCK_EVENT);
+
+    useEffect(() => {
+        if (!eventId) return;
+        getEventById(eventId).then((e) => {
+            if (e) setEvent(e);
+        });
+    }, [eventId]);
 
     const handleSave = async () => {
         if (saving || saved) return;
