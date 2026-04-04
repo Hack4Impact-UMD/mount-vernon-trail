@@ -1,6 +1,6 @@
 import BottomNav from "@/components/ui/bottom-nav";
 import { Palette } from "@/constants/theme";
-import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Menu } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
@@ -161,10 +161,9 @@ export default function EventSummaryScreen() {
                                     styles.actionBtnCircle,
                                     { backgroundColor: TEAL },
                                 ]}>
-                                <MaterialIcons
-                                    name="image"
-                                    size={20}
-                                    color="#fff"
+                                <Image
+                                    source={require("@/assets/images/image-icon.png")}
+                                    style={{ width: 17, height: 17 }}
                                 />
                             </View>
                             <Text style={styles.actionBtnText}>View album</Text>
@@ -177,10 +176,9 @@ export default function EventSummaryScreen() {
                                     styles.actionBtnCircle,
                                     { backgroundColor: BLUE },
                                 ]}>
-                                <MaterialIcons
-                                    name="send"
-                                    size={18}
-                                    color="#fff"
+                                <Image
+                                    source={require("@/assets/images/send-icon.png")}
+                                    style={{ width: 17, height: 17 }}
                                 />
                             </View>
                             <Text style={styles.actionBtnText}>
