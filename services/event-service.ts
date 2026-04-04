@@ -23,6 +23,7 @@ export interface Event {
     albumId: string;
     albumUrl: string;
     isActive: boolean;
+    startDate?: Timestamp;
     associatedUsers: string[];
     associatedEmails: string[];
     createdBy: string;
