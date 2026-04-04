@@ -49,6 +49,15 @@ export async function createEvent(
         );
     }
 
+    const existing = await getDocs(
+        query(collection(db, EVENTS_COLLECTION), where("isActive", "==", true)),
+    );
+    if (!existing.empty) {
+        throw new Error(
+            "An event is already active. End it before creating a new one.",
+        );
+    }
+
     const eventRef = doc(collection(db, EVENTS_COLLECTION));
     const eventData: Event = {
         eventId: eventRef.id,
