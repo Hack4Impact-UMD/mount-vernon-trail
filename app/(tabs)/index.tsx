@@ -76,7 +76,7 @@ export default function HomeScreen() {
                     onPress={() =>
                         router.push({
                             pathname: "/trail-document-screen",
-                            params: { eventId: "86GmFC2kF1384quV5UEM" },
+                            params: { eventId: "4zJ8xpbgfd5js5S0l0BV" },
                         })
                     }>
                     <Text style={styles.buttonText}>Trail Document Screen</Text>
@@ -86,7 +86,7 @@ export default function HomeScreen() {
                     onPress={() =>
                         router.push({
                             pathname: "/event-summary",
-                            params: { eventId: "86GmFC2kF1384quV5UEM" },
+                            params: { eventId: "4zJ8xpbgfd5js5S0l0BV" },
                         })
                     }>
                     <Text style={styles.buttonText}>Event Summary Preview</Text>

@@ -88,15 +88,30 @@ export default function EventSummaryScreen() {
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [event, setEvent] = useState<Event>();
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string>();
 
     useEffect(() => {
-        if (!eventId) return;
-        getEventById(eventId).then((e) => {
-            if (e) setEvent(e);
-        });
+        if (!eventId) {
+            setError("No event ID provided.");
+            setLoading(false);
+            return;
+        }
+        getEventById(eventId)
+            .then((e) => {
+                if (e) setEvent(e);
+                else setError("Event not found.");
+            })
+            .catch((e) => setError((e as Error).message))
+            .finally(() => setLoading(false));
     }, [eventId]);
 
-    if (!event) return null;
+    if (loading) return <ActivityIndicator style={styles.loader} />;
+    if (error || !event) return (
+        <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error ?? "Event not found."}</Text>
+        </View>
+    );
 
     const handleSave = async () => {
         if (saving || saved) return;
@@ -393,6 +408,18 @@ const styles = StyleSheet.create({
         borderColor: GREEN,
     },
     actionCardDisabled: { opacity: 0.6 },
+    loader: { flex: 1 },
+    errorContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 24,
+    },
+    errorText: {
+        fontSize: 15,
+        color: "#888",
+        textAlign: "center",
+    },
     actionIconWrap: {
         width: 52,
         height: 52,
