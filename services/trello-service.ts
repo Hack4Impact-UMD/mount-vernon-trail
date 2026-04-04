@@ -97,6 +97,7 @@ export async function createEventCard(
         `${dateStr} ${title}`,
         description,
     );
+    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
     return { cardId: card.id, cardUrl: card.shortUrl };
 }
 
@@ -108,6 +109,7 @@ export async function fetchCardUrl(
 ): Promise<string> {
     const trello = new TrelloClient(key, token);
     const card = await trello.getCard(cardId);
+    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
     return card.shortUrl;
 }
 
