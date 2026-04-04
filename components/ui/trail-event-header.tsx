@@ -2,7 +2,7 @@ import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import { setEventInactive } from "@/services/event-service";
 import { fetchCardUrl } from "@/services/trello-service";
-import { Image } from "expo-image";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Square } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
@@ -125,10 +125,10 @@ export default function TrailEventHeader({
                                     docStyles.iconCircle,
                                     { backgroundColor: Palette.teal },
                                 ]}>
-                                <Image
-                                    source={require("../../assets/images/image-icon.svg")}
-                                    style={docStyles.iconImageSmall}
-                                    contentFit="contain"
+                                <MaterialIcons
+                                    name="image"
+                                    size={18}
+                                    color="#fff"
                                 />
                             </View>
                             <Text style={docStyles.actionLabel}>
@@ -144,10 +144,10 @@ export default function TrailEventHeader({
                                 docStyles.iconCircle,
                                 { backgroundColor: Palette.blue },
                             ]}>
-                            <Image
-                                source={require("../../assets/images/send-icon.svg")}
-                                style={docStyles.iconImage}
-                                contentFit="contain"
+                            <MaterialIcons
+                                name="send"
+                                size={18}
+                                color="#fff"
                             />
                         </View>
                         <Text style={docStyles.actionLabel}>Share event</Text>
@@ -197,10 +197,10 @@ export default function TrailEventHeader({
                                     docStyles.iconCircle,
                                     { backgroundColor: Palette.teal },
                                 ]}>
-                                <Image
-                                    source={require("../../assets/images/image-icon.png")}
-                                    style={docStyles.iconImageSmall}
-                                    contentFit="contain"
+                                <MaterialIcons
+                                    name="image"
+                                    size={18}
+                                    color="#fff"
                                 />
                             </View>
                             <Text style={docStyles.actionLabel}>
@@ -216,10 +216,10 @@ export default function TrailEventHeader({
                                 docStyles.iconCircle,
                                 { backgroundColor: Palette.blue },
                             ]}>
-                            <Image
-                                source={require("../../assets/images/send-icon.png")}
-                                style={docStyles.iconImage}
-                                contentFit="contain"
+                            <MaterialIcons
+                                name="send"
+                                size={18}
+                                color="#fff"
                             />
                         </View>
                         <Text style={docStyles.actionLabel}>Share event</Text>
