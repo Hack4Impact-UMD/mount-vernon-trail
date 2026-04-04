@@ -12,7 +12,6 @@ import {
     StyleSheet,
     Text,
     TextInput,
-    View,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -27,31 +26,8 @@ export default function SetupEventScreen() {
     const [description, setDescription] = useState("");
     const [dateStr, setDateStr] = useState("");
 
-    const [emailInput, setEmailInput] = useState("");
-    const [associatedEmails, setAssociatedEmails] = useState<string[]>([]);
-
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    const addEmail = () => {
-        const trimmed = emailInput.trim().toLowerCase();
-        if (!trimmed) return;
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-            setError("Please enter a valid email address.");
-            return;
-        }
-        if (associatedEmails.includes(trimmed)) {
-            setError("That email has already been added.");
-            return;
-        }
-        setAssociatedEmails((prev) => [...prev, trimmed]);
-        setEmailInput("");
-        setError(null);
-    };
-
-    const removeEmail = (email: string) => {
-        setAssociatedEmails((prev) => prev.filter((e) => e !== email));
-    };
 
     const handleCreate = async () => {
         if (!title.trim()) {
@@ -101,7 +77,6 @@ export default function SetupEventScreen() {
                 cardId,
                 album.id,
                 albumUrl,
-                associatedEmails,
             );
 
             Alert.alert("Event Created", `"${title.trim()}" has been set up!`, [
@@ -150,32 +125,6 @@ export default function SetupEventScreen() {
                     placeholderTextColor="#aaa"
                     keyboardType="numbers-and-punctuation"
                 />
-
-                <Text style={styles.label}>Associated Volunteers</Text>
-                <View style={styles.emailRow}>
-                    <TextInput
-                        style={styles.emailInput}
-                        value={emailInput}
-                        onChangeText={setEmailInput}
-                        placeholder="volunteer@email.com"
-                        placeholderTextColor="#aaa"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        onSubmitEditing={addEmail}
-                        returnKeyType="done"
-                    />
-                    <Pressable style={styles.addButton} onPress={addEmail}>
-                        <Text style={styles.addButtonText}>Add</Text>
-                    </Pressable>
-                </View>
-                {associatedEmails.map((email: string) => (
-                    <View key={email} style={styles.emailChip}>
-                        <Text style={styles.emailChipText}>{email}</Text>
-                        <Pressable onPress={() => removeEmail(email)}>
-                            <Text style={styles.emailChipRemove}>×</Text>
-                        </Pressable>
-                    </View>
-                ))}
 
                 {error && <Text style={styles.error}>{error}</Text>}
 
@@ -231,52 +180,6 @@ const styles = StyleSheet.create({
     multiline: {
         height: 80,
         textAlignVertical: "top",
-    },
-    emailRow: {
-        flexDirection: "row",
-        gap: 8,
-    },
-    emailInput: {
-        flex: 1,
-        borderWidth: 1,
-        borderColor: "#ddd",
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 15,
-        color: "#000",
-    },
-    addButton: {
-        backgroundColor: "#0a7ea4",
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        justifyContent: "center",
-    },
-    addButtonText: {
-        color: "#fff",
-        fontWeight: "600",
-        fontSize: 15,
-    },
-    emailChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        borderWidth: 1,
-        borderColor: "#0a7ea4",
-        backgroundColor: "#e8f4f8",
-        borderRadius: 8,
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        marginTop: 6,
-    },
-    emailChipText: {
-        fontSize: 14,
-        color: "#0a7ea4",
-    },
-    emailChipRemove: {
-        fontSize: 18,
-        color: "#0a7ea4",
-        lineHeight: 20,
-        paddingLeft: 8,
     },
     error: {
         color: "#c0392b",

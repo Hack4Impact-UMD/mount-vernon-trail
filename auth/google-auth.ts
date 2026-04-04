@@ -1,4 +1,3 @@
-import { createOrUpdateUser, linkUserToEventsByEmail } from "@/services/event-service";
 import {
     signOut as firebaseSignOut,
     GoogleAuthProvider,
@@ -83,19 +82,6 @@ export async function handleGoogleAuthResponse(
             authentication.expiresIn,
         );
         const userCredential = await signInWithCredential(auth, credential);
-
-        const uid = userCredential.user.uid;
-        const email = userCredential.user.email || "";
-
-        // create or update user document in Firestore
-        await createOrUpdateUser(
-            uid,
-            email,
-            userCredential.user.displayName || email,
-        );
-
-        // link UID to any events that have this email in associatedEmails
-        await linkUserToEventsByEmail(uid, email);
 
         return {
             user: userCredential.user,
