@@ -4,6 +4,7 @@ import TrailEventHeader from "@/components/ui/trail-event-header";
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import { getEventById } from "@/services/event-service";
+import { moveCardToCompleted } from "@/services/trello-service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -88,8 +89,6 @@ export default function EventSummaryScreen() {
     const [saved, setSaved] = useState(false);
     const [event, setEvent] = useState<Event>();
 
-    if (!event) return null;
-
     useEffect(() => {
         if (!eventId) return;
         getEventById(eventId).then((e) => {
@@ -97,11 +96,15 @@ export default function EventSummaryScreen() {
         });
     }, [eventId]);
 
+    if (!event) return null;
+
     const handleSave = async () => {
         if (saving || saved) return;
         setSaving(true);
         try {
-            await new Promise((res) => setTimeout(res, 1200));
+            const key = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
+            const token = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN ?? "";
+            await moveCardToCompleted(event.trelloCardId, key, token);
             setSaved(true);
         } catch (e) {
             Alert.alert("Save failed", (e as Error).message);
