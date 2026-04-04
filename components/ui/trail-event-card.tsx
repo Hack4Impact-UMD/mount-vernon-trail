@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { ArrowLeft, Play } from "lucide-react-native";
 import { Palette } from "@/constants/theme";
+import StartEventConfirmation from "./start-event-confirmation";
 import {
     formatEventDate,
     type UpcomingEventItem,
@@ -20,24 +21,32 @@ export default function TrailEventCard({
     onClose,
     onStartEvent,
 }: TrailEventCardProps) {
+    const [showConfirmation, setShowConfirmation] = useState(false);
+
     if (!event) return null;
+
+    const handleClose = () => {
+        setShowConfirmation(false);
+        onClose();
+    };
 
     return (
         <Modal
             visible={visible}
             transparent
             animationType="slide"
-            onRequestClose={onClose}>
+            onRequestClose={handleClose}>
+            <View style={styles.modalContainer}>
             <Pressable
                 style={styles.backdrop}
-                onPress={onClose}
+                onPress={handleClose}
             />
 
             <View style={styles.card}>
                 {/* Back button */}
                 <Pressable
                     style={styles.backButton}
-                    onPress={onClose}
+                    onPress={handleClose}
                     hitSlop={8}>
                     <ArrowLeft
                         size={18}
@@ -77,7 +86,7 @@ export default function TrailEventCard({
                         styles.startButton,
                         pressed && styles.startButtonPressed,
                     ]}
-                    onPress={() => onStartEvent(event)}>
+                    onPress={() => setShowConfirmation(true)}>
                     <Play
                         size={16}
                         color="#FFFFFF"
@@ -87,11 +96,26 @@ export default function TrailEventCard({
                     <Text style={styles.startButtonText}>Start Event</Text>
                 </Pressable>
             </View>
+
+            {showConfirmation && (
+                <StartEventConfirmation
+                    visible
+                    onCancel={() => setShowConfirmation(false)}
+                    onConfirm={() => {
+                        setShowConfirmation(false);
+                        onStartEvent(event);
+                    }}
+                />
+            )}
+            </View>
         </Modal>
     );
 }
 
 const styles = StyleSheet.create({
+    modalContainer: {
+        flex: 1,
+    },
     backdrop: {
         flex: 1,
         backgroundColor: "transparent",

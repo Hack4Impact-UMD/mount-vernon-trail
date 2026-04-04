@@ -119,7 +119,8 @@ export default function HomeScreen() {
                     visible={selectedEvent !== null}
                     onClose={() => setSelectedEvent(null)}
                     onStartEvent={(event) => {
-                        console.log("Start Event:", event.name);
+                        // TODO: Connect to Firebase
+                        console.log("Started Event:", event.name);
                         setSelectedEvent(null);
                     }}
                 />
