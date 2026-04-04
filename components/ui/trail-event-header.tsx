@@ -1,7 +1,7 @@
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import React, { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface TrailEventHeaderProps {
@@ -37,11 +37,6 @@ export default function TrailEventHeader({ event }: TrailEventHeaderProps) {
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <View style={styles.topRow}>
-                <Image
-                    source={require("../../assets/images/mvt-logo-white.png")}
-                    resizeMode="contain"
-                    style={styles.logo}
-                />
                 <View style={styles.badge}>
                     <Text style={styles.badgeText}>LIVE EVENT</Text>
                 </View>
@@ -52,6 +47,13 @@ export default function TrailEventHeader({ event }: TrailEventHeaderProps) {
                     Duration: {formatDuration(elapsed)}
                 </Text>
             )}
+            {event.albumUrl ? (
+                <Pressable
+                    style={styles.albumButton}
+                    onPress={() => Linking.openURL(event.albumUrl)}>
+                    <Text style={styles.albumButtonText}>View Album</Text>
+                </Pressable>
+            ) : null}
         </View>
     );
 }
@@ -95,5 +97,17 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "600",
         letterSpacing: 0.5,
+    },
+    albumButton: {
+        alignSelf: "flex-start",
+        backgroundColor: Palette.chartreuse,
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    albumButtonText: {
+        color: Palette.primaryBlack100,
+        fontSize: 13,
+        fontWeight: "700",
     },
 });
