@@ -99,6 +99,17 @@ export async function createEventCard(
     return card.id;
 }
 
+// fetches the short URL of a trello card
+export async function fetchCardUrl(
+    cardId: string,
+    key: string,
+    token: string,
+): Promise<string> {
+    const trello = new TrelloClient(key, token);
+    const card = await trello.getCard(cardId);
+    return card.shortUrl;
+}
+
 // adds album link to a trello event card description
 export async function addAlbumLinkToCard(
     cardID: string,
