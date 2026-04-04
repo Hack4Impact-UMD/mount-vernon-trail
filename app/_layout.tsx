@@ -12,7 +12,7 @@ import "react-native-reanimated";
 
 import { subscribeToAuthState } from "@/auth/google-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { isEligibleForActiveEvent } from "@/services/event-service";
+import { getActiveEvent } from "@/services/event-service";
 
 import {
     Lato_300Light,
@@ -54,8 +54,8 @@ export default function RootLayout() {
 
         const checkEligibility = async () => {
             try {
-                const eligible = await isEligibleForActiveEvent();
-                setIsEligibleActiveEvent(eligible);
+                const activeEvent = await getActiveEvent();
+                setIsEligibleActiveEvent(activeEvent !== null);
             } catch (error) {
                 console.error(
                     "Error checking active event eligibility:",
