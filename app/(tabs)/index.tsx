@@ -72,22 +72,6 @@ export default function HomeScreen() {
                     <Text style={styles.buttonText}>Go to Trello Test</Text>
                 </Pressable>
                 <Pressable
-<<<<<<< HEAD
-                    style={styles.devButton}
-                    onPress={() => router.push("/event-summary")}>
-                    <Text style={styles.buttonText}>Event Summary Preview</Text>
-=======
-                    style={styles.button}
-                    onPress={() => router.push("/trail-document-screen")}>
-                    <Text style={styles.buttonText}>Trail Document Screen</Text>
-                </Pressable>
-                <Pressable
-                    style={styles.button}
-                    onPress={() => router.push("/trail-summary-screen")}>
-                    <Text style={styles.buttonText}>Trail Summary Screen</Text>
->>>>>>> 4662f788de28a15bd2d54e373b7fb40cc2732e27
-                </Pressable>
-                <Pressable
                     style={styles.button}
                     onPress={() => router.push("/trail-document-screen")}>
                     <Text style={styles.buttonText}>Trail Document Screen</Text>
@@ -98,7 +82,7 @@ export default function HomeScreen() {
                     <Text style={styles.buttonText}>Trail Summary Screen</Text>
                 </Pressable>
                 <Pressable
-                    style={styles.devButton}
+                    style={styles.button}
                     onPress={() => router.push("/event-summary")}>
                     <Text style={styles.buttonText}>Event Summary Preview</Text>
                 </Pressable>
@@ -186,13 +170,5 @@ const styles = StyleSheet.create({
         color: "#c0392b",
         fontSize: 14,
         textAlign: "center",
-    },
-    devButton: {
-        backgroundColor: "#8B6914",
-        paddingVertical: 12,
-        paddingHorizontal: 32,
-        borderRadius: 8,
-        minWidth: 200,
-        alignItems: "center",
     },
 });
