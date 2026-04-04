@@ -6,7 +6,6 @@ import type { Event } from "@/services/event-service";
 import { getEventById } from "@/services/event-service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Timestamp } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
@@ -23,24 +22,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const GREEN = "#3BA34C";
 const BLUE = "#215EAC";
 const TEAL = "#2D8682";
-
-const MOCK_EVENT: Event = {
-    eventId: "mock",
-    title: "Mock Event",
-    description: "",
-    date: Timestamp.now(),
-    trelloCardId: "",
-    albumId: "",
-    albumUrl: "",
-    isActive: true,
-    startDate: Timestamp.now(),
-    endDate: null,
-    createdAt: Timestamp.now(),
-    trailImprovements: 14,
-    trashBags: 11,
-    hoursOfService: 2,
-};
-
 interface MetricCardProps {
     label: string;
     sublabel: string;
@@ -105,7 +86,9 @@ export default function EventSummaryScreen() {
     >("home");
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
-    const [event, setEvent] = useState<Event>(MOCK_EVENT);
+    const [event, setEvent] = useState<Event>();
+
+    if (!event) return null;
 
     useEffect(() => {
         if (!eventId) return;
@@ -171,7 +154,16 @@ export default function EventSummaryScreen() {
                 <MetricCard
                     label="Hours of service"
                     sublabel="hrs"
-                    value={event.hoursOfService}
+                    value={(() => {
+                        if (!event.startDate) return 0;
+                        const end = event.endDate
+                            ? event.endDate.toMillis()
+                            : Date.now();
+                        return (
+                            Math.max(0, end - event.startDate.toMillis()) /
+                            3600000
+                        ).toFixed(1);
+                    })()}
                     accentColor={TEAL}
                     delay={260}
                 />

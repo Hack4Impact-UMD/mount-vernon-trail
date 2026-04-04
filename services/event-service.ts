@@ -26,7 +26,6 @@ export interface Event {
     createdAt: Timestamp;
     trailImprovements: number;
     trashBags: number;
-    hoursOfService: number;
 }
 
 const EVENTS_COLLECTION = "events";
@@ -65,7 +64,6 @@ export async function createEvent(
         createdAt: Timestamp.now(),
         trailImprovements: 0,
         trashBags: 0,
-        hoursOfService: 0,
     };
 
     const batch = writeBatch(db);
