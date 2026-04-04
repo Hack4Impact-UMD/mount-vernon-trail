@@ -198,7 +198,7 @@ export default function TrailEventHeader({
                                     { backgroundColor: Palette.teal },
                                 ]}>
                                 <Image
-                                    source={require("../../assets/images/image-icon.svg")}
+                                    source={require("../../assets/images/image-icon.png")}
                                     style={docStyles.iconImageSmall}
                                     contentFit="contain"
                                 />
@@ -217,7 +217,7 @@ export default function TrailEventHeader({
                                 { backgroundColor: Palette.blue },
                             ]}>
                             <Image
-                                source={require("../../assets/images/send-icon.svg")}
+                                source={require("../../assets/images/send-icon.png")}
                                 style={docStyles.iconImage}
                                 contentFit="contain"
                             />

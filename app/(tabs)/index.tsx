@@ -176,12 +176,4 @@ const styles = StyleSheet.create({
         fontSize: 14,
         textAlign: "center",
     },
-    devButton: {
-        backgroundColor: "#8B6914",
-        paddingVertical: 12,
-        paddingHorizontal: 32,
-        borderRadius: 8,
-        minWidth: 200,
-        alignItems: "center",
-    },
 });
