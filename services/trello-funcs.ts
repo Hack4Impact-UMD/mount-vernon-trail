@@ -172,6 +172,15 @@ export class TrelloClient {
         }
     }
 
+    async moveCardToList(cardID: string, listID: string): Promise<void> {
+        try {
+            await this.client.put(`/cards/${cardID}`, { idList: listID });
+        } catch (error) {
+            console.error(`unable to move card ${cardID}:`, getErrorMessage(error));
+            throw error;
+        }
+    }
+
     async updateCardDescription(
         cardID: string,
         newDescription: string,

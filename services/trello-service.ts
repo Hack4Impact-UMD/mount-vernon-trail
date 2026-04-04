@@ -6,6 +6,7 @@ import { TrelloClient } from "./trello-funcs";
 const BOARD_NAME = "MVT Mock Board";
 const TRAIL_ISSUES_LIST = "Trail Issues and Problems - Intake";
 const UPCOMING_EVENTS_LIST = "Scheduled Events";
+const COMPLETED_EVENTS_LIST = "Completed Events (From App)";
 
 // fetches trail issues by most recent
 // key and token are passed as parameters so auth can be swapped later
@@ -108,6 +109,24 @@ export async function fetchCardUrl(
     const trello = new TrelloClient(key, token);
     const card = await trello.getCard(cardId);
     return card.shortUrl;
+}
+
+// moves a card to the Completed Events (From App) list
+export async function moveCardToCompleted(
+    cardId: string,
+    key: string,
+    token: string,
+): Promise<void> {
+    const trello = new TrelloClient(key, token);
+    const boards = await trello.getBoards();
+    const board = boards.find((b) => b.name === BOARD_NAME);
+    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+
+    const lists = await trello.getLists(board.id);
+    const list = lists.find((l) => l.name === COMPLETED_EVENTS_LIST);
+    if (!list) throw new Error(`List "${COMPLETED_EVENTS_LIST}" not found`);
+
+    await trello.moveCardToList(cardId, list.id);
 }
 
 // adds album link to a trello event card description
