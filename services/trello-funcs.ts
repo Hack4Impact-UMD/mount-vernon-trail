@@ -1,7 +1,7 @@
 import { parseAndValidateDate } from "@/utils/date";
 import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
-import {getTrelloToken} from "./trello-auth";
+import {getTrelloToken} from "../auth/trello-token-storage";
 import { TrelloAuthError } from "./trello-auth-error";
 import type { Board, Card, EventCard, List } from "./trello-types";
 
@@ -28,18 +28,14 @@ function handleHttpError(status: number): void {
 export class TrelloClient {
     private readonly client: AxiosInstance;
     private readonly key: string;
-    //private token: string; // no longer readonly!!
 
     constructor(key: string) {
         this.key = key;
-        // this.token = token;
         this.client = axios.create({
             baseURL: "https://api.trello.com/1",
         });
 
-        // params on axios.create(). This lets us swap the token without rebuilding the client.
-        // trello-funcs.ts (Response Interceptor update)
-        
+        // attach api key and token to every request
         this.client.interceptors.request.use(
             async (config: InternalAxiosRequestConfig) => {
                 try {
@@ -58,23 +54,24 @@ export class TrelloClient {
                 }
             }
         );
-
-        // Map HTTP auth failures to typed TrelloAuthError so callers can know what error for what
+        // map http auth failures to typed TrelloAuthError
         this.client.interceptors.response.use(
             (response) => response,
             (error: unknown) => {
                 if (axios.isAxiosError(error)) {
                     if (error.response?.status) {
                         handleHttpError(error.response.status);
+                        // non-auth status, re-throw original
+                        throw error;
                     }
                     if (!error.response) {
                         throw new TrelloAuthError("NETWORK_ERROR");
                     }
-                    throw new TrelloAuthError("AUTH_FAILED");
+                    throw error;
                 }
                 throw error;
             },
-        );
+        ); 
     }
 
     async getBoards(): Promise<Board[]> {
@@ -243,6 +240,8 @@ export class TrelloClient {
                 },
             });
             if (!response.ok) {
+                if (response.status === 401) throw new TrelloAuthError("TOKEN_EXPIRED");
+                if (response.status === 403) throw new TrelloAuthError("PERMISSION_DENIED");
                 throw new Error(`Failed to fetch image: ${response.status}`);
             }
             const blob = await response.blob();
