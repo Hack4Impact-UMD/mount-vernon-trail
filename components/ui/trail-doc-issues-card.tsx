@@ -55,7 +55,6 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
                     <Text style={styles.dateText}>{formattedDate}</Text>
                 </View>
                 {/* Right: Green Arrow Button */}
-                {/* TODO add onPress logic here for dropdown */}
                 <TouchableOpacity
                     style={styles.arrowButton}
                     activeOpacity={0.7}
@@ -70,7 +69,7 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
                             name="chevron-right"
                             size={18}
                             color="#ffffff"
-                        />{" "}
+                        />
                     </View>
                 </TouchableOpacity>
             </View>
