@@ -1,7 +1,7 @@
+import { Palette } from "@/constants/theme";
+import { ArrowLeft, Play } from "lucide-react-native";
 import React, { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { ArrowLeft, Play } from "lucide-react-native";
-import { Palette } from "@/constants/theme";
 import StartEventConfirmation from "./start-event-confirmation";
 import {
     formatEventDate,
@@ -37,76 +37,76 @@ export default function TrailEventCard({
             animationType="slide"
             onRequestClose={handleClose}>
             <View style={styles.modalContainer}>
-            <Pressable
-                style={styles.backdrop}
-                onPress={handleClose}
-            />
-
-            <View style={styles.card}>
-                {/* Back button */}
                 <Pressable
-                    style={styles.backButton}
+                    style={styles.backdrop}
                     onPress={handleClose}
-                    hitSlop={8}>
-                    <ArrowLeft
-                        size={18}
-                        color={Palette.primaryBlack100}
-                    />
-                    <Text style={styles.backText}>Back</Text>
-                </Pressable>
+                />
 
-                {/* Title */}
-                <Text style={styles.heading}>Today's Event</Text>
-                <View style={styles.divider} />
+                <View style={styles.card}>
+                    {/* Back button */}
+                    <Pressable
+                        style={styles.backButton}
+                        onPress={handleClose}
+                        hitSlop={8}>
+                        <ArrowLeft
+                            size={20}
+                            color={"#0A0A0A"}
+                        />
+                        <Text style={styles.backText}>Back</Text>
+                    </Pressable>
 
-                {/* Event details */}
-                <Text style={styles.eventName}>{event.name}</Text>
-                <Text style={styles.eventDate}>
-                    {formatEventDate(event.date)}
-                </Text>
+                    {/* Title */}
+                    <Text style={styles.heading}>Today's Event</Text>
+                    <View style={styles.divider} />
 
-                <View style={styles.detailsSection}>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Category:</Text>
-                        <Text style={styles.detailValue}>
-                            PULL ME FROM TRELLO :)
-                        </Text>
+                    {/* Event details */}
+                    <Text style={styles.eventName}>{event.name}</Text>
+                    <Text style={styles.eventDate}>
+                        {formatEventDate(event.date)}
+                    </Text>
+
+                    <View style={styles.detailsSection}>
+                        <View style={styles.detailRow}>
+                            <Text style={styles.detailLabel}>Category:</Text>
+                            <Text style={styles.detailValue}>
+                                PULL ME FROM TRELLO :)
+                            </Text>
+                        </View>
+                        <View style={styles.detailRow}>
+                            <Text style={styles.detailLabel}>Location:</Text>
+                            <Text style={styles.detailValue}>
+                                PULL ME FROM TRELLO :)
+                            </Text>
+                        </View>
                     </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Location:</Text>
-                        <Text style={styles.detailValue}>
-                            PULL ME FROM TRELLO :)
-                        </Text>
-                    </View>
+
+                    {/* Start Event button */}
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.startButton,
+                            pressed && styles.startButtonPressed,
+                        ]}
+                        onPress={() => setShowConfirmation(true)}>
+                        <Play
+                            size={16}
+                            color="#FFFFFF"
+                            fill="#FFFFFF"
+                            style={styles.playIcon}
+                        />
+                        <Text style={styles.startButtonText}>Start Event</Text>
+                    </Pressable>
                 </View>
 
-                {/* Start Event button */}
-                <Pressable
-                    style={({ pressed }) => [
-                        styles.startButton,
-                        pressed && styles.startButtonPressed,
-                    ]}
-                    onPress={() => setShowConfirmation(true)}>
-                    <Play
-                        size={16}
-                        color="#FFFFFF"
-                        fill="#FFFFFF"
-                        style={styles.playIcon}
+                {showConfirmation && (
+                    <StartEventConfirmation
+                        visible
+                        onCancel={() => setShowConfirmation(false)}
+                        onConfirm={() => {
+                            setShowConfirmation(false);
+                            onStartEvent(event);
+                        }}
                     />
-                    <Text style={styles.startButtonText}>Start Event</Text>
-                </Pressable>
-            </View>
-
-            {showConfirmation && (
-                <StartEventConfirmation
-                    visible
-                    onCancel={() => setShowConfirmation(false)}
-                    onConfirm={() => {
-                        setShowConfirmation(false);
-                        onStartEvent(event);
-                    }}
-                />
-            )}
+                )}
             </View>
         </Modal>
     );
@@ -118,7 +118,6 @@ const styles = StyleSheet.create({
     },
     backdrop: {
         flex: 1,
-        backgroundColor: "transparent",
     },
     card: {
         position: "absolute",
@@ -128,8 +127,9 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFFFF",
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        borderTopWidth: 2,
-        borderTopColor: "#99A1AF",
+        borderWidth: 2,
+        borderBottomWidth: 0,
+        borderColor: "#99A1AF",
         paddingTop: 20,
         paddingHorizontal: 24,
         paddingBottom: 40,
@@ -146,9 +146,13 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     backText: {
-        fontSize: 15,
+        fontSize: 14,
         fontFamily: "Lato_400Regular",
-        color: Palette.primaryBlack100,
+        fontWeight: "500",
+        lineHeight: 20,
+        letterSpacing: -0.15,
+        textAlign: "center",
+        color: "#0A0A0A",
     },
     heading: {
         fontSize: 18,
@@ -190,7 +194,6 @@ const styles = StyleSheet.create({
     detailRow: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 1,
     },
     detailLabel: {
         fontSize: 14,
@@ -199,7 +202,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         letterSpacing: -0.15,
         color: "#0A0A0A",
-        width: 90,
+        width: 70,
     },
     detailValue: {
         fontSize: 14,

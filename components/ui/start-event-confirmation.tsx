@@ -1,8 +1,21 @@
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+    Dimensions,
+    Image,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ChevronRight } from "lucide-react-native";
 import { Palette } from "@/constants/theme";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CARD_WIDTH = SCREEN_WIDTH - 48;
+const BEAVER_SIZE = Math.round(CARD_WIDTH * 0.42);
+const BEAVER_OFFSET_RIGHT = Math.round(BEAVER_SIZE * -0.18);
+const BEAVER_OFFSET_BOTTOM = Math.round(BEAVER_SIZE * -0.3);
 
 interface StartEventConfirmationProps {
     visible: boolean;
@@ -20,7 +33,7 @@ export default function StartEventConfirmation({
     return (
         <View style={styles.overlay}>
             <LinearGradient
-                colors={[Palette.primaryPurple100, Palette.primaryPurple70]}
+                colors={[Palette.primaryPurple70, Palette.primaryPurple100]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.card}>
@@ -71,7 +84,7 @@ const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.3)",
+        backgroundColor: "#D9D9D999",
         paddingHorizontal: 24,
         zIndex: 10,
     },
@@ -108,10 +121,11 @@ const styles = StyleSheet.create({
     buttonRow: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
+        gap: 22,
+        paddingLeft: 16,
     },
     cancelButton: {
-        paddingHorizontal: 20,
+        width: 74,
         height: 24,
         justifyContent: "center",
         alignItems: "center",
@@ -120,10 +134,11 @@ const styles = StyleSheet.create({
     },
     confirmButton: {
         flexDirection: "row",
+        width: 95,
         height: 24,
-        justifyContent: "center",
+        paddingLeft: 10,
+        paddingRight: 6,
         alignItems: "center",
-        paddingHorizontal: 12,
         borderRadius: 9999,
         backgroundColor: Palette.green,
         gap: 4,
@@ -146,8 +161,10 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     beaverImage: {
-        width: 120,
-        height: 120,
-        marginRight: -10,
+        width: BEAVER_SIZE,
+        height: BEAVER_SIZE,
+        position: "absolute",
+        right: BEAVER_OFFSET_RIGHT,
+        bottom: BEAVER_OFFSET_BOTTOM,
     },
 });
