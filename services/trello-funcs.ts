@@ -40,6 +40,9 @@ export class TrelloClient {
             async (config: InternalAxiosRequestConfig) => {
                 try {
                     const token = await getTrelloToken();
+                    if (!token) {
+                        throw new TrelloAuthError("AUTH_FAILED");
+                    }
                     config.params = {
                         ...config.params,
                         key: this.key,
@@ -233,6 +236,9 @@ export class TrelloClient {
     async loadTrelloImage(imageUrl: string): Promise<string | null> {
         try {
             const token = await getTrelloToken();
+            if (!token) {
+                throw new TrelloAuthError("AUTH_FAILED");
+            }
             const response = await fetch(imageUrl, {
                 method: "GET",
                 headers: {
