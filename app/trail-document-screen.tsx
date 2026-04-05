@@ -10,8 +10,8 @@ import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 // TODO remove this after trello auth is done
-const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
-const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN ?? "";
+const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
+const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
 
 export default function TrailDocumentScreen() {
     const router = useRouter();
@@ -20,11 +20,12 @@ export default function TrailDocumentScreen() {
         beforeImageUri?: string;
         afterImageUri?: string;
     }>();
-    const eventCardID = params.eventCardID;
+    const eventCardID = params.eventCardID ?? "IpiGZLH0";
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
     const [issuesData, setIssuesData] = useState([] as TrailDocumentIssueItem[]);
+    const [issuesError, setIssuesError] = useState<string | null>(null);
     const [statsData, setStatsData] = useState({
         trashCollection: 0,
         restorationEffort: 0,
@@ -32,6 +33,12 @@ export default function TrailDocumentScreen() {
     useEffect(() => {
         async function loadTrailDocument() {
             if (!eventCardID) {
+                console.error("event card id not found");
+                return;
+            }
+
+            if(!API_KEY || !API_TOKEN){
+                setIssuesError("Missing Trello API Credentials");
                 return;
             }
             const trello = new TrelloClient(API_KEY, API_TOKEN);
