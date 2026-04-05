@@ -19,6 +19,7 @@ export default function TrailDocumentScreen() {
         eventCardID?: string;
         beforeImageUri?: string;
         afterImageUri?: string;
+        activeIssueId?: string;
     }>();
     const eventCardID = params.eventCardID;
     const [active, setActive] = useState<
@@ -58,48 +59,23 @@ export default function TrailDocumentScreen() {
         loadTrailDocument();
     }, [eventCardID]);
 
-    // const beforeImageUri = typeof params.beforeImageUri === "string" ? params.beforeImageUri : null;
-    // const afterImageUri = typeof params.afterImageUri === "string" ? params.afterImageUri : null;
-
+    const activeIssueId = params.activeIssueId ?? null;
+    const beforeImageUri = typeof params.beforeImageUri === "string" ? params.beforeImageUri : null;
+    const afterImageUri = typeof params.afterImageUri === "string" ? params.afterImageUri : null;
+    const [issueImages, setIssueImages] = useState<Record<string, { before?: string; after?: string }>>({});
+    // when the user returns from camera-view, store the captured image under the correct issue
+    useEffect(() => {
+        if (activeIssueId && (beforeImageUri || afterImageUri)) {
+            setIssueImages(prev => ({
+                ...prev,
+                [activeIssueId]: {
+                    before: beforeImageUri ?? prev[activeIssueId]?.before,
+                    after: afterImageUri ?? prev[activeIssueId]?.after,
+                }
+            }));
+        }
+    }, [activeIssueId, beforeImageUri, afterImageUri]);
     return (
-        // temporary buttons to test navigation to camera view
-        /*
-        <View>
-            <Button title="before" onPress={() => 
-                router.push({ 
-                    pathname: '/camera-view', 
-                    params: { mode: 'before' }, 
-                })}
-            />
-            <Button title="after" onPress={() => 
-                router.push({ 
-                    pathname: '/camera-view', 
-                    params: { 
-                        mode: 'after',
-                        beforeImageUri: beforeImageUri ?? "",
-                    }, 
-                })}
-            />
-            {beforeImageUri ? (
-                <Image
-                    source={{ uri: beforeImageUri }}
-                    style={styles.previewImage}
-                    resizeMode="cover"
-                />
-            ) : (
-                <Text>No before image yet</Text>
-            )}
-            {afterImageUri ? (
-                <Image
-                    source={{ uri: afterImageUri }}
-                    style={styles.previewImage}
-                    resizeMode="cover"
-                />
-            ) : (
-                <Text>No after image yet</Text>
-            )}
-        </View>
-        */
         <>
             <Stack.Screen options={{ headerShown: false }} />
             <View style={styles.screen}>
@@ -120,6 +96,18 @@ export default function TrailDocumentScreen() {
                                     name={issue.name}
                                     date={issue.creationDate}
                                     imageUrl={issue.imageUrl}
+                                    beforeImageUri={issueImages[issue.id]?.before ?? null}
+                                    afterImageUri={issueImages[issue.id]?.after ?? null}
+                                    onCameraPress={(mode) =>
+                                        router.push({
+                                            pathname: '/camera-view',
+                                            params: {
+                                                mode,
+                                                activeIssueId: issue.id,
+                                                beforeImageUri: issueImages[issue.id]?.before ?? '',
+                                            },
+                                        })
+                                    }
                                 />
                             ))}
                         </View>

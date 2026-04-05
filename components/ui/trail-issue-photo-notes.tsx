@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import React from "react";
 import {
   Image,
@@ -15,19 +14,12 @@ interface Props {
     afterImageUri: string | null;
     notes:string;
     onNotesChange: (text:string) => void;
+    onCameraPress: (mode: 'before' | 'after') => void;
 }
 
-const TrailDropdown: React.FC<Props> = ({ beforeImageUri, afterImageUri, notes, onNotesChange }) => {
-    const router = useRouter();
-
+const TrailDropdown: React.FC<Props> = ({ beforeImageUri, afterImageUri, notes, onNotesChange, onCameraPress }) => {
     const handlePhotoPress = async (slot: PhotoSlot) => {
-        router.push({
-            pathname: "/camera-view",
-            params: {
-                mode: slot,
-                beforeImageUri: beforeImageUri ?? "",
-            },
-        });
+        onCameraPress(slot);
     };
 
     const photos = {
