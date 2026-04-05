@@ -73,3 +73,58 @@ export async function fetchUpcomingEvents(
         }),
     );
 }
+
+// creates a new event card in the Scheduled Events list with the card name prefixed with date
+export async function createEventCard(
+    title: string,
+    dateStr: string,
+    description: string,
+    key: string,
+    token: string,
+): Promise<string> {
+    const trello = new TrelloClient(key, token);
+    const boards = await trello.getBoards();
+    const board = boards.find((b) => b.name === BOARD_NAME);
+    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+
+    const lists = await trello.getLists(board.id);
+    const list = lists.find((l) => l.name === UPCOMING_EVENTS_LIST);
+    if (!list) throw new Error(`List "${UPCOMING_EVENTS_LIST}" not found`);
+
+    const card = await trello.createCard(
+        list.id,
+        `${dateStr} ${title}`,
+        description,
+    );
+    return card.id;
+}
+
+// adds album link to a trello event card description
+export async function addAlbumLinkToCard(
+    cardID: string,
+    albumUrl: string,
+    key: string,
+    token: string,
+): Promise<void> {
+    const trello = new TrelloClient(key, token);
+    const card = await trello.getCard(cardID);
+    const currentDescription = card.desc ?? "";
+
+    // album link pattern to detect and replace existing album links
+    const albumLinkPattern = /\n\n📷 Album Link: .*/;
+    const newLinkText = `\n\n📷 Album Link: ${albumUrl}`;
+
+    let updatedDescription: string;
+    if (albumLinkPattern.test(currentDescription)) {
+        // replace existing album link to make operation idempotent
+        updatedDescription = currentDescription.replace(
+            albumLinkPattern,
+            newLinkText,
+        );
+    } else {
+        // append new album link if none exists
+        updatedDescription = currentDescription + newLinkText;
+    }
+
+    await trello.updateCardDescription(cardID, updatedDescription);
+}
