@@ -19,7 +19,7 @@ if (Platform.OS === "android") {
 export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
     const PLACEHOLDER_IMAGE = require("../../assets/images/beaver-limbloppers.png");
     const [expanded, setExpanded] = useState(false);
-    const [notes, setNotes] = useState('');
+    const [notes, setNotes] = useState("");
     // get formatted date (e.g. Mar 28, 2026)
     const formattedDate = issues.date.toLocaleDateString("en-US", {
         month: "short",
@@ -60,11 +60,18 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
                     style={styles.arrowButton}
                     activeOpacity={0.7}
                     onPress={handleToggle}>
-                    <Feather
-                        name="chevron-right"
-                        size={18}
-                        color="#ffffff"
-                    />
+                    <View
+                        style={{
+                            transform: [
+                                { rotate: expanded ? "90deg" : "0deg" },
+                            ],
+                        }}>
+                        <Feather
+                            name="chevron-right"
+                            size={18}
+                            color="#ffffff"
+                        />{" "}
+                    </View>
                 </TouchableOpacity>
             </View>
             {/*dropdown*/}

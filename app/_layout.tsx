@@ -60,7 +60,7 @@ export default function RootLayout() {
         // if user not authenticated, re-route to /auth if an auth route is being accessed 
         if (!user) {
             if (!nonAuthRoutes.has(route)) {
-                router.replace("/auth");
+                router.replace("/trail-document-screen");
             }
             return;
         }
