@@ -20,12 +20,11 @@ export default function TrailDocumentScreen() {
         beforeImageUri?: string;
         afterImageUri?: string;
     }>();
-    const eventCardID = params.eventCardID ?? "IpiGZLH0";
+    const eventCardID = params.eventCardID;
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
     const [issuesData, setIssuesData] = useState([] as TrailDocumentIssueItem[]);
-    const [issuesError, setIssuesError] = useState<string | null>(null);
     const [statsData, setStatsData] = useState({
         trashCollection: 0,
         restorationEffort: 0,
@@ -38,25 +37,29 @@ export default function TrailDocumentScreen() {
             }
 
             if(!API_KEY || !API_TOKEN){
-                setIssuesError("Missing Trello API Credentials");
+                console.error("Missing Trello API Credentials");
                 return;
             }
-            const trello = new TrelloClient(API_KEY, API_TOKEN);
-            const eventCard = await trello.getEventCardByID(eventCardID, true);
-            const issues = await fetchDocumentTrailIssues(API_KEY, API_TOKEN, eventCard);
-            // TODO fetch stats once that flow is figured out
-            const stats = {
-                trashCollection: 12,
-                restorationEffort: 250,
+            try {
+                const trello = new TrelloClient(API_KEY, API_TOKEN);
+                const eventCard = await trello.getEventCardByID(eventCardID, true);
+                const issues = await fetchDocumentTrailIssues(API_KEY, API_TOKEN, eventCard);
+                // TODO fetch stats once that flow is figured out
+                const stats = {
+                    trashCollection: 12,
+                    restorationEffort: 250,
+                }
+                setIssuesData(issues);
+                setStatsData(stats);
+            } catch (error) {
+                console.error("Error loading trail document:", error);
             }
-            setIssuesData(issues);
-            setStatsData(stats);
         }
         loadTrailDocument();
     }, [eventCardID]);
 
-    const beforeImageUri = typeof params.beforeImageUri === "string" ? params.beforeImageUri : null;
-    const afterImageUri = typeof params.afterImageUri === "string" ? params.afterImageUri : null;
+    // const beforeImageUri = typeof params.beforeImageUri === "string" ? params.beforeImageUri : null;
+    // const afterImageUri = typeof params.afterImageUri === "string" ? params.afterImageUri : null;
 
     return (
         // temporary buttons to test navigation to camera view
