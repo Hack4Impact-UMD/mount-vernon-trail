@@ -22,15 +22,18 @@ export async function fetchTrailIssues(
     const list = lists.find((l) => l.name === TRAIL_ISSUES_LIST);
     if (!list) throw new Error(`List "${TRAIL_ISSUES_LIST}" not found`);
 
-    const cards = await trello.getCards(list.id, true);
-    // imageUrl is set to null for now
-    return Promise.all(
+    const cards = await trello.getCards(list.id, true, true);
+    return await Promise.all(
         cards.map(async (card) => {
+            const imageUrl =
+                card.attachments && card.attachments.length > 0
+                    ? await trello.loadTrelloImage(card.attachments[0].url)
+                    : null;
             return {
                 id: card.id,
                 name: card.name,
                 description: card.desc ?? "",
-                imageUrl: null,
+                imageUrl,
             };
         }),
     );
@@ -50,19 +53,76 @@ export async function fetchUpcomingEvents(
     const list = lists.find((l) => l.name === UPCOMING_EVENTS_LIST);
     if (!list) throw new Error(`List "${UPCOMING_EVENTS_LIST}" not found`);
 
-    const cards = await trello.getEventCardsFiltered(list.id, 30, true);
+    const cards = await trello.getEventCardsFiltered(list.id, 30, true, true);
 
     return Promise.all(
         cards.map(async (card) => {
+            const imageUrl =
+                card.attachments && card.attachments.length > 0
+                    ? await trello.loadTrelloImage(card.attachments[0].url)
+                    : null;
             return {
                 id: card.id,
                 name: card.name,
                 description: card.desc ?? "",
                 date: card.eventDate,
-                imageUrl: null,
+                imageUrl,
             };
         }),
     );
+}
+
+// creates a new event card in the Scheduled Events list with the card name prefixed with date
+export async function createEventCard(
+    title: string,
+    dateStr: string,
+    description: string,
+    key: string,
+): Promise<string> {
+    const trello = new TrelloClient(key);
+    const boards = await trello.getBoards();
+    const board = boards.find((b) => b.name === BOARD_NAME);
+    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+
+    const lists = await trello.getLists(board.id);
+    const list = lists.find((l) => l.name === UPCOMING_EVENTS_LIST);
+    if (!list) throw new Error(`List "${UPCOMING_EVENTS_LIST}" not found`);
+
+    const card = await trello.createCard(
+        list.id,
+        `${dateStr} ${title}`,
+        description,
+    );
+    return card.id;
+}
+
+// adds album link to a trello event card description
+export async function addAlbumLinkToCard(
+    cardID: string,
+    albumUrl: string,
+    key: string,
+): Promise<void> {
+    const trello = new TrelloClient(key);
+    const card = await trello.getCard(cardID);
+    const currentDescription = card.desc ?? "";
+
+    // album link pattern to detect and replace existing album links
+    const albumLinkPattern = /\n\n📷 Album Link: .*/;
+    const newLinkText = `\n\n📷 Album Link: ${albumUrl}`;
+
+    let updatedDescription: string;
+    if (albumLinkPattern.test(currentDescription)) {
+        // replace existing album link to make operation idempotent
+        updatedDescription = currentDescription.replace(
+            albumLinkPattern,
+            newLinkText,
+        );
+    } else {
+        // append new album link if none exists
+        updatedDescription = currentDescription + newLinkText;
+    }
+
+    await trello.updateCardDescription(cardID, updatedDescription);
 }
 
 // Add this to trello-service.ts

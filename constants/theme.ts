@@ -8,6 +8,25 @@ import { Platform } from 'react-native';
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
+export const Palette = {
+  primaryPurple100: '#693894',
+  primaryPurple70: '#8a6bad',
+  primaryPurple50: '#a58cc0',
+  primaryPurple30: '#c3b4d7',
+
+  primaryBlack100: '#000000',
+  primaryBlack70: '#6d6e71',
+  primaryBlack50: '#939598',
+  primaryBlack30: '#bcbec0',
+
+  chartreuse: '#bad532',
+  green: '#3ba34c',
+  teal: '#2d8682',
+  blue: '#215eac',
+  darkBlue: '#344d71',
+  brown: '#3e2911',
+} as const;
+
 export const Colors = {
   light: {
     text: '#11181C',

@@ -5,6 +5,18 @@ import {getTrelloToken} from "./trello-auth";
 import { TrelloAuthError } from "./trello-auth-error";
 import type { Board, Card, EventCard, List } from "./trello-types";
 
+
+// helper for error message from unknown error type
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+    if (typeof error === "string") {
+        return error;
+    }
+    return String(error) || "Unknown error";
+}
+
 function handleHttpError(status: number): void {
     if (status === 401) {
         throw new TrelloAuthError("TOKEN_EXPIRED");
@@ -72,7 +84,7 @@ export class TrelloClient {
             return response.data;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;
-            console.error("error finding boards:", error);
+            console.error("error finding boards:", getErrorMessage(error));
             throw error;
         }
     }
@@ -85,7 +97,8 @@ export class TrelloClient {
             return response.data;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;
-            console.error(`error getting lists:`, error);
+
+            console.error(`error getting lists:`, getErrorMessage(error));
             throw error;
         }
     }
@@ -104,7 +117,7 @@ export class TrelloClient {
             return response.data;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;
-            console.error("unable to create card:", error);
+            console.error("unable to create card:", getErrorMessage(error));
             throw error;
         }
     }
@@ -112,10 +125,11 @@ export class TrelloClient {
     async getCards(
         listID: string,
         sortByCreationDate: boolean = false,
+        getAttachments: boolean = false,
     ): Promise<Card[]> {
         try {
             const response = await this.client.get<Card[]>(
-                `/lists/${listID}/cards`,
+                `/lists/${listID}/cards${getAttachments ? "?attachments=cover" : ""}`,
             );
             const cards = response.data.map((card) => {
                 card.creationDate = new Date(
@@ -132,7 +146,7 @@ export class TrelloClient {
             return cards;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;
-            console.error("unable to get cards:", error);
+            console.error("unable to get cards:", getErrorMessage(error));
             throw error;
         }
     }
@@ -157,10 +171,11 @@ export class TrelloClient {
     async getEventCardsFiltered(
         listID: string,
         days: number = 30,
+        getAttachments: boolean = false,
         removeDate: boolean = false,
     ): Promise<EventCard[]> {
         try {
-            const cards = await this.getCards(listID, false);
+            const cards = await this.getCards(listID, false, getAttachments);
             const now = new Date();
             const today = new Date(
                 now.getFullYear(),
@@ -183,8 +198,70 @@ export class TrelloClient {
             return result;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;
-            console.error("unable to get cards:", error);
+
+            console.error("unable to get cards:", getErrorMessage(error));
             throw error;
+        }
+    }
+
+    async getCard(cardID: string): Promise<Card> {
+        try {
+            const response = await this.client.get<Card>(`/cards/${cardID}`);
+            return response.data;
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+
+            console.error(`unable to get card ${cardID}:`, getErrorMessage(error));
+            throw error;
+        }
+    }
+
+    async updateCardDescription(
+        cardID: string,
+        newDescription: string,
+    ): Promise<Card> {
+        try {
+            const response = await this.client.put<Card>(`/cards/${cardID}`, {
+                desc: newDescription,
+            });
+            return response.data;
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+
+            console.error(`unable to update card ${cardID}:`, getErrorMessage(error));
+            throw error;
+        }
+    }
+
+    async loadTrelloImage(imageUrl: string): Promise<string | null> {
+        try {
+            const token = await getTrelloToken();
+            const response = await fetch(imageUrl, {
+                method: "GET",
+                headers: {
+                    Authorization: `OAuth oauth_consumer_key="${this.key}", oauth_token="${token}"`,
+                },
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status}`);
+            }
+            const blob = await response.blob();
+            // convert blob to base64 string
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    resolve(reader.result as string);
+                };
+                reader.onerror = () => {
+                    reject(new Error("Failed to convert blob to Base64"));
+                };
+                reader.readAsDataURL(blob);
+            });
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+
+            console.error("Error loading image:", error);
+            return null;
         }
     }
 }

@@ -1,6 +1,4 @@
-import React from 'react';
-import { Redirect } from 'expo-router';
-
+// Initial route — renders nothing while _layout.tsx resolves auth state.
 export default function Index() {
-  return <Redirect href="/camera-view" />;
+    return null;
 }
