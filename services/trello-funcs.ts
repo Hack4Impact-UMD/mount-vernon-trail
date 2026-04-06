@@ -213,9 +213,14 @@ export class TrelloClient {
         try {
             const card = await this.getCard(cardID);
             const existingDescription = card.desc;
+
             const response = await this.client.put<Card>(`/cards/${cardID}`, {
-                desc: `${existingDescription}\n${newDescription}`,
+                desc:
+                    existingDescription !== ""
+                        ? `${existingDescription}\n${newDescription}`
+                        : newDescription,
             });
+
             return response.data;
         } catch (error) {
             console.error(
