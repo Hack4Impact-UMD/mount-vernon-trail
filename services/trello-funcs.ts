@@ -64,6 +64,7 @@ export class TrelloClient {
                 idList: listID,
                 name: name,
                 desc: description || "",
+                fields: "id,name,desc,idList,idBoard,shortUrl",
             });
             return response.data;
         } catch (error) {
@@ -167,12 +168,27 @@ export class TrelloClient {
             const response = await this.client.get<Card>(`/cards/${cardID}`);
             return response.data;
         } catch (error) {
-            console.error(`unable to get card ${cardID}:`, getErrorMessage(error));
+            console.error(
+                `unable to get card ${cardID}:`,
+                getErrorMessage(error),
+            );
             throw error;
         }
     }
 
-    async updateCardDescription(
+    async moveCardToList(cardID: string, listID: string): Promise<void> {
+        try {
+            await this.client.put(`/cards/${cardID}`, { idList: listID });
+        } catch (error) {
+            console.error(
+                `unable to move card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    async replaceCardDescription(
         cardID: string,
         newDescription: string,
     ): Promise<Card> {
@@ -182,7 +198,35 @@ export class TrelloClient {
             });
             return response.data;
         } catch (error) {
-            console.error(`unable to update card ${cardID}:`, getErrorMessage(error));
+            console.error(
+                `unable to update card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    async appendCardDescription(
+        cardID: string,
+        newDescription: string,
+    ): Promise<Card> {
+        try {
+            const card = await this.getCard(cardID);
+            const existingDescription = card.desc;
+
+            const response = await this.client.put<Card>(`/cards/${cardID}`, {
+                desc:
+                    existingDescription !== ""
+                        ? `${existingDescription}\n${newDescription}`
+                        : newDescription,
+            });
+
+            return response.data;
+        } catch (error) {
+            console.error(
+                `unable to update card ${cardID}:`,
+                getErrorMessage(error),
+            );
             throw error;
         }
     }
