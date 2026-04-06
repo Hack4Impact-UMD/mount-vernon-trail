@@ -146,17 +146,17 @@ export async function addAlbumLinkToCard(
     const albumLinkPattern = /\n\n📷 Album Link: .*/;
     const newLinkText = `\n\n📷 Album Link: ${albumUrl}`;
 
-    let updatedDescription: string;
+    let replacedDescription: string;
     if (albumLinkPattern.test(currentDescription)) {
         // replace existing album link to make operation idempotent
-        updatedDescription = currentDescription.replace(
+        replacedDescription = currentDescription.replace(
             albumLinkPattern,
             newLinkText,
         );
     } else {
         // append new album link if none exists
-        updatedDescription = currentDescription + newLinkText;
+        replacedDescription = currentDescription + newLinkText;
     }
 
-    await trello.updateCardDescription(cardID, updatedDescription);
+    await trello.replaceCardDescription(cardID, replacedDescription);
 }
