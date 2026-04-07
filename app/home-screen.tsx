@@ -6,10 +6,11 @@ import TrailEventCard from "@/components/ui/trail-event-card";
 import { fetchUpcomingEvents } from "@/services/trello-service";
 import { Stack } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import BottomNav from "../components/ui/bottom-nav";
 import Header from "../components/ui/header";
 import StartEventCard from "../components/ui/start-event-card";
+import { startEvent } from "@/services/event-service";
 
 // hardcoded for testing, need to swap for real auth later
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
@@ -70,6 +71,20 @@ export default function HomeScreen() {
             .finally(() => setEventsLoading(false));
     }, []);
 
+    const handleStartEvent = async (event: UpcomingEventItem) => {
+        try {
+            await startEvent(event.id);
+            setSelectedEvent(null);
+            Alert.alert("Event Started", `${event.name} is now in progress.`);
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Failed to start event";
+            Alert.alert("Error", message);
+        }
+    };
+
     return (
         <>
             <Stack.Screen options={{ headerShown: false }} />
@@ -118,11 +133,8 @@ export default function HomeScreen() {
                     event={selectedEvent}
                     visible={selectedEvent !== null}
                     onClose={() => setSelectedEvent(null)}
-                    onStartEvent={(event) => {
-                        // TODO: Connect to Firebase
-                        console.log("Started Event:", event.name);
-                        setSelectedEvent(null);
-                    }}
+                    onStartEvent={handleStartEvent}
+
                 />
             </View>
         </>
