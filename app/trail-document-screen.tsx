@@ -1,10 +1,11 @@
+import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event } from "@/services/event-service";
 import { getEventById } from "@/services/event-service";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 export default function TrailDocumentScreen() {
     const router = useRouter();
@@ -29,11 +30,14 @@ export default function TrailDocumentScreen() {
     }, [eventId]);
 
     if (loading) return <ActivityIndicator style={styles.loader} />;
-    if (error || !event) return (
-        <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error ?? "Event not found."}</Text>
-        </View>
-    );
+    if (error || !event)
+        return (
+            <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>
+                    {error ?? "Event not found."}
+                </Text>
+            </View>
+        );
 
     return (
         <View style={styles.container}>
@@ -48,6 +52,7 @@ export default function TrailDocumentScreen() {
                     })
                 }
             />
+            <BottomNav />
         </View>
     );
 }

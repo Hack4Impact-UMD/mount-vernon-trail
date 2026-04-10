@@ -2,10 +2,11 @@ import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
+import { getEventByTrelloCardId } from "@/services/event-service";
 import { fetchUpcomingEvents } from "@/services/trello-service";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import BottomNav from "../components/ui/bottom-nav";
 import Header from "../components/ui/header";
 import StartEventCard from "../components/ui/start-event-card";
@@ -47,10 +48,7 @@ const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
 ];
 
 export default function HomeScreen() {
-    const [active, setActive] = useState<
-        "home" | "new-event" | "history" | "profile"
-    >("home");
-
+    const router = useRouter();
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
@@ -76,7 +74,10 @@ export default function HomeScreen() {
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}>
-                    <Header userName="Sarah" showGreeting />
+                    <Header
+                        userName="Sarah"
+                        showGreeting
+                    />
                     <View style={styles.cardWrapper}>
                         <StartEventCard />
                     </View>
@@ -87,9 +88,17 @@ export default function HomeScreen() {
                             error={eventsError}
                             maxItems={3}
                             onShowMore={() => {}}
-                            onPressItem={(event) =>
-                                console.log("pressed:", event.name)
-                            }
+                            onPressItem={async (event) => {
+                                const firebaseEvent = await getEventByTrelloCardId(event.id).catch(() => null);
+                                if (firebaseEvent) {
+                                    router.push({
+                                        pathname: "/trail-document-screen",
+                                        params: { eventId: firebaseEvent.eventId },
+                                    });
+                                } else {
+                                    Alert.alert("Not available", "This event hasn't been set up in the app yet.");
+                                }
+                            }}
                         />
                     </View>
 
@@ -108,10 +117,7 @@ export default function HomeScreen() {
                         />
                     </View>
                 </ScrollView>
-                <BottomNav
-                    active={active}
-                    onTabPress={(tab) => setActive(tab)}
-                />
+                <BottomNav />
             </View>
         </>
     );

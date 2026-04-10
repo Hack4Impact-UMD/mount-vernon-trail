@@ -36,7 +36,7 @@ const navItems: {
         label: "Home",
         icon: (color) => (
             <House
-                size={30}
+                size={25}
                 color={color}
                 strokeWidth={1.8}
             />
@@ -47,7 +47,7 @@ const navItems: {
         label: "Drafts",
         icon: (color) => (
             <FileText
-                size={30}
+                size={25}
                 color={color}
                 strokeWidth={1.8}
             />
@@ -58,7 +58,7 @@ const navItems: {
         label: "Albums",
         icon: (color) => (
             <Images
-                size={30}
+                size={25}
                 color={color}
                 strokeWidth={1.8}
             />

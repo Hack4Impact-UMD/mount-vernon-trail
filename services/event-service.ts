@@ -113,6 +113,17 @@ export async function getEventById(eventId: string): Promise<Event | null> {
     return snapshot.data() as Event;
 }
 
+export async function getEventByTrelloCardId(trelloCardId: string): Promise<Event | null> {
+    const db = getFirestore();
+    const q = query(
+        collection(db, EVENTS_COLLECTION),
+        where("trelloCardId", "==", trelloCardId),
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    return snapshot.docs[0].data() as Event;
+}
+
 export async function setEventInactive(eventId: string): Promise<void> {
     const db = getFirestore();
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
