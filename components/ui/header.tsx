@@ -1,10 +1,15 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Menu } from "lucide-react-native";
 import { Palette } from "@/constants/theme";
+import React from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function HomeHeader({ userName, showGreeting = false }: { userName: string; showGreeting?: boolean }) {
+export default function HomeHeader({
+    userName,
+    showGreeting = false,
+}: {
+    userName: string;
+    showGreeting?: boolean;
+}) {
     const insets = useSafeAreaInsets();
     return (
         <View>
@@ -17,13 +22,6 @@ export default function HomeHeader({ userName, showGreeting = false }: { userNam
                             style={styles.logo}
                         />
                     </View>
-                    <TouchableOpacity>
-                        <Menu
-                            size={28}
-                            color="white"
-                            strokeWidth={1.5}
-                        />
-                    </TouchableOpacity>
                 </View>
             </View>
             {showGreeting && (
