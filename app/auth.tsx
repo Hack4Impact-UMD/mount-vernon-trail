@@ -1,4 +1,5 @@
-import React from "react";
+import { useRouter } from "expo-router";
+import React, { useEffect } from "react";
 import AuthPageUI from "../components/ui/auth-page-ui";
 import { useGoogleAuth } from "../hooks/use-google-auth";
 
@@ -13,7 +14,14 @@ function getErrorMessage(code: string): string {
 }
 
 export default function AuthScreen() {
-    const { promptSignIn, loading, error, isReady } = useGoogleAuth();
+    const router = useRouter();
+    const { promptSignIn, loading, error, isReady, user } = useGoogleAuth();
+
+    useEffect(() => {
+        if (user) {
+            router.replace("/home-screen");
+        }
+    }, [user]);
 
     const errorMessage = error ? getErrorMessage(error.code) : undefined;
 

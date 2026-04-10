@@ -89,7 +89,7 @@ export default function RootLayout() {
             !onTrailDocument &&
             !onEventSummary
         ) {
-            router.replace("/(tabs)");
+            router.replace("/home-screen");
         } else if (!user && !onAuth) {
             router.replace("/auth");
         }
