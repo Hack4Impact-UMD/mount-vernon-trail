@@ -79,6 +79,9 @@ export default function RootLayout() {
         const onHomeScreen = segments[0] === "home-screen";
         const onTrailDocument = segments[0] === "trail-document-screen";
         const onEventSummary = segments[0] === "event-summary";
+        const onDrafts = segments[0] === "drafts";
+        const onAlbums = segments[0] === "albums";
+        const onProfile = segments[0] === "profile";
         if (
             user &&
             !inTabs &&
@@ -87,7 +90,10 @@ export default function RootLayout() {
             !onActiveEvent &&
             !onHomeScreen &&
             !onTrailDocument &&
-            !onEventSummary
+            !onEventSummary &&
+            !onDrafts &&
+            !onAlbums &&
+            !onProfile
         ) {
             router.replace("/home-screen");
         } else if (!user && !onAuth) {
@@ -132,6 +138,22 @@ export default function RootLayout() {
                 <Stack.Screen
                     name="event-summary"
                     options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="home-screen"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="drafts"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="albums"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="profile"
+                    options={{ headerShown: false, animation: "none" }}
                 />
             </Stack>
             <StatusBar style="auto" />
