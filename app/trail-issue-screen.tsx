@@ -10,24 +10,22 @@ import {
     Dimensions,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-
+import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type PhotoSlot = "before" | "after";
 
-interface Props {
-    issueName: string;
-    imageUrl: string | null;
-    onClose: () => void;
-    notes: string;
-    onNotesChange: (text:string) => void;
-    metrics: string;
-    onMetricsChange: (text:string) => void;
-}
-
-export default function TrailIssueDetailScreen({ issueName, imageUrl, onClose, notes, onNotesChange, metrics, onMetricsChange }: Props) {
+export default function TrailIssueDetailScreen() {
     const router = useRouter();
+    const params = useLocalSearchParams<{
+        issueName?: string;
+        imageUrl?: string;
+        isNew?: string;
+    }>();
+    const issueName = params.issueName ?? "New Issue";
+    const imageUrl = params.imageUrl ?? null;
+    const [notes, setNotes] = useState("");
+    const [metrics, setMetrics] = useState("");
     const [beforeImageUri, setBeforeImageUri] = useState<string | null>(null);
     const [afterImageUri, setAfterImageUri] = useState<string | null>(null);
 
@@ -72,6 +70,7 @@ export default function TrailIssueDetailScreen({ issueName, imageUrl, onClose, n
 
     return (
         <View style={styles.screen}>
+            <Stack.Screen options={{ headerShown: false }} />
             <ScrollView
                 style={styles.scroll}
                 contentContainerStyle={{ paddingBottom: 40 }}
@@ -92,7 +91,7 @@ export default function TrailIssueDetailScreen({ issueName, imageUrl, onClose, n
                     {/* Back button overlaid on image */}
                     <TouchableOpacity
                         style={styles.backButton}
-                        onPress={onClose}
+                        onPress={() => router.back()}
                         activeOpacity={0.8}
                     >
                         <Feather name="chevron-left" size={22} color="#ffffff" />
@@ -123,7 +122,7 @@ export default function TrailIssueDetailScreen({ issueName, imageUrl, onClose, n
                         placeholder="Start documenting the issue"
                         placeholderTextColor="#B0A8C0"
                         value={notes}
-                        onChangeText={onNotesChange}
+                        onChangeText={setNotes}
                         multiline
                         textAlignVertical="top"
                     />
@@ -135,7 +134,7 @@ export default function TrailIssueDetailScreen({ issueName, imageUrl, onClose, n
                         placeholder="Metric #1"
                         placeholderTextColor="#B0A8C0"
                         value={metrics}
-                        onChangeText={onMetricsChange}
+                        onChangeText={setMetrics}
                         multiline
                         textAlignVertical="top"
                     />

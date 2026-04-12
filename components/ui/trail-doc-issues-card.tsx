@@ -1,7 +1,6 @@
-import TrailIssueDetailScreen from "@/app/trail-issue-screen";
 import { TrailIssue } from "@/types/trail-types";
 import { Feather } from "@expo/vector-icons";
-import React, {useState} from "react";
+import React from "react";
 import {
     Image,
     Platform,
@@ -10,17 +9,13 @@ import {
     TouchableOpacity,
     UIManager,
     View,
-    Modal
 } from "react-native";
 
 if (Platform.OS === "android") {
     UIManager.setLayoutAnimationEnabledExperimental?.(true);
 }
-export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
+export function TrailDocIssuesCard(issues: Readonly<TrailIssue & { onPress?: () => void }>) {
     const PLACEHOLDER_IMAGE = require("../../assets/images/beaver-limbloppers.png");
-    const [modalVisible, setModalVisible] = useState(false);
-    const [notes, setNotes] = useState("");
-    const [metrics, setMetrics] = useState("");
     // get formatted date (e.g. Mar 28, 2026)
     const formattedDate = issues.date.toLocaleDateString("en-US", {
         month: "short",
@@ -57,7 +52,7 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
                 <TouchableOpacity
                     style={styles.arrowButton}
                     activeOpacity={0.7}
-                    onPress={()=>setModalVisible(true)}>
+                    onPress={issues.onPress}>
                     <Feather
                         name="chevron-right"
                         size={18}
@@ -66,20 +61,7 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
                 </TouchableOpacity>
             </View>
         </View>
-        <Modal
-        visible={modalVisible}
-        animationType="none"
-        onRequestClose={()=>setModalVisible(false)}>
-            <TrailIssueDetailScreen
-                issueName={issues.name}
-                imageUrl={issues.imageUrl ?? null}
-                onClose={() => setModalVisible(false)}
-                notes={notes}
-                onNotesChange={setNotes}
-                metrics={metrics}
-                onMetricsChange={setMetrics}/>
-            
-        </Modal>
+        
         </>
     );
 }
