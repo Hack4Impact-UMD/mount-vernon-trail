@@ -66,18 +66,36 @@ export default function TrailEventCard({
                     </Text>
 
                     <View style={styles.detailsSection}>
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Category:</Text>
-                            <Text style={styles.detailValue}>
-                                PULL ME FROM TRELLO :)
-                            </Text>
-                        </View>
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Location:</Text>
-                            <Text style={styles.detailValue}>
-                                PULL ME FROM TRELLO :)
-                            </Text>
-                        </View>
+                        {event.eventLeader ? (
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>
+                                    Event Leader:
+                                </Text>
+                                <Text style={styles.detailValue}>
+                                    {event.eventLeader}
+                                </Text>
+                            </View>
+                        ) : null}
+                        {event.zoneLeaders ? (
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>
+                                    Zone Leaders:
+                                </Text>
+                                <Text style={styles.detailValue}>
+                                    {event.zoneLeaders}
+                                </Text>
+                            </View>
+                        ) : null}
+                        {event.workScope ? (
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>
+                                    Work Scope:
+                                </Text>
+                                <Text style={styles.detailValue}>
+                                    {event.workScope}
+                                </Text>
+                            </View>
+                        ) : null}
                     </View>
 
                     {/* Start Event button */}

@@ -11,10 +11,12 @@ import BottomNav from "../components/ui/bottom-nav";
 import Header from "../components/ui/header";
 import StartEventCard from "../components/ui/start-event-card";
 import { startEvent } from "@/services/event-service";
+import { Stack, useRouter } from "expo-router";
 
 // hardcoded for testing, need to swap for real auth later
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
+const router = useRouter();
 
 // THESE ARE PLACEHOLDER EVENTS FOR THE PAST EVENTS FIGMA DESIGN
 const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
@@ -96,7 +98,7 @@ export default function HomeScreen() {
                     showsVerticalScrollIndicator={false}>
                     <Header userName="Sarah" />
                     <View style={styles.cardWrapper}>
-                        <StartEventCard />
+                        <StartEventCard onPress={() => router.push("/setup-event")} />
                     </View>
                     <View style={styles.eventsSection}>
                         <UpcomingEventsCard

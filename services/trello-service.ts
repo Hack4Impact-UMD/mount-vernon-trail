@@ -7,6 +7,31 @@ const BOARD_NAME = "MVT Mock Board";
 const TRAIL_ISSUES_LIST = "Trail Issues and Problems - Intake";
 const UPCOMING_EVENTS_LIST = "Scheduled Events";
 
+// parses trello description into structured fields
+function parseEventDescription(desc: string) {
+    const fields: Record<string, string> = {};
+    // split on newlines, each line is a potential field
+    const lines = desc.split("\n");
+
+    for (const line of lines) {
+        // strip markdown headers (###, ##, #) and match "Label: value"
+        const cleaned = line.replace(/^#+\s*/, "").trim();
+        const match = cleaned.match(/^([^:]+):\s*(.*)/);
+        if (match) {
+            const key = match[1].trim().toLowerCase().replace(/\s+/g, "");
+            fields[key] = match[2].trim();
+        }
+    }
+
+    return {
+        eventLeader: fields["eventleader"] ?? "",
+        zoneLeaders: fields["zoneleaders"] ?? "",
+        toolHaulers: fields["toolhaulers"] ?? "",
+        gloverLover: fields["gloverlover"] ?? "",
+        workScope: fields["workscope"] ?? "",
+    };
+}
+
 // fetches trail issues by most recent
 // key and token are passed as parameters so auth can be swapped later
 export async function fetchTrailIssues(
@@ -63,12 +88,14 @@ export async function fetchUpcomingEvents(
                 card.attachments && card.attachments.length > 0
                     ? await trello.loadTrelloImage(card.attachments[0].url)
                     : null;
+            const parsed = parseEventDescription(card.desc ?? "");
             return {
                 id: card.id,
                 name: card.name,
                 description: card.desc ?? "",
                 date: card.eventDate,
                 imageUrl,
+                ...parsed
             };
         }),
     );

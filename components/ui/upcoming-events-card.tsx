@@ -14,6 +14,11 @@ export interface UpcomingEventItem {
     description: string;
     date: Date;
     imageUrl: string | null;
+    eventLeader?: string;
+    zoneLeaders?: string;
+    toolHaulers?: string;
+    gloverLover?: string;
+    workScope?: string;
 }
 
 interface UpcomingEventsCardProps {
