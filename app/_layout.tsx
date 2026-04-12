@@ -47,7 +47,7 @@ export default function RootLayout() {
         if (user === undefined || !fontsLoaded) return;
         SplashScreen.hideAsync();
 
-        const route = segments[0] ?? "";
+        const route = segments.join("/");
 
         const nonAuthRoutes = new Set(["auth"]);
         const authRoutes = new Set([
@@ -55,7 +55,8 @@ export default function RootLayout() {
             "trello", 
             "home-screen",
             "trail-document-screen", 
-            "camera-view"
+            "camera-view",
+            "trail-issue-screen",
         ]);
         // if user not authenticated, re-route to /auth if an auth route is being accessed 
         if (!user) {
@@ -92,6 +93,9 @@ export default function RootLayout() {
                     name="modal"
                     options={{ presentation: "modal", title: "Modal" }}
                 />
+                <Stack.Screen
+                    name="trail-issue-screen"
+                    options={{headerShown:false, animation: "slide_from_right"}}/>
             </Stack>
             <StatusBar style="auto" />
         </ThemeProvider>

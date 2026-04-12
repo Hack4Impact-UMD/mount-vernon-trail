@@ -51,14 +51,13 @@ const TrailDropdown: React.FC<Props> = ({ beforeImageUri, afterImageUri, notes, 
             ) : (
                 <View style={styles.photoPlaceholder}>
                     <Image
-                    source={require('../../assets/images/camera-purple.png')}
+                    source={require('../assets/images/camera-purple.png')}
                     style={styles.cameraIcon} />
                     <Text style={styles.photoLabel}>{label}</Text>
                 </View>
             )}
         </TouchableOpacity>
     );
-
     return (
         <View style={styles.container}>
             <Text style={styles.sectionTitle}>PHOTOS</Text>
