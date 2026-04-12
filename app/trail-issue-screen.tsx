@@ -20,16 +20,18 @@ interface Props {
     issueName: string;
     imageUrl: string | null;
     onClose: () => void;
+    notes: string;
+    onNotesChange: (text:string) => void;
+    metrics: string;
+    onMetricsChange: (text:string) => void;
 }
 
-export default function TrailIssueDetailScreen({ issueName, imageUrl, onClose }: Props) {
+export default function TrailIssueDetailScreen({ issueName, imageUrl, onClose, notes, onNotesChange, metrics, onMetricsChange }: Props) {
     const router = useRouter();
-    const [notes, setNotes] = useState("");
-    const [metrics, setMetrics] = useState("");
     const [beforeImageUri, setBeforeImageUri] = useState<string | null>(null);
     const [afterImageUri, setAfterImageUri] = useState<string | null>(null);
 
-    const status = "In Progress";
+    const status = "In Progress"; // hardcoded for now
     const photos = { before: beforeImageUri, after: afterImageUri };
 
     const handlePhotoPress = (slot: PhotoSlot) => {
@@ -115,13 +117,13 @@ export default function TrailIssueDetailScreen({ issueName, imageUrl, onClose }:
                     </View>
 
                     {/* NOTEPAD */}
-                    <Text style={styles.sectionLabel}>NOTEPAD</Text>
+                    <Text style={styles.sectionLabel}>NOTES</Text>
                     <TextInput
                         style={styles.textInput}
                         placeholder="Start documenting the issue"
                         placeholderTextColor="#B0A8C0"
                         value={notes}
-                        onChangeText={setNotes}
+                        onChangeText={onNotesChange}
                         multiline
                         textAlignVertical="top"
                     />
@@ -133,7 +135,7 @@ export default function TrailIssueDetailScreen({ issueName, imageUrl, onClose }:
                         placeholder="Metric #1"
                         placeholderTextColor="#B0A8C0"
                         value={metrics}
-                        onChangeText={setMetrics}
+                        onChangeText={onMetricsChange}
                         multiline
                         textAlignVertical="top"
                     />
@@ -143,9 +145,9 @@ export default function TrailIssueDetailScreen({ issueName, imageUrl, onClose }:
     );
 }
 
-const PURPLE = "#6B4FA0";
-const PURPLE_LIGHT = "#F5F2FA";
-const PURPLE_BORDER = "#D4C6ED";
+const PURPLE = "#8A6BAD";
+const PURPLE_LIGHT = "#FAF8FC";
+const PURPLE_BORDER = "#C4B4D7";
 
 const styles = StyleSheet.create({
     screen: {
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: "#35A853",
+        backgroundColor: "#3ba34c",
         justifyContent: "center",
         alignItems: "center",
     },

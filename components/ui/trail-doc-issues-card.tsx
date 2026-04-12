@@ -1,7 +1,6 @@
 import TrailIssueDetailScreen from "@/app/trail-issue-screen";
 import { TrailIssue } from "@/types/trail-types";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import React, {useState} from "react";
 import {
     Image,
@@ -20,6 +19,8 @@ if (Platform.OS === "android") {
 export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
     const PLACEHOLDER_IMAGE = require("../../assets/images/beaver-limbloppers.png");
     const [modalVisible, setModalVisible] = useState(false);
+    const [notes, setNotes] = useState("");
+    const [metrics, setMetrics] = useState("");
     // get formatted date (e.g. Mar 28, 2026)
     const formattedDate = issues.date.toLocaleDateString("en-US", {
         month: "short",
@@ -67,12 +68,16 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
         </View>
         <Modal
         visible={modalVisible}
-        animationType="slide"
+        animationType="none"
         onRequestClose={()=>setModalVisible(false)}>
             <TrailIssueDetailScreen
                 issueName={issues.name}
                 imageUrl={issues.imageUrl ?? null}
-                onClose={() => setModalVisible(false)}/>
+                onClose={() => setModalVisible(false)}
+                notes={notes}
+                onNotesChange={setNotes}
+                metrics={metrics}
+                onMetricsChange={setMetrics}/>
             
         </Modal>
         </>
@@ -130,7 +135,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: "#35A853",
+        backgroundColor: "#3ba45c",
         justifyContent: "center",
         alignItems: "center",
         marginLeft: 8,
