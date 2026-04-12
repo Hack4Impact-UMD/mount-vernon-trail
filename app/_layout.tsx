@@ -12,12 +12,13 @@ import "react-native-reanimated";
 
 import { subscribeToAuthState } from "@/auth/google-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getActiveEvent } from "@/services/event-service";
 
 import {
-  useFonts,
-  Lato_300Light,
-  Lato_400Regular,
-  Lato_700Bold,
+    Lato_300Light,
+    Lato_400Regular,
+    Lato_700Bold,
+    useFonts,
 } from "@expo-google-fonts/lato";
 
 SplashScreen.preventAutoHideAsync();
@@ -30,6 +31,7 @@ export default function RootLayout() {
     // null = not signed in
     // User = signed in
     const [user, setUser] = useState<User | null | undefined>(undefined);
+    const [isEligibleActiveEvent, setIsEligibleActiveEvent] = useState(false);
     const [fontsLoaded] = useFonts({
         Lato_300Light,
         Lato_400Regular,
@@ -43,14 +45,50 @@ export default function RootLayout() {
         return () => unsubscribe();
     }, []);
 
+    // check eligibility for active event whenever user changes
+    useEffect(() => {
+        if (!user) {
+            setIsEligibleActiveEvent(false);
+            return;
+        }
+
+        const checkEligibility = async () => {
+            try {
+                const activeEvent = await getActiveEvent();
+                setIsEligibleActiveEvent(activeEvent !== null);
+            } catch (error) {
+                console.error(
+                    "Error checking active event eligibility:",
+                    error,
+                );
+                setIsEligibleActiveEvent(false);
+            }
+        };
+
+        checkEligibility();
+    }, [user]);
+
     useEffect(() => {
         if (user === undefined || !fontsLoaded) return;
         SplashScreen.hideAsync();
         const inTabs = segments[0] === "(tabs)";
         const onAuth = segments[0] === "auth";
         const onTrello = segments[0] === "trello";
+        const onSetupEvent = segments[0] === "setup-event";
+        const onActiveEvent = segments[0] === "active-event";
         const onHomeScreen = segments[0] === "home-screen";
-        if (user && !inTabs && !onTrello && !onHomeScreen) {
+        const onTrailDocument = segments[0] === "trail-document-screen";
+        const onEventSummary = segments[0] === "event-summary";
+        if (
+            user &&
+            !inTabs &&
+            !onTrello &&
+            !onSetupEvent &&
+            !onActiveEvent &&
+            !onHomeScreen &&
+            !onTrailDocument &&
+            !onEventSummary
+        ) {
             router.replace("/(tabs)");
         } else if (!user && !onAuth) {
             router.replace("/auth");
@@ -76,8 +114,24 @@ export default function RootLayout() {
                     options={{ headerShown: false, animation: "fade" }}
                 />
                 <Stack.Screen
+                    name="setup-event"
+                    options={{ headerShown: true, title: "Set Up Event" }}
+                />
+                <Stack.Screen
+                    name="active-event"
+                    options={{ headerShown: true, title: "Active Event" }}
+                />
+                <Stack.Screen
+                    name="trail-document-screen"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
                     name="modal"
                     options={{ presentation: "modal", title: "Modal" }}
+                />
+                <Stack.Screen
+                    name="event-summary"
+                    options={{ headerShown: false }}
                 />
             </Stack>
             <StatusBar style="auto" />

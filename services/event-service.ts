@@ -2,6 +2,7 @@ import { auth } from "@/config/firebase";
 import {
     collection,
     doc,
+    getDoc,
     getDocs,
     getFirestore,
     query,
@@ -19,13 +20,12 @@ export interface Event {
     trelloCardId: string;
     albumId: string;
     albumUrl: string;
-    // isActive: boolean; //NEED TO REMOVE THIS BUT FOR NOW I DONT WANT OTHER THINGS TO BREAK
-    createdAt: Timestamp;
-
-    // event start and end 
+    isActive: boolean; // deprecated: use startDate && !endDate
     startDate: Timestamp | null;
     endDate: Timestamp | null;
-    // hoursOfService: number; what other things need to be added?
+    createdAt: Timestamp;
+    trailImprovements: number;
+    trashBags: number;
 }
 
 const EVENTS_COLLECTION = "events";
@@ -58,9 +58,12 @@ export async function createEvent(
         trelloCardId,
         albumId,
         albumUrl,
+        isActive: false,
         startDate: null,
         endDate: null,
         createdAt: Timestamp.now(),
+        trailImprovements: 0,
+        trashBags: 0,
     };
 
     const batch = writeBatch(db);
@@ -76,39 +79,6 @@ export async function createEvent(
 
     return eventRef.id;
 }
-
-// get the currently active event (the one with a startDate but no endDate)
-export async function getActiveEvent(): Promise<Event | null> {
-    const db = getFirestore();
-
-    const q = query(
-        collection(db, EVENTS_COLLECTION),
-        where("startDate", "!=", null),
-    );
-
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-        return null;
-    }
-
-    const activeDoc = snapshot.docs.find((doc) => {
-        const data = doc.data();
-        return data.endDate === null || data.endDate === undefined;
-    });
-
-    if (!activeDoc) {
-        return null;
-    }
-
-    return activeDoc.data() as Event;
-}
-
-// export async function setEventInactive(eventId: string): Promise<void> {
-//     const db = getFirestore();
-//     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
-//         isActive: false,
-//     });
-// }
 
 // start event by setting startDate to current timestamp
 export async function startEvent(trelloCardId: string): Promise<void> {
@@ -127,9 +97,7 @@ export async function startEvent(trelloCardId: string): Promise<void> {
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
-        throw new Error(
-            `No event found for trello card: ${trelloCardId}`,
-        );
+        throw new Error(`No event found for trello card: ${trelloCardId}`);
     }
 
     const eventDoc = snapshot.docs[0];
@@ -141,5 +109,40 @@ export async function startEvent(trelloCardId: string): Promise<void> {
 
     await updateDoc(eventDoc.ref, {
         startDate: Timestamp.now(),
+    });
+}
+
+// get the currently active event (startDate && !endDate)
+export async function getActiveEvent(): Promise<Event | null> {
+    const db = getFirestore();
+    const q = query(
+        collection(db, EVENTS_COLLECTION),
+        where("startDate", "!=", null),
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) return null;
+
+    const activeDoc = snapshot.docs.find((doc) => {
+        const data = doc.data();
+        return data.endDate === null || data.endDate === undefined;
+    });
+
+    if (!activeDoc) return null;
+    return activeDoc.data() as Event;
+}
+
+export async function getEventById(eventId: string): Promise<Event | null> {
+    const db = getFirestore();
+    const snapshot = await getDoc(doc(db, EVENTS_COLLECTION, eventId));
+    if (!snapshot.exists()) return null;
+    return snapshot.data() as Event;
+}
+
+export async function setEventInactive(eventId: string): Promise<void> {
+    const db = getFirestore();
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
+        isActive: false,
+        endDate: Timestamp.now(),
     });
 }
