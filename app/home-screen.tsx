@@ -4,19 +4,17 @@ import {
 } from "@/components/ui/upcoming-events-card";
 import TrailEventCard from "@/components/ui/trail-event-card";
 import { fetchUpcomingEvents } from "@/services/trello-service";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import BottomNav from "../components/ui/bottom-nav";
 import Header from "../components/ui/header";
 import StartEventCard from "../components/ui/start-event-card";
 import { startEvent } from "@/services/event-service";
-import { Stack, useRouter } from "expo-router";
 
 // hardcoded for testing, need to swap for real auth later
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
-const router = useRouter();
 
 // THESE ARE PLACEHOLDER EVENTS FOR THE PAST EVENTS FIGMA DESIGN
 const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
@@ -51,6 +49,7 @@ const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
 ];
 
 export default function HomeScreen() {
+    const router = useRouter();
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
