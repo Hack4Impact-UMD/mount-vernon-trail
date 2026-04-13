@@ -113,6 +113,7 @@ export class TrelloClient {
                 idList: listID,
                 name: name,
                 desc: description || "",
+                fields: "id,name,desc,idList,idBoard,shortUrl",
             });
             return response.data;
         } catch (error) {
@@ -216,7 +217,7 @@ export class TrelloClient {
         }
     }
 
-    async updateCardDescription(
+    async replaceCardDescription(
         cardID: string,
         newDescription: string,
     ): Promise<Card> {

@@ -6,6 +6,7 @@ import { TrelloClient } from "./trello-funcs";
 const BOARD_NAME = "MVT Mock Board";
 const TRAIL_ISSUES_LIST = "Trail Issues and Problems - Intake";
 const UPCOMING_EVENTS_LIST = "Scheduled Events";
+const COMPLETED_EVENTS_LIST = "Completed Events (From App)";
 
 // fetches trail issues by most recent
 // key and token are passed as parameters so auth can be swapped later
@@ -93,7 +94,38 @@ export async function createEventCard(
         `${dateStr} ${title}`,
         description,
     );
-    return card.id;
+    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+    return { cardId: card.id, cardUrl: card.shortUrl };
+}
+
+// fetches the short URL of a trello card
+export async function fetchCardUrl(
+    cardId: string,
+    key: string,
+    token: string,
+): Promise<string> {
+    const trello = new TrelloClient(key, token);
+    const card = await trello.getCard(cardId);
+    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+    return card.shortUrl;
+}
+
+// moves a card to the Completed Events (From App) list
+export async function moveCardToCompleted(
+    cardId: string,
+    key: string,
+    token: string,
+): Promise<void> {
+    const trello = new TrelloClient(key, token);
+    const boards = await trello.getBoards();
+    const board = boards.find((b) => b.name === BOARD_NAME);
+    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+
+    const lists = await trello.getLists(board.id);
+    const list = lists.find((l) => l.name === COMPLETED_EVENTS_LIST);
+    if (!list) throw new Error(`List "${COMPLETED_EVENTS_LIST}" not found`);
+
+    await trello.moveCardToList(cardId, list.id);
 }
 
 // adds album link to a trello event card description
@@ -110,19 +142,19 @@ export async function addAlbumLinkToCard(
     const albumLinkPattern = /\n\n📷 Album Link: .*/;
     const newLinkText = `\n\n📷 Album Link: ${albumUrl}`;
 
-    let updatedDescription: string;
+    let replacedDescription: string;
     if (albumLinkPattern.test(currentDescription)) {
         // replace existing album link to make operation idempotent
-        updatedDescription = currentDescription.replace(
+        replacedDescription = currentDescription.replace(
             albumLinkPattern,
             newLinkText,
         );
     } else {
         // append new album link if none exists
-        updatedDescription = currentDescription + newLinkText;
+        replacedDescription = currentDescription + newLinkText;
     }
 
-    await trello.updateCardDescription(cardID, updatedDescription);
+    await trello.replaceCardDescription(cardID, replacedDescription);
 }
 
 // Add this to trello-service.ts
