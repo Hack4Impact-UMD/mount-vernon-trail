@@ -42,7 +42,7 @@ export default function TrelloLoginUI({
                     <View style={styles.content}>
                         <Text style={styles.welcome}>
                             Welcome,{" "}
-                            <Text style={styles.userName}>{userName}</Text>!
+                            <Text style={styles.userName}>{userName}!</Text>
                         </Text>
                         <Text style={styles.subtitle}>
                             Log in with Trello to view your events!
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 30,
-        paddingTop: 40,
+        paddingTop: SCREEN_HEIGHT * (180 / 810),
     },
     topSection: {
         alignItems: "center",
@@ -168,9 +168,10 @@ const styles = StyleSheet.create({
     },
     beaverWrap: {
         alignItems: "center",
+        marginBottom: -60,
     },
     beaver: {
-        width: SCREEN_WIDTH * (228 / 390),
-        height: SCREEN_HEIGHT * (163 / 810),
+        width: SCREEN_WIDTH * (270 / 390),
+        height: SCREEN_HEIGHT * (200 / 810),
     },
 });
