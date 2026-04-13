@@ -24,7 +24,10 @@ export default function TrailDocumentScreen() {
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
-    const [issuesData, setIssuesData] = useState([] as TrailDocumentIssueItem[]);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [issuesData, setIssuesData] = useState(
+        [] as TrailDocumentIssueItem[],
+    );
     const [issuesError, setIssuesError] = useState<string | null>(null);
     const [statsData, setStatsData] = useState({
         trashCollection: 0,
@@ -34,29 +37,51 @@ export default function TrailDocumentScreen() {
         async function loadTrailDocument() {
             if (!eventCardID) {
                 console.error("event card id not found");
+                setLoadError("event card ID required");
                 return;
             }
 
-            if(!API_KEY || !API_TOKEN){
+            if (!API_KEY || !API_TOKEN) {
                 setIssuesError("Missing Trello API Credentials");
                 return;
             }
             const trello = new TrelloClient(API_KEY, API_TOKEN);
             const eventCard = await trello.getEventCardByID(eventCardID, true);
-            const issues = await fetchDocumentTrailIssues(API_KEY, API_TOKEN, eventCard);
+            const issues = await fetchDocumentTrailIssues(
+                API_KEY,
+                API_TOKEN,
+                eventCard,
+            );
             // TODO fetch stats once that flow is figured out
             const stats = {
                 trashCollection: 12,
                 restorationEffort: 250,
-            }
-            setIssuesData(issues);
+            };
+            setIssuesData([
+                {
+                    id: "mock-issue-1",
+                    name: "Fallen Tree on Main Trail",
+                    creationDate: new Date(),
+                    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/7/7f/Usamljeni_jasen_-_panoramio_%28cropped%29.jpg", // Placeholder image
+                },
+                {
+                    id: "mock-issue-2",
+                    name: "Washed out bridge",
+                    creationDate: new Date(),
+                    imageUrl: "https://www.nps.gov/neri/planyourvisit/images/web_NRG-Bridge_Louise_McLaughlin-_longer.jpg?maxwidth=1300&maxheight=1300&autorotate=false&format=webp", // Placeholder image
+                },
+            ]);
             setStatsData(stats);
         }
         loadTrailDocument();
     }, [eventCardID]);
 
-    const beforeImageUri = typeof params.beforeImageUri === "string" ? params.beforeImageUri : null;
-    const afterImageUri = typeof params.afterImageUri === "string" ? params.afterImageUri : null;
+    const beforeImageUri =
+        typeof params.beforeImageUri === "string"
+            ? params.beforeImageUri
+            : null;
+    const afterImageUri =
+        typeof params.afterImageUri === "string" ? params.afterImageUri : null;
 
     return (
         // temporary buttons to test navigation to camera view
@@ -100,15 +125,22 @@ export default function TrailDocumentScreen() {
         <>
             <Stack.Screen options={{ headerShown: false }} />
             <View style={styles.screen}>
-                <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                    style={styles.container}
+                    showsVerticalScrollIndicator={false}>
                     {/* App Header */}
                     <Header userName={null} />
                     <View style={styles.contentContainer}>
-                        {/* Page Header*/ } 
+                        {/* Page Header*/}
                         {/* TODO replace with actual page header after it is implemented */}
                         <View style={styles.headerSpacer}></View>
                         {/* Trail Issues Section */}
                         <Text style={styles.sectionTitle}>Trail Issues</Text>
+                        {loadError && (
+                            <Text style={{ color: "red", marginBottom: 12 }}>
+                                {loadError}
+                            </Text>
+                        )}
                         <View style={styles.listContainer}>
                             {issuesData.map((issue) => (
                                 <TrailDocIssuesCard
@@ -125,10 +157,9 @@ export default function TrailDocumentScreen() {
                         <TrailDocStatsCard {...statsData} />
                     </View>
                 </ScrollView>
-                <BottomNav 
-                    active={active} 
-                    onTabPress={(tab) => setActive(tab)}
-                ></BottomNav>
+                <BottomNav
+                    active={active}
+                    onTabPress={(tab) => setActive(tab)}></BottomNav>
             </View>
         </>
     );
@@ -156,10 +187,10 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         fontSize: 20,
-        fontWeight: '700',
+        fontWeight: "700",
         marginBottom: 12,
     },
     headerSpacer: {
-        height: 120
-    }
+        height: 120,
+    },
 });
