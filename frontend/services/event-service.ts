@@ -2,6 +2,7 @@ import { auth } from "@/config/firebase";
 import {
     collection,
     doc,
+    getDoc,
     getDocs,
     getFirestore,
     query,
@@ -20,7 +21,11 @@ export interface Event {
     albumId: string;
     albumUrl: string;
     isActive: boolean;
+    startDate?: Timestamp;
+    endDate: Timestamp | null;
     createdAt: Timestamp;
+    trailImprovements: number;
+    trashBags: number;
 }
 
 const EVENTS_COLLECTION = "events";
@@ -44,6 +49,15 @@ export async function createEvent(
         );
     }
 
+    const existing = await getDocs(
+        query(collection(db, EVENTS_COLLECTION), where("isActive", "==", true)),
+    );
+    if (!existing.empty) {
+        throw new Error(
+            "An event is already active. End it before creating a new one.",
+        );
+    }
+
     const eventRef = doc(collection(db, EVENTS_COLLECTION));
     const eventData: Event = {
         eventId: eventRef.id,
@@ -54,7 +68,11 @@ export async function createEvent(
         albumId,
         albumUrl,
         isActive: true,
+        startDate: Timestamp.now(),
+        endDate: null,
         createdAt: Timestamp.now(),
+        trailImprovements: 0,
+        trashBags: 0,
     };
 
     const batch = writeBatch(db);
@@ -88,9 +106,17 @@ export async function getActiveEvent(): Promise<Event | null> {
     return snapshot.docs[0].data() as Event;
 }
 
+export async function getEventById(eventId: string): Promise<Event | null> {
+    const db = getFirestore();
+    const snapshot = await getDoc(doc(db, EVENTS_COLLECTION, eventId));
+    if (!snapshot.exists()) return null;
+    return snapshot.data() as Event;
+}
+
 export async function setEventInactive(eventId: string): Promise<void> {
     const db = getFirestore();
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         isActive: false,
+        endDate: Timestamp.now(),
     });
 }

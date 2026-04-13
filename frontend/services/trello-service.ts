@@ -1,11 +1,14 @@
 // service layer between TrelloClient func and the UI
 import type { TrailIssueItem } from "@/components/ui/trail-issues-card";
 import type { UpcomingEventItem } from "@/components/ui/upcoming-events-card";
+import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { TrelloClient } from "./trello-funcs";
+import { EventCard } from "./trello-types";
 
 const BOARD_NAME = "MVT Mock Board";
 const TRAIL_ISSUES_LIST = "Trail Issues and Problems - Intake";
 const UPCOMING_EVENTS_LIST = "Scheduled Events";
+const COMPLETED_EVENTS_LIST = "Completed Events (From App)";
 
 // fetches trail issues by most recent
 // key and token are passed as parameters so auth can be swapped later
@@ -23,7 +26,7 @@ export async function fetchTrailIssues(
     const list = lists.find((l) => l.name === TRAIL_ISSUES_LIST);
     if (!list) throw new Error(`List "${TRAIL_ISSUES_LIST}" not found`);
 
-    const cards = await trello.getCards(list.id, true, true);
+    const cards = await trello.getCards(list.id, true, "cover");
     return await Promise.all(
         cards.map(async (card) => {
             const imageUrl =
@@ -34,6 +37,36 @@ export async function fetchTrailIssues(
                 id: card.id,
                 name: card.name,
                 description: card.desc ?? "",
+                imageUrl,
+            };
+        }),
+    );
+}
+
+// fetches trail issues by most recent
+// key and token are passed as parameters so auth can be swapped later
+export async function fetchDocumentTrailIssues(
+    key: string,
+    token: string,
+    eventCard: EventCard,
+): Promise<TrailDocumentIssueItem[]> {
+    const trello = new TrelloClient(key, token);
+    const attachmentIDs = await trello.getEventCardAttachmentIDs(eventCard);
+    return await Promise.all(
+        attachmentIDs.map(async (id) => {
+            // get issue card by ID
+            const card = await trello.getCardByID(id, "cover");
+            // get cover image (if it exists) associated with issue card
+            // that is an attachment to the event card
+            const imageUrl =
+                card.attachments && card.attachments.length > 0
+                    ? await trello.loadTrelloImage(card.attachments[0].url)
+                    : null;
+            return {
+                id: card.id,
+                name: card.name,
+                description: card.desc ?? "",
+                creationDate: card.creationDate,
                 imageUrl,
             };
         }),
@@ -81,7 +114,7 @@ export async function createEventCard(
     description: string,
     key: string,
     token: string,
-): Promise<string> {
+): Promise<{ cardId: string; cardUrl: string }> {
     const trello = new TrelloClient(key, token);
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
@@ -96,7 +129,38 @@ export async function createEventCard(
         `${dateStr} ${title}`,
         description,
     );
-    return card.id;
+    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+    return { cardId: card.id, cardUrl: card.shortUrl };
+}
+
+// fetches the short URL of a trello card
+export async function fetchCardUrl(
+    cardId: string,
+    key: string,
+    token: string,
+): Promise<string> {
+    const trello = new TrelloClient(key, token);
+    const card = await trello.getCard(cardId);
+    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+    return card.shortUrl;
+}
+
+// moves a card to the Completed Events (From App) list
+export async function moveCardToCompleted(
+    cardId: string,
+    key: string,
+    token: string,
+): Promise<void> {
+    const trello = new TrelloClient(key, token);
+    const boards = await trello.getBoards();
+    const board = boards.find((b) => b.name === BOARD_NAME);
+    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+
+    const lists = await trello.getLists(board.id);
+    const list = lists.find((l) => l.name === COMPLETED_EVENTS_LIST);
+    if (!list) throw new Error(`List "${COMPLETED_EVENTS_LIST}" not found`);
+
+    await trello.moveCardToList(cardId, list.id);
 }
 
 // adds album link to a trello event card description
@@ -114,17 +178,17 @@ export async function addAlbumLinkToCard(
     const albumLinkPattern = /\n\n📷 Album Link: .*/;
     const newLinkText = `\n\n📷 Album Link: ${albumUrl}`;
 
-    let updatedDescription: string;
+    let replacedDescription: string;
     if (albumLinkPattern.test(currentDescription)) {
         // replace existing album link to make operation idempotent
-        updatedDescription = currentDescription.replace(
+        replacedDescription = currentDescription.replace(
             albumLinkPattern,
             newLinkText,
         );
     } else {
         // append new album link if none exists
-        updatedDescription = currentDescription + newLinkText;
+        replacedDescription = currentDescription + newLinkText;
     }
 
-    await trello.updateCardDescription(cardID, updatedDescription);
+    await trello.replaceCardDescription(cardID, replacedDescription);
 }
