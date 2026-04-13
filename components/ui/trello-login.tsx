@@ -1,3 +1,5 @@
+import { Palette } from "@/constants/theme";
+import { Stack } from "expo-router";
 import React from "react";
 import {
     ActivityIndicator,
@@ -9,7 +11,6 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Palette } from "@/constants/theme";
 import BottomNav from "./bottom-nav";
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -29,6 +30,7 @@ export default function TrelloLoginUI({
 
     return (
         <View style={styles.container}>
+            <Stack.Screen options={{ headerShown: false }} />
             <View style={[styles.header, { paddingTop: insets.top }]}>
                 <Image
                     source={require("../../assets/images/mvt-logo-white.png")}
@@ -74,7 +76,7 @@ export default function TrelloLoginUI({
                 </View>
 
                 <View style={styles.beaverWrap}>
-                    <Image
+                   <Image
                         source={require("../../assets/images/beaver-limbloppers.png")}
                         resizeMode="contain"
                         style={styles.beaver}

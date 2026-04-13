@@ -1,7 +1,9 @@
+import TrelloLoginUI from "@/components/ui/trello-login";
 import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
+import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { fetchUpcomingEvents } from "@/services/trello-service";
 import { Stack } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -45,6 +47,7 @@ const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
 ];
 
 export default function HomeScreen() {
+    const { token, isAuthenticated, promptSignIn, loading, initializing } = useTrelloAuth();
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
@@ -64,6 +67,16 @@ export default function HomeScreen() {
             .catch((e) => setEventsError(e.message))
             .finally(() => setEventsLoading(false));
     }, []);
+
+    if (!isAuthenticated) {
+        return (
+            <TrelloLoginUI
+                userName="Sarah"
+                onPressTrello={promptSignIn}
+                isLoading={loading || initializing}
+            />
+        )
+    }
 
     return (
         <>

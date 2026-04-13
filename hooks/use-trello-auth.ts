@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { makeRedirectUri, useAuthRequest } from "expo-auth-session";
+import { makeRedirectUri } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
+import { useCallback, useEffect, useState } from "react";
 import {
     clearTrelloToken,
     getTrelloToken,
@@ -10,11 +10,7 @@ import { TrelloAuthError } from "../services/trello-auth-error";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const discovery = {
-    authorizationEndpoint: "https://trello.com/1/authorize",
-};
-
-// better for security reasonsto have 30days as an expiration
+// better for security reasons to have 30days as an expiration
 const TOKEN_EXPIRATION = "30days";
 const TOKEN_EXPIRATION_DAYS = 30; // must match TOKEN_EXPIRATION
 
@@ -27,21 +23,6 @@ export function useTrelloAuth() {
     const [error, setError] = useState<TrelloAuthError | null>(null);
 
     const redirectUri = makeRedirectUri({ scheme: "mount-vernon-trail" });
-
-    const [request, response, promptAsync] = useAuthRequest(
-        {
-            clientId: process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "",
-            redirectUri,
-            responseType: "token",
-            scopes: ["read", "write"],
-            extraParams: {
-                name: "Mount Vernon Trail",
-                expiration: TOKEN_EXPIRATION,
-            },
-        },
-        discovery,
-    );
-
     // Restore token from secure storage on mount
     useEffect(() => {
         (async () => {
@@ -58,57 +39,52 @@ export function useTrelloAuth() {
         })();
     }, []);
 
-    // Handle auth response when user returns from Trello
-    useEffect(() => {
-        if (!response) return;
+    // prompt the Trello consent screen
+    const promptSignIn = useCallback(async () => {
+        setError(null);
+        setLoading(true);
+        try {
+            const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
+            const authUri =
+                `https://trello.com/1/authorize?` +
+                `key=${API_KEY}` +
+                `&name=${encodeURIComponent("Mount Vernon Trail")}` +
+                `&expiration=${TOKEN_EXPIRATION}` +
+                `&response_type=token` +
+                `&scope=read,write` +
+                `&return_url=${encodeURIComponent(redirectUri)}` +
+                `&callback_method=fragment`;
 
-        (async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                if (response.type === "success") {
-                    // Trello returns the token as `token` in the fragment but expo-auth-session may parse it as `access_token`
-                    const accessToken =
-                        response.params?.token ??
-                        response.params?.access_token;
-                    if (accessToken) {
-                        await saveTrelloToken(accessToken, TOKEN_EXPIRATION_DAYS);
-                        setToken(accessToken);
-                    } else {
-                        setError(new TrelloAuthError("AUTH_FAILED"));
-                    }
-                } else if (
-                    response.type === "dismiss" ||
-                    response.type === "cancel"
-                ) {
-                    setError(new TrelloAuthError("AUTH_CANCELLED"));
-                } else if (response.type === "error") {
-                    setError(new TrelloAuthError("AUTH_FAILED"));
-                }
-            } catch (err) {
-                if (err instanceof TrelloAuthError) {
-                    setError(err);
+            const result = await WebBrowser.openAuthSessionAsync(
+                authUri,
+                redirectUri,
+            );
+            // parse token from callback url is successful
+            if (result.type === "success" && result.url) {
+                // scheme://path#token=TOKEN_VALUE
+                const match = /token=([^&]+)/.exec(result.url);
+                const accessToken = match ? match[1] : null;
+                if (accessToken) {
+                    await saveTrelloToken(accessToken, TOKEN_EXPIRATION_DAYS);
+                    setToken(accessToken);
                 } else {
                     setError(
                         new TrelloAuthError(
                             "AUTH_FAILED",
-                            (err as Error).message,
+                            "No token found in callback URL.",
                         ),
                     );
                 }
-            } finally {
-                setLoading(false);
+            } else if (result.type === "dismiss" || result.type === "cancel") {
+                setError(new TrelloAuthError("AUTH_CANCELLED"));
+            } else {
+                setError(
+                    new TrelloAuthError(
+                        "AUTH_FAILED",
+                        "Authentication session failed or was aborted.",
+                    ),
+                );
             }
-        })();
-    }, [response]);
-
-    // Prompt the Trello consent screen
-    const promptSignIn = useCallback(async () => {
-        if (!request) return;
-        setError(null);
-        setLoading(true);
-        try {
-            await promptAsync();
         } catch (err) {
             setError(
                 new TrelloAuthError("AUTH_FAILED", (err as Error).message),
@@ -116,7 +92,7 @@ export function useTrelloAuth() {
         } finally {
             setLoading(false);
         }
-    }, [request, promptAsync]);
+    }, [redirectUri]);
 
     // Clear stored token and state on sign out
     const handleSignOut = useCallback(async () => {
@@ -132,13 +108,6 @@ export function useTrelloAuth() {
         }
     }, []);
 
-    // when Trello auth failures are detected by the client
-    const handleAuthFailure = useCallback(async (authError: TrelloAuthError) => {
-        setToken(null);
-        setError(authError);
-        await clearTrelloToken();
-    }, []);
-
     return {
         token,
         isAuthenticated: token !== null,
@@ -147,7 +116,5 @@ export function useTrelloAuth() {
         error,
         promptSignIn,
         handleSignOut,
-        handleAuthFailure,
-        isReady: !!request,
     };
 }

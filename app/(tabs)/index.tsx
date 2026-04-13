@@ -1,4 +1,5 @@
 import { useGoogleAuth } from "@/hooks/use-google-auth";
+import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { getActiveEvent } from "@/services/event-service";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -13,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
     const router = useRouter();
+    const { loading: trelloLoading, handleSignOut: handleTrelloSignOut } = useTrelloAuth();
     const { user, loading, error, handleSignOut } = useGoogleAuth();
     const [checkingEvent, setCheckingEvent] = useState(true);
     const [eventError, setEventError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export default function HomeScreen() {
             })
             .catch((e) => setEventError((e as Error).message))
             .finally(() => setCheckingEvent(false));
-    }, [user]);
+    }, [user, router]);
 
     if (checkingEvent) {
         return (
@@ -91,6 +93,21 @@ export default function HomeScreen() {
                     }>
                     <Text style={styles.buttonText}>Event Summary Preview</Text>
                 </Pressable>
+                {
+                    <Pressable
+                        style={[
+                            styles.signOutButton,
+                            trelloLoading && styles.signOutDisabled,
+                        ]}
+                        onPress={handleTrelloSignOut}
+                        disabled={trelloLoading}>
+                        {trelloLoading ? (
+                            <ActivityIndicator color="#fff" />
+                        ) : (
+                            <Text style={styles.signOutText}>Trello Sign Out</Text>
+                        )}
+                    </Pressable>
+                }
                 <Pressable
                     style={[
                         styles.signOutButton,
