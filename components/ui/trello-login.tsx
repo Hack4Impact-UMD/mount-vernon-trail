@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     },
     content: {
         alignItems: "center",
-        marginBottom: 30,
+        marginBottom: 65,
     },
     welcome: {
         fontFamily: "Lato_700Bold",
