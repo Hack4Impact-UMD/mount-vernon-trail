@@ -1,7 +1,7 @@
 import { useGoogleAuth } from "@/hooks/use-google-auth";
 import { getActiveEvent } from "@/services/event-service";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -14,6 +14,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function HomeScreen() {
     const router = useRouter();
     const { user, loading, error, handleSignOut } = useGoogleAuth();
+    
+    // temporary for testing trail document screen 
+    const eventCardID = "69b9c0d995522b9b514f88fb";
     const [checkingEvent, setCheckingEvent] = useState(true);
     const [eventError, setEventError] = useState<string | null>(null);
 

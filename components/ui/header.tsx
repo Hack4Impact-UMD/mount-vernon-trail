@@ -1,8 +1,8 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Menu } from "lucide-react-native";
 import { Palette } from "@/constants/theme";
+import { Menu } from "lucide-react-native";
+import React from "react";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HomeHeader({ userName, showGreeting = false }: { userName: string; showGreeting?: boolean }) {
     const insets = useSafeAreaInsets();
