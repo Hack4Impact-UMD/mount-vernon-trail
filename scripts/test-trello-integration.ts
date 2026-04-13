@@ -74,11 +74,9 @@ async function listIssues(boardName: string) {
             );
         }
         console.log();
-        return cards;
     }
 }
 
-// issue cards are for testing the logic of fetching cards that are attachments to event cards
 async function listEvents(boardName: string, removeDate: boolean = false) {
     const listName = "Scheduled Events";
     const boards = await trello.getBoards();
@@ -105,21 +103,14 @@ async function listEvents(boardName: string, removeDate: boolean = false) {
         for (const card of cards) {
             console.log(`- ${card.name}: ${card.desc || "No description"}`);
             console.log(`  Created at: ${card.creationDate.toLocaleString()}`);
-            const attachmentIDs = await trello.getEventCardAttachmentIDs(card);
-            for (const id of attachmentIDs) {
-                const attachmentCard = await trello.getCardByID(id);
-                console.log(
-                    `   - Attachment card: ${attachmentCard.name} (ID: ${attachmentCard.id})`,
-                );
-            }
         }
-        return cards;
+        console.log();
     }
 }
 
 (async () => {
     // Card("MVT Mock Board", "Today", "clean up trail 5", "pick up trash");
-    // await listIssues("MVT Mock Board");
-    await listEvents("MVT Mock Board", true);
+    await listIssues("MVT Mock Board");
+    // await listEvents("MVT Mock Board", true);
     // await listEvents("MVT Mock Board", false);
 })();
