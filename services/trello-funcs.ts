@@ -9,6 +9,17 @@ import type {
     TrelloAttachment,
 } from "./trello-types";
 
+// helper for error message from unknown error type
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+    if (typeof error === "string") {
+        return error;
+    }
+    return String(error) || "Unknown error";
+}
+
 export class TrelloClient {
     private readonly client: AxiosInstance;
     private readonly key: string;
@@ -32,7 +43,7 @@ export class TrelloClient {
                 await this.client.get<Board[]>("/members/me/boards");
             return response.data;
         } catch (error) {
-            console.error("error finding boards:", error);
+            console.error("error finding boards:", getErrorMessage(error));
             throw error;
         }
     }
@@ -44,7 +55,7 @@ export class TrelloClient {
             );
             return response.data;
         } catch (error) {
-            console.error(`error getting lists:`, error);
+            console.error(`error getting lists:`, getErrorMessage(error));
             throw error;
         }
     }
@@ -59,10 +70,11 @@ export class TrelloClient {
                 idList: listID,
                 name: name,
                 desc: description || "",
+                fields: "id,name,desc,idList,idBoard,shortUrl",
             });
             return response.data;
         } catch (error) {
-            console.error("unable to create card:", error);
+            console.error("unable to create card:", getErrorMessage(error));
             throw error;
         }
     }
@@ -92,7 +104,7 @@ export class TrelloClient {
             }
             return cards;
         } catch (error) {
-            console.error("unable to get cards:", error);
+            console.error("unable to get cards:", getErrorMessage(error));
             throw error;
         }
     }
@@ -152,7 +164,75 @@ export class TrelloClient {
                 .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
             return result;
         } catch (error) {
-            console.error("unable to get cards:", error);
+            console.error("unable to get cards:", getErrorMessage(error));
+            throw error;
+        }
+    }
+
+    async getCard(cardID: string): Promise<Card> {
+        try {
+            const response = await this.client.get<Card>(`/cards/${cardID}`);
+            return response.data;
+        } catch (error) {
+            console.error(
+                `unable to get card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    async moveCardToList(cardID: string, listID: string): Promise<void> {
+        try {
+            await this.client.put(`/cards/${cardID}`, { idList: listID });
+        } catch (error) {
+            console.error(
+                `unable to move card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    async replaceCardDescription(
+        cardID: string,
+        newDescription: string,
+    ): Promise<Card> {
+        try {
+            const response = await this.client.put<Card>(`/cards/${cardID}`, {
+                desc: newDescription,
+            });
+            return response.data;
+        } catch (error) {
+            console.error(
+                `unable to update card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    async appendCardDescription(
+        cardID: string,
+        newDescription: string,
+    ): Promise<Card> {
+        try {
+            const card = await this.getCard(cardID);
+            const existingDescription = card.desc;
+
+            const response = await this.client.put<Card>(`/cards/${cardID}`, {
+                desc:
+                    existingDescription !== ""
+                        ? `${existingDescription}\n${newDescription}`
+                        : newDescription,
+            });
+
+            return response.data;
+        } catch (error) {
+            console.error(
+                `unable to update card ${cardID}:`,
+                getErrorMessage(error),
+            );
             throw error;
         }
     }

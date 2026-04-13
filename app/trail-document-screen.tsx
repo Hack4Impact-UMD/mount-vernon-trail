@@ -272,9 +272,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#ffffff",
     },
-    container: {
-        flex: 1,
-    },
     contentContainer: {
         paddingHorizontal: 20,
     },
@@ -288,5 +285,23 @@ const styles = StyleSheet.create({
     },
     headerSpacer: {
         height: 120
-    }
+    },
+    container: {
+        flex: 1,
+        backgroundColor: "#fff",
+    },
+    loader: {
+        flex: 1,
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 24,
+    },
+    errorText: {
+        fontSize: 15,
+        color: "#888",
+        textAlign: "center",
+    },
 });

@@ -22,9 +22,13 @@ export interface Event {
     albumId: string;
     albumUrl: string;
     isActive: boolean;
+<<<<<<< feature/trail-issue-card-draft/chloe-srinidhi
     isDraft: boolean;
     startDate?: Timestamp;
     savedAsDraftAt?: Timestamp;
+=======
+    startDate?: Timestamp;
+>>>>>>> main
     endDate: Timestamp | null;
     createdAt: Timestamp;
     trailImprovements: number;
@@ -123,6 +127,7 @@ export async function setEventInactive(eventId: string): Promise<void> {
         endDate: Timestamp.now(),
     });
 }
+<<<<<<< feature/trail-issue-card-draft/chloe-srinidhi
 
 // Save a completed event as a draft instead of immediately publishing
 export async function saveDraft(eventId: string, notepad?: string): Promise<void> {
@@ -156,3 +161,5 @@ export async function getDraftEvents(): Promise<Event[]> {
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d) => d.data() as Event);
 }
+=======
+>>>>>>> main
