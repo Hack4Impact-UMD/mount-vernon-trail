@@ -57,16 +57,16 @@ export default function HomeScreen() {
     const [eventsError, setEventsError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!API_KEY) {
-            setEventsError("Missing Trello API credentials");
+        if (!isAuthenticated || !API_KEY) {
             setEventsLoading(false);
             return;
         }
+        setEventsLoading(true);
         fetchUpcomingEvents(API_KEY)
             .then(setEvents)
             .catch((e) => setEventsError(e.message))
             .finally(() => setEventsLoading(false));
-    }, []);
+    }, [isAuthenticated]);
 
     if (!isAuthenticated) {
         return (
