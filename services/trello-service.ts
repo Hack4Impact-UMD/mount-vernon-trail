@@ -6,12 +6,11 @@ import { TrelloClient } from "./trello-funcs";
 const BOARD_NAME = "MVT Mock Board";
 const TRAIL_ISSUES_LIST = "Trail Issues and Problems - Intake";
 const UPCOMING_EVENTS_LIST = "Scheduled Events";
+const COMPLETED_EVENTS_LIST = "Completed Events (From App)";
 
 // fetches trail issues by most recent
 // key and token are passed as parameters so auth can be swapped later
-export async function fetchTrailIssues(
-    key: string,
-): Promise<TrailIssueItem[]> {
+export async function fetchTrailIssues(key: string): Promise<TrailIssueItem[]> {
     const trello = new TrelloClient(key);
     // find target board and list
     const boards = await trello.getBoards();
@@ -78,7 +77,7 @@ export async function createEventCard(
     dateStr: string,
     description: string,
     key: string,
-): Promise<string> {
+): Promise<{ cardId: string; cardUrl: string }> {
     const trello = new TrelloClient(key);
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
@@ -93,7 +92,36 @@ export async function createEventCard(
         `${dateStr} ${title}`,
         description,
     );
-    return card.id;
+    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+    return { cardId: card.id, cardUrl: card.shortUrl };
+}
+
+// fetches the short URL of a trello card
+export async function fetchCardUrl(
+    cardId: string,
+    key: string,
+): Promise<string> {
+    const trello = new TrelloClient(key);
+    const card = await trello.getCard(cardId);
+    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+    return card.shortUrl;
+}
+
+// moves a card to the Completed Events (From App) list
+export async function moveCardToCompleted(
+    cardId: string,
+    key: string,
+): Promise<void> {
+    const trello = new TrelloClient(key);
+    const boards = await trello.getBoards();
+    const board = boards.find((b) => b.name === BOARD_NAME);
+    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+
+    const lists = await trello.getLists(board.id);
+    const list = lists.find((l) => l.name === COMPLETED_EVENTS_LIST);
+    if (!list) throw new Error(`List "${COMPLETED_EVENTS_LIST}" not found`);
+
+    await trello.moveCardToList(cardId, list.id);
 }
 
 // adds album link to a trello event card description
@@ -110,38 +138,17 @@ export async function addAlbumLinkToCard(
     const albumLinkPattern = /\n\n📷 Album Link: .*/;
     const newLinkText = `\n\n📷 Album Link: ${albumUrl}`;
 
-    let updatedDescription: string;
+    let replacedDescription: string;
     if (albumLinkPattern.test(currentDescription)) {
         // replace existing album link to make operation idempotent
-        updatedDescription = currentDescription.replace(
+        replacedDescription = currentDescription.replace(
             albumLinkPattern,
             newLinkText,
         );
     } else {
         // append new album link if none exists
-        updatedDescription = currentDescription + newLinkText;
+        replacedDescription = currentDescription + newLinkText;
     }
 
-    await trello.updateCardDescription(cardID, updatedDescription);
-}
-
-// Add this to trello-service.ts
-export async function createTrailIssue(
-    key: string,
-    name: string,
-    description?: string
-): Promise<void> {
-    const trello = new TrelloClient(key);
-    
-    // Find board and list
-    const boards = await trello.getBoards();
-    const board = boards.find((b) => b.name === BOARD_NAME);
-    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
-
-    const lists = await trello.getLists(board.id);
-    const list = lists.find((l) => l.name === TRAIL_ISSUES_LIST);
-    if (!list) throw new Error(`List "${TRAIL_ISSUES_LIST}" not found`);
-
-    // Actually create the card
-    await trello.createCard(list.id, name, description);
+    await trello.replaceCardDescription(cardID, replacedDescription);
 }

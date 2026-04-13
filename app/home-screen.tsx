@@ -10,9 +10,7 @@ import BottomNav from "../components/ui/bottom-nav";
 import Header from "../components/ui/header";
 import StartEventCard from "../components/ui/start-event-card";
 
-// hardcoded for testing, need to swap for real auth later
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
-const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
 
 // THESE ARE PLACEHOLDER EVENTS FOR THE PAST EVENTS FIGMA DESIGN
 const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
@@ -56,12 +54,12 @@ export default function HomeScreen() {
     const [eventsError, setEventsError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!API_KEY || !API_TOKEN) {
+        if (!API_KEY) {
             setEventsError("Missing Trello API credentials");
             setEventsLoading(false);
             return;
         }
-        fetchUpcomingEvents(API_KEY, API_TOKEN)
+        fetchUpcomingEvents(API_KEY)
             .then(setEvents)
             .catch((e) => setEventsError(e.message))
             .finally(() => setEventsLoading(false));
@@ -76,7 +74,7 @@ export default function HomeScreen() {
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}>
-                    <Header userName="Sarah" />
+                    <Header userName="Sarah" showGreeting />
                     <View style={styles.cardWrapper}>
                         <StartEventCard />
                     </View>

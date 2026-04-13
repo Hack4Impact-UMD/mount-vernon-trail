@@ -77,13 +77,17 @@ export default function RootLayout() {
         const onSetupEvent = segments[0] === "setup-event";
         const onActiveEvent = segments[0] === "active-event";
         const onHomeScreen = segments[0] === "home-screen";
+        const onTrailDocument = segments[0] === "trail-document-screen";
+        const onEventSummary = segments[0] === "event-summary";
         if (
             user &&
             !inTabs &&
             !onTrello &&
             !onSetupEvent &&
             !onActiveEvent &&
-            !onHomeScreen
+            !onHomeScreen &&
+            !onTrailDocument &&
+            !onEventSummary
         ) {
             router.replace("/(tabs)");
         } else if (!user && !onAuth) {
@@ -118,8 +122,16 @@ export default function RootLayout() {
                     options={{ headerShown: true, title: "Active Event" }}
                 />
                 <Stack.Screen
+                    name="trail-document-screen"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
                     name="modal"
                     options={{ presentation: "modal", title: "Modal" }}
+                />
+                <Stack.Screen
+                    name="event-summary"
+                    options={{ headerShown: false }}
                 />
             </Stack>
             <StatusBar style="auto" />

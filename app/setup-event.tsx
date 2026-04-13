@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    Linking,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -17,7 +18,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const TRELLO_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
-const TRELLO_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN ?? "";
 
 export default function SetupEventScreen() {
     const router = useRouter();
@@ -53,12 +53,11 @@ export default function SetupEventScreen() {
             const albumUrl = album.productUrl ?? "";
 
             // creates a trello card and adds it to the Scheduled Events list
-            const cardId = await createEventCard(
+            const { cardId, cardUrl } = await createEventCard(
                 title.trim(),
                 getDateString(eventDate),
                 description.trim(),
                 TRELLO_KEY,
-                TRELLO_TOKEN,
             );
 
             // adds the album link to the trello card
@@ -66,7 +65,6 @@ export default function SetupEventScreen() {
                 cardId,
                 albumUrl,
                 TRELLO_KEY,
-                TRELLO_TOKEN,
             );
 
             // creates an event document in firebase
@@ -80,6 +78,7 @@ export default function SetupEventScreen() {
             );
 
             Alert.alert("Event Created", `"${title.trim()}" has been set up!`, [
+                { text: "Open Trello Card", onPress: () => Linking.openURL(cardUrl) },
                 { text: "OK", onPress: () => router.back() },
             ]);
         } catch (e) {
