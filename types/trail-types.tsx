@@ -4,8 +4,8 @@ export type TrailIssue = {
     name: string;
     date: Date;
     imageUrl: string | null;
-    beforeImageUri?:string;
-    afterImageUri?:string;
+    beforeImageUri?:string | null;
+    afterImageUri?:string | null;
 };
 
 export type StatsData = {

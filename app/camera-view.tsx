@@ -39,9 +39,12 @@ export default function CameraViewScreen() {
         mode?: 'before' | 'after';
         beforeImageUri?: string;
         afterImageUri?: string;
+        activeIssueId?: string;
     }>();
     const mode = params.mode === 'after' ? 'after' : 'before';
     const beforeImageUri = typeof params.beforeImageUri === 'string' ? params.beforeImageUri : null;
+    // keep track of which issue card the user pressed to get to camera view
+    const activeIssueId = typeof params.activeIssueId === 'string' ? params.activeIssueId : null;
     // overlay is set to before image, but user can still has option to choose from their gallary
     const [overlayUri, setOverlayUri] = useState<string | null>(
         mode === 'after' ? beforeImageUri : null
@@ -151,6 +154,7 @@ export default function CameraViewScreen() {
             router.replace({
                 pathname: '/trail-document-screen',
                 params: {
+                    activeIssueId,
                     beforeImageUri: capturedPhotoUri,
                 },
             });
@@ -158,6 +162,7 @@ export default function CameraViewScreen() {
             router.replace({
                 pathname: '/trail-document-screen',
                 params: {
+                    activeIssueId,
                     beforeImageUri: beforeImageUri ?? "", 
                     afterImageUri: capturedPhotoUri,   
                 },

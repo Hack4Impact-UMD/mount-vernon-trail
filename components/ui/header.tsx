@@ -4,7 +4,7 @@ import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function HomeHeader({ userName }: { userName: string | null }) {
+export default function HomeHeader({ userName, showGreeting = false }: { userName: string; showGreeting?: boolean }) {
     const insets = useSafeAreaInsets();
     return (
         <View>
@@ -26,14 +26,14 @@ export default function HomeHeader({ userName }: { userName: string | null }) {
                     </TouchableOpacity>
                 </View>
             </View>
-            {userName && (
+            {showGreeting && (
                 <View style={styles.greetingContainer}>
                     <Text style={styles.greeting}>
                         Ready to make an impact,{"\n"}
                         <Text style={styles.name}>{userName}</Text>?
                     </Text>
                 </View>
-            )} 
+            )}
         </View>
     );
 }

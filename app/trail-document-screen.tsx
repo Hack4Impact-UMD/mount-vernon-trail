@@ -129,7 +129,7 @@ export default function TrailDocumentScreen() {
                     style={styles.container}
                     showsVerticalScrollIndicator={false}>
                     {/* App Header */}
-                    <Header userName={null} />
+                    <Header userName={""} />
                     <View style={styles.contentContainer}>
                         {/* Page Header*/}
                         {/* TODO replace with actual page header after it is implemented */}

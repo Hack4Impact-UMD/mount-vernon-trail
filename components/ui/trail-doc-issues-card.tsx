@@ -16,7 +16,11 @@ import {
 if (Platform.OS === "android") {
     UIManager.setLayoutAnimationEnabledExperimental?.(true);
 }
-export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
+export function TrailDocIssuesCard(issues: Readonly<TrailIssue> & {
+    beforeImageUri?: string | null;
+    afterImageUri?: string | null;
+    onCameraPress?: (mode: 'before' | 'after') => void;
+}) {
     const PLACEHOLDER_IMAGE = require("../../assets/images/beaver-limbloppers.png");
     const [expanded, setExpanded] = useState(false);
     const [notes, setNotes] = useState("");
@@ -55,7 +59,6 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
                     <Text style={styles.dateText}>{formattedDate}</Text>
                 </View>
                 {/* Right: Green Arrow Button */}
-                {/* TODO add onPress logic here for dropdown */}
                 <TouchableOpacity
                     style={styles.arrowButton}
                     activeOpacity={0.7}
@@ -70,7 +73,7 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
                             name="chevron-right"
                             size={18}
                             color="#ffffff"
-                        />{" "}
+                        />
                     </View>
                 </TouchableOpacity>
             </View>
@@ -81,6 +84,7 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue>) {
                     afterImageUri={issues.afterImageUri ?? null}
                     notes={notes}
                     onNotesChange={setNotes}
+                    onCameraPress={issues.onCameraPress ?? (() => {})}
                 />
             )}
         </View>

@@ -64,7 +64,7 @@ export async function createGoogleAlbum(
     }
     const uid = currentUser.uid;
 
-    // Get access token 
+    // Get access token
     let accessToken: string;
     try {
         accessToken = await getValidAccessToken();
@@ -91,7 +91,7 @@ export async function createGoogleAlbum(
     } catch (error) {
         const errorMessage = (error as Error).message;
         if (errorMessage.includes("401")) {
-            // Token expired, refresh and retry 
+            // Token expired, refresh and retry
             accessToken = await getValidAccessToken();
             album = await createAlbum(accessToken, title);
         } else {
