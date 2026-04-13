@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
     const router = useRouter();
-    const { loading: trelloLoading, handleSignOut: handleTrelloSignOut } = useTrelloAuth();
+    const { loading: trelloLoading, handleSignOut: handleTrelloSignOut, isAuthenticated } = useTrelloAuth();
     const { user, loading, error, handleSignOut } = useGoogleAuth();
     const [checkingEvent, setCheckingEvent] = useState(true);
     const [eventError, setEventError] = useState<string | null>(null);
@@ -93,7 +93,7 @@ export default function HomeScreen() {
                     }>
                     <Text style={styles.buttonText}>Event Summary Preview</Text>
                 </Pressable>
-                {
+                {isAuthenticated &&
                     <Pressable
                         style={[
                             styles.signOutButton,
