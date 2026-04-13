@@ -1,5 +1,5 @@
-import { getActiveEvent } from "@/services/event-service";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
+import { getActiveEvent } from "@/services/event-service";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -36,7 +36,10 @@ export default function HomeScreen() {
     if (checkingEvent) {
         return (
             <SafeAreaView style={styles.container}>
-                <ActivityIndicator size="large" style={styles.centered} />
+                <ActivityIndicator
+                    size="large"
+                    style={styles.centered}
+                />
             </SafeAreaView>
         );
     }
@@ -69,6 +72,26 @@ export default function HomeScreen() {
                     <Text style={styles.buttonText}>Go to Trello Test</Text>
                 </Pressable>
                 <Pressable
+                    style={styles.button}
+                    onPress={() =>
+                        router.push({
+                            pathname: "/trail-document-screen",
+                            params: { eventId: "4zJ8xpbgfd5js5S0l0BV" },
+                        })
+                    }>
+                    <Text style={styles.buttonText}>Trail Document Screen</Text>
+                </Pressable>
+                <Pressable
+                    style={styles.button}
+                    onPress={() =>
+                        router.push({
+                            pathname: "/event-summary",
+                            params: { eventId: "4zJ8xpbgfd5js5S0l0BV" },
+                        })
+                    }>
+                    <Text style={styles.buttonText}>Event Summary Preview</Text>
+                </Pressable>
+                <Pressable
                     style={[
                         styles.signOutButton,
                         loading && styles.signOutDisabled,
@@ -84,9 +107,7 @@ export default function HomeScreen() {
                 {eventError && (
                     <Text style={styles.errorText}>{eventError}</Text>
                 )}
-                {error && (
-                    <Text style={styles.errorText}>{error.message}</Text>
-                )}
+                {error && <Text style={styles.errorText}>{error.message}</Text>}
             </View>
         </SafeAreaView>
     );

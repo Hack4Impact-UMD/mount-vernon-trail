@@ -1,10 +1,9 @@
 import { parseAndValidateDate } from "@/utils/date";
 import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
-import {getTrelloToken} from "../auth/trello-token-storage";
+import { getTrelloToken } from "../auth/trello-token-storage";
 import { TrelloAuthError } from "./trello-auth-error";
 import type { Board, Card, EventCard, List } from "./trello-types";
-
 
 // helper for error message from unknown error type
 function getErrorMessage(error: unknown): string {
@@ -47,15 +46,15 @@ export class TrelloClient {
                         ...config.params,
                         key: this.key,
                         token,
-                    }
+                    };
                     return config;
-                } catch (error:any) {
-                    if(error instanceof TrelloAuthError){
+                } catch (error: any) {
+                    if (error instanceof TrelloAuthError) {
                         throw error;
                     }
                     throw new TrelloAuthError("AUTH_FAILED");
                 }
-            }
+            },
         );
         // map http auth failures to typed TrelloAuthError
         this.client.interceptors.response.use(
@@ -74,7 +73,7 @@ export class TrelloClient {
                 }
                 throw error;
             },
-        ); 
+        );
     }
 
     async getBoards(): Promise<Board[]> {
@@ -113,6 +112,7 @@ export class TrelloClient {
                 idList: listID,
                 name: name,
                 desc: description || "",
+                fields: "id,name,desc,idList,idBoard,shortUrl",
             });
             return response.data;
         } catch (error) {
@@ -131,6 +131,8 @@ export class TrelloClient {
             const response = await this.client.get<Card[]>(
                 `/lists/${listID}/cards${getAttachments ? "?attachments=cover" : ""}`,
             );
+            // map to get the creation time
+            // reference: https://support.atlassian.com/trello/docs/getting-the-time-a-card-or-board-was-created/
             const cards = response.data.map((card) => {
                 card.creationDate = new Date(
                     1000 * Number.parseInt(card.id.substring(0, 8), 16),
@@ -151,23 +153,30 @@ export class TrelloClient {
         }
     }
 
+    // Attempt to convert card to event card
+    // If date cannot be parsed from the begining of the card name, return null
     private static cardToEventCard(
         card: Card,
         removeDate: boolean,
     ): EventCard | null {
+        // get card date from name
         const [date, ...rest] = card.name.split(" ");
         const eventDate = parseAndValidateDate(date);
+        // if date is invalid, return null (not a valid event card)
         if (!eventDate) {
             return null;
         }
         const eventCard: EventCard = {
             ...card,
+            // remove date from name if removeDate is true
             name: removeDate ? rest.join(" ") : card.name,
             eventDate,
         };
         return eventCard;
     }
 
+    // get cards that are within the next X days (only applicable for Upcoming Events list)
+    // includes option to remove date from card name (for display only)
     async getEventCardsFiltered(
         listID: string,
         days: number = 30,
@@ -186,6 +195,7 @@ export class TrelloClient {
             const futureDate = new Date(
                 today.getTime() + days * daysMilliseconds,
             );
+            // convert to event cards
             const result: EventCard[] = cards
                 .map((card) => TrelloClient.cardToEventCard(card, removeDate))
                 .filter(
@@ -194,6 +204,7 @@ export class TrelloClient {
                         card.eventDate >= today &&
                         card.eventDate <= futureDate,
                 )
+                // sort by date ascending
                 .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
             return result;
         } catch (error) {
@@ -210,13 +221,28 @@ export class TrelloClient {
             return response.data;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;
-
-            console.error(`unable to get card ${cardID}:`, getErrorMessage(error));
+            console.error(
+                `unable to get card ${cardID}:`,
+                getErrorMessage(error),
+            );
             throw error;
         }
     }
 
-    async updateCardDescription(
+    async moveCardToList(cardID: string, listID: string): Promise<void> {
+        try {
+            await this.client.put(`/cards/${cardID}`, { idList: listID });
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(
+                `unable to move card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    async replaceCardDescription(
         cardID: string,
         newDescription: string,
     ): Promise<Card> {
@@ -227,8 +253,36 @@ export class TrelloClient {
             return response.data;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;
+            console.error(
+                `unable to update card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
 
-            console.error(`unable to update card ${cardID}:`, getErrorMessage(error));
+    async appendCardDescription(
+        cardID: string,
+        newDescription: string,
+    ): Promise<Card> {
+        try {
+            const card = await this.getCard(cardID);
+            const existingDescription = card.desc;
+
+            const response = await this.client.put<Card>(`/cards/${cardID}`, {
+                desc:
+                    existingDescription !== ""
+                        ? `${existingDescription}\n${newDescription}`
+                        : newDescription,
+            });
+
+            return response.data;
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(
+                `unable to update card ${cardID}:`,
+                getErrorMessage(error),
+            );
             throw error;
         }
     }
@@ -246,8 +300,10 @@ export class TrelloClient {
                 },
             });
             if (!response.ok) {
-                if (response.status === 401) throw new TrelloAuthError("TOKEN_EXPIRED");
-                if (response.status === 403) throw new TrelloAuthError("PERMISSION_DENIED");
+                if (response.status === 401)
+                    throw new TrelloAuthError("TOKEN_EXPIRED");
+                if (response.status === 403)
+                    throw new TrelloAuthError("PERMISSION_DENIED");
                 throw new Error(`Failed to fetch image: ${response.status}`);
             }
             const blob = await response.blob();
