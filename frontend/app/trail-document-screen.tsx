@@ -27,7 +27,7 @@ export default function TrailDocumentScreen() {
         beforeImageUri?: string;
         afterImageUri?: string;
         activeIssueId?: string;
-        eventId: string;
+        eventId?: string;
     }>();
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
@@ -78,6 +78,9 @@ export default function TrailDocumentScreen() {
                 }
             } catch (error) {
                 console.error("Error loading trail issues:", error);
+                if (!cancelled) {
+                    setIssuesError((error as Error).message ?? "Failed to load trail issues");
+                }
             }
         }
         loadTrailDocument();
@@ -120,6 +123,9 @@ export default function TrailDocumentScreen() {
                 <View style={styles.contentContainer}>
                     {/* Trail Issues Section */}
                     <Text style={styles.sectionTitle}>Trail Issues</Text>
+                    {issuesError && (
+                        <Text style={styles.errorText}>{issuesError}</Text>
+                    )}
                     <View style={styles.listContainer}>
                         {issuesData.map((issue) => (
                             <TrailDocIssuesCard

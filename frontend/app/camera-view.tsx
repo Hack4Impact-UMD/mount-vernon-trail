@@ -39,7 +39,7 @@ export default function CameraViewScreen() {
         beforeImageUri?: string;
         afterImageUri?: string;
         activeIssueId?: string; // keep track of issue card user pressed
-        eventId: string;
+        eventId?: string;
         mode?: 'before' | 'after';
     }>();
     const resolveMode = mode === 'after' ? 'after' : 'before';
