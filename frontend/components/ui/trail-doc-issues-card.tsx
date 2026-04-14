@@ -101,7 +101,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 8,
         elevation: 2,
-        overflow: "hidden",
     },
     cardContainer: {
         flexDirection: "row",
@@ -110,6 +109,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 12,
         paddingRight: 16,
+        overflow: "hidden",
     },
     imageContainer: {
         marginRight: 16,
