@@ -1,0 +1,17 @@
+{
+  "name": "mount-vernon-trail-backend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Backend service for Mount Vernon Trail — proxies Google Photos uploads into the MVT-owned album.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "~5.9.2",
+    "@types/node": "^22.0.0"
+  }
+}
