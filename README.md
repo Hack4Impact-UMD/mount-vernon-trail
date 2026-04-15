@@ -6,6 +6,11 @@ Hello and welcome to the Friends of the Mount Vernon Trail project!
 We'll be working, communicating, and logging bugs here, as well as in our other communication channels.
 Check back here for more on project and environment setup soon!
 
+## Repo layout
+
+- [`frontend/`](frontend/) — the Expo (React Native) app. Run with `cd frontend && npm install && npm start`.
+- [`backend/`](backend/) — Node + TypeScript service that will proxy Google Photos uploads into the MVT-owned album. Deployed on Render. Currently a scaffold; no server code yet.
+
 ## Procedures
 
 ### Cloning
@@ -57,21 +62,21 @@ git merge main
   <tr>
     <td align="center" width="150">
       <a href="#">
-        <img src="/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Name</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
     <td align="center" width="150">
       <a href="https://www.linkedin.com/in/jameszhoudev/">
-        <img src="/profile-pictures/james_zhou.jpeg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <img src="/frontend/profile-pictures/james_zhou.jpeg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>James Zhou</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
     <td align="center" width="150">
       <a href="https://jaipatel.netlify.app/">
-        <img src="/profile-pictures/jai_patel.png" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <img src="/frontend/profile-pictures/jai_patel.png" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Jai Patel</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
@@ -80,21 +85,21 @@ git merge main
   <tr>
     <td align="center" width="150">
       <a href="#">
-        <img src="/profile-pictures/aaryan_patel.png" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <img src="/frontend/profile-pictures/aaryan_patel.png" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Aaryan Patel</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
     <td align="center" width="150">
       <a href="http://linkedin.com/in/ryanzhao27/">
-        <img src="/profile-pictures/ryan_zhao.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <img src="/frontend/profile-pictures/ryan_zhao.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Ryan Zhao</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
     <td align="center" width="150">
       <a href="#">
-        <img src="/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Name</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
@@ -103,21 +108,21 @@ git merge main
   <tr>
     <td align="center" width="150">
       <a href="https://www.linkedin.com/in/chloexthompson">
-        <img src="/profile-pictures/chloe_thompson.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <img src="/frontend/profile-pictures/chloe_thompson.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Chloe Thompson</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
     <td align="center" width="150">
       <a href="https://www.linkedin.com/in/srinidhi-gubba/">
-        <img src="/profile-pictures/srinidhi_gubba.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <img src="/frontend/profile-pictures/srinidhi_gubba.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Srinidhi Gubba</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
     <td align="center" width="150">
       <a href="https://www.linkedin.com/in/indira-shafii/">
-        <img src="/profile-pictures/indira.png" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <img src="/frontend/profile-pictures/indira.png" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Indira Shafii</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
