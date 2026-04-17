@@ -13,6 +13,15 @@ const port = process.env.PORT || 8080;
 // middleware
 app.use(cors());
 
+// auth middleware
+const requireApiKey = (req: Request, res: Response, next: Function) => {
+    const apiKey = req.headers["x-api-key"];
+    if (!apiKey || apiKey !== process.env.BACKEND_SECRET_KEY) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+    next();
+};
+
 // for file uploads, 20 MB limit
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -47,15 +56,28 @@ app.get("/", (req: Request, res: Response) => {
 
 // Ensure that this matched the GOOGLE_REDIRECT_URI
 app.get("/auth/url", (req: Request, res: Response) => {
+    const secret = req.query.secret as string;
+    if (secret !== process.env.ADMIN_SECRET_KEY) {
+        return res
+            .status(401)
+            .json({ error: "Unauthorized: Invalid auth secret" });
+    }
     const authUrl = oauth2Client.generateAuthUrl({
         access_type: "offline",
         scope: scopes,
         prompt: "consent",
+        state: secret,
     });
     res.redirect(authUrl);
 });
 
 app.get("/auth/callback", async (req: Request, res: Response) => {
+    const state = req.query.state as string;
+    if (state !== process.env.ADMIN_SECRET_KEY) {
+        return res
+            .status(401)
+            .json({ error: "Unauthorized: Invalid callback state" });
+    }
     // get authorization code
     const code = req.query.code as string;
     try {
@@ -71,20 +93,21 @@ app.get("/auth/callback", async (req: Request, res: Response) => {
             accessToken = tokens.access_token;
             tokenExpiryTime = Date.now() + expiresIn * 1000;
         }
-        res.status(200).send(
-            "Authentication successful! You can close this window.",
-        );
+        return res
+            .status(200)
+            .send("Authentication successful! You can close this window.");
     } catch (error) {
         console.error("Error exchanging code for token:", error);
-        res.status(401).send("Authentication failed");
-        return;
+        return res.status(401).send("Authentication failed");
     }
 });
+
+app.use("/api", requireApiKey);
 
 app.get("/api/auth/status", async (req: Request, res: Response) => {
     try {
         const hasRefreshToken = await redis.exists("refresh_token");
-        res.status(200).json({ authenticated: !!hasRefreshToken });
+        return res.status(200).json({ authenticated: !!hasRefreshToken });
     } catch (error) {
         console.error("Error checking auth status:", error);
         return res
