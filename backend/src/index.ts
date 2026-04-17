@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 import cors from "cors";
 import dotenv from "dotenv";
-import express, { Request, Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 import { google } from "googleapis";
 import multer from "multer";
 
@@ -12,11 +12,12 @@ const port = process.env.PORT || 8080;
 
 // middleware
 app.use(cors());
+app.use(express.json());
 
 // auth middleware
-const requireApiKey = (req: Request, res: Response, next: Function) => {
+const requireApiKey = (req: Request, res: Response, next: NextFunction) => {
     const apiKey = req.headers["x-api-key"];
-    if (!apiKey || apiKey !== process.env.BACKEND_SECRET_KEY) {
+    if (!apiKey || apiKey !== process.env.APP_SECRET_KEY) {
         return res.status(401).json({ error: "Unauthorized" });
     }
     next();
@@ -124,6 +125,11 @@ app.post(
         // code here
     },
 );
+
+// TODO: google photos create album endpoint
+app.post("/api/albums", async (req: Request, res: Response) => {
+    // code here
+});
 
 // TODO: google photos list albums endpoint
 app.get("/api/albums", async (req: Request, res: Response) => {
