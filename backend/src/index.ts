@@ -81,6 +81,18 @@ app.get("/auth/callback", async (req: Request, res: Response) => {
     }
 });
 
+app.get("/api/auth/status", async (req: Request, res: Response) => {
+    try {
+        const hasRefreshToken = await redis.exists("refresh_token");
+        res.status(200).json({ authenticated: !!hasRefreshToken });
+    } catch (error) {
+        console.error("Error checking auth status:", error);
+        return res
+            .status(500)
+            .json({ error: "Could not check authentication status" });
+    }
+});
+
 // TODO: google photos upload endpoint
 app.post(
     "/api/upload",
