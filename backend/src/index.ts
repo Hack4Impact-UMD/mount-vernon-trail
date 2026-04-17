@@ -81,6 +81,30 @@ app.get("/auth/callback", async (req: Request, res: Response) => {
     }
 });
 
+// TODO: google photos upload endpoint
+app.post(
+    "/api/upload",
+    upload.single("photo"),
+    async (req: Request, res: Response) => {
+        // code here
+    },
+);
+
+// TODO: google photos list albums endpoint
+app.get("/api/albums", async (req: Request, res: Response) => {
+    // code here
+});
+
+// TODO: get images in album endpoint
+app.get("/api/albums/:albumId/photos", async (req: Request, res: Response) => {
+    // code here
+});
+
+// TODO: get photo by ID
+app.get("/api/photos/:photoId", async (req: Request, res: Response) => {
+    // code here
+});
+
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
 });
