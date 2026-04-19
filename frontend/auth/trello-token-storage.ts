@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { TrelloAuthError } from "../services/trello-auth-error";
 
 const TRELLO_TOKEN_KEY = "trello_user_token";
 const TRELLO_TOKEN_EXPIRY_KEY = "trello_token_expiry";
@@ -33,9 +34,13 @@ export async function getTrelloToken(): Promise<string | null> {
     const expiryStr = await SecureStore.getItemAsync(TRELLO_TOKEN_EXPIRY_KEY);
     if (expiryStr) {
         const expiryMs = parseInt(expiryStr, 10);
+        if (Number.isNaN(expiryMs)) {
+            await SecureStore.deleteItemAsync(TRELLO_TOKEN_EXPIRY_KEY);
+            return token;
+        }
         if (Date.now() > expiryMs) {
             await clearTrelloToken();
-            return null;
+            throw new TrelloAuthError("TOKEN_EXPIRED");
         }
     }
 
@@ -56,6 +61,13 @@ export async function clearTrelloToken(): Promise<void> {
  * Does NOT validate the token against the Trello API.
  */
 export async function hasTrelloToken(): Promise<boolean> {
-    const token = await getTrelloToken();
-    return token !== null;
+    try {
+        const token = await getTrelloToken();
+        return token !== null;
+    } catch (error) {
+        if (error instanceof TrelloAuthError) {
+            return false;
+        }
+        throw error;
+    }
 }

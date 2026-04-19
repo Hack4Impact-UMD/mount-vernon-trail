@@ -1,54 +1,16 @@
 // test-trello.ts
+//
+// This integration test requires the Expo runtime (expo-secure-store)
+// and cannot be run directly with Node.js / ts-node.
+//
+// fetchTrailIssues and fetchUpcomingEvents now resolve tokens from
+// expo-secure-store internally, so they cannot be called outside Expo.
+//
+// See frontend/scripts/test-trello-auth.ts for Node-compatible unit tests.
 
-import "dotenv/config";
-
-import {
-    fetchTrailIssues,
-    fetchUpcomingEvents,
-} from "./services/trello-service";
-
-async function runIntegrationTests() {
-    console.log("Starting Trello Integration Tests...\n");
-
-    const TRELLO_KEY = process.env.TRELLO_API_KEY;
-    const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
-
-    if (!TRELLO_KEY || !TRELLO_TOKEN) {
-        console.error(
-            "❌ Missing TRELLO_KEY or TRELLO_TOKEN in your .env file",
-        );
-        return;
-    }
-
-    try {
-        // Test 1: Fetch Issues
-        console.log("Testing: fetchTrailIssues()...");
-        const issues = await fetchTrailIssues(TRELLO_KEY);
-        console.log(`✅ Success! Found ${issues.length} issues.`);
-        issues
-            .slice(0, 3)
-            .forEach((issue) => console.log(`   - ${issue.name}`));
-        console.log("   ...");
-
-        // Test 2: Fetch Events
-        console.log("\nTesting: fetchUpcomingEvents()...");
-        const events = await fetchUpcomingEvents(TRELLO_KEY);
-        console.log(`✅ Success! Found ${events.length} upcoming events.`);
-        events
-            .slice(0, 3)
-            .forEach((event) =>
-                console.log(
-                    `   - [${event.date?.toLocaleDateString()}] ${event.name}`,
-                ),
-            );
-        console.log("   ...");
-
-        console.log("\nAll integration tests passed successfully");
-    } catch (error: any) {
-        console.error("\n❌ TEST FAILED");
-        console.error(`Error Type: ${error.name || "Unknown"}`);
-        console.error(`Message: ${error.message}`);
-    }
-}
-
-runIntegrationTests();
+console.error(
+    "ERROR: This test requires the Expo runtime (expo-secure-store).\n" +
+        "It cannot be run with Node.js / ts-node.\n" +
+        "Run integration tests within the Expo app instead.",
+);
+process.exit(1);

@@ -22,6 +22,19 @@ function getErrorMessage(error: unknown): string {
     return String(error) || "Unknown error";
 }
 
+function isTrelloHost(url: string): boolean {
+    try {
+        const { hostname } = new URL(url);
+        return (
+            hostname === "trello.com" ||
+            hostname.endsWith(".trello.com") ||
+            hostname.endsWith(".trellousercontent.com")
+        );
+    } catch {
+        return false;
+    }
+}
+
 function handleHttpError(status: number): void {
     if (status === 401) {
         throw new TrelloAuthError("TOKEN_EXPIRED");
@@ -358,15 +371,19 @@ export class TrelloClient {
 
     async loadTrelloImage(imageUrl: string): Promise<string | null> {
         try {
-            const token = await getTrelloToken();
-            if (!token) {
-                throw new TrelloAuthError("AUTH_FAILED");
+            const headers: Record<string, string> = {};
+
+            if (isTrelloHost(imageUrl)) {
+                const token = await getTrelloToken();
+                if (!token) {
+                    throw new TrelloAuthError("AUTH_FAILED");
+                }
+                headers.Authorization = `OAuth oauth_consumer_key="${this.key}", oauth_token="${token}"`;
             }
+
             const response = await fetch(imageUrl, {
                 method: "GET",
-                headers: {
-                    Authorization: `OAuth oauth_consumer_key="${this.key}", oauth_token="${token}"`,
-                },
+                headers,
             });
             if (!response.ok) {
                 if (response.status === 401)

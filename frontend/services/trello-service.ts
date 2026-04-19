@@ -44,10 +44,9 @@ export async function fetchTrailIssues(key: string): Promise<TrailIssueItem[]> {
 // key and token are passed as parameters so auth can be swapped later
 export async function fetchDocumentTrailIssues(
     key: string,
-    token: string,
     eventCard: EventCard,
 ): Promise<TrailDocumentIssueItem[]> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const attachmentIDs = await trello.getEventCardAttachmentIDs(eventCard);
     return await Promise.all(
         attachmentIDs.map(async (id) => {
