@@ -1,10 +1,8 @@
-import TrailDropdown from "@/components/ui/trail-issue-photo-notes";
 import { TrailIssue } from "@/types/trail-types";
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React from "react";
 import {
     Image,
-    LayoutAnimation,
     Platform,
     StyleSheet,
     Text,
@@ -16,14 +14,8 @@ import {
 if (Platform.OS === "android") {
     UIManager.setLayoutAnimationEnabledExperimental?.(true);
 }
-export function TrailDocIssuesCard(issues: Readonly<TrailIssue> & {
-    beforeImageUri?: string | null;
-    afterImageUri?: string | null;
-    onCameraPress?: (mode: 'before' | 'after') => void;
-}) {
+export function TrailDocIssuesCard(issues: Readonly<TrailIssue & { onPress?: () => void }>) {
     const PLACEHOLDER_IMAGE = require("../../assets/images/beaver-limbloppers.png");
-    const [expanded, setExpanded] = useState(false);
-    const [notes, setNotes] = useState("");
     // get formatted date (e.g. Mar 28, 2026)
     const formattedDate = issues.date.toLocaleDateString("en-US", {
         month: "short",
@@ -31,11 +23,8 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue> & {
         year: "numeric",
     });
 
-    const handleToggle = () => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setExpanded((prev) => !prev);
-    };
     return (
+        <>
         <View style={styles.outer}>
             <View style={styles.cardContainer}>
                 {/* Left: Image */}
@@ -62,32 +51,17 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue> & {
                 <TouchableOpacity
                     style={styles.arrowButton}
                     activeOpacity={0.7}
-                    onPress={handleToggle}>
-                    <View
-                        style={{
-                            transform: [
-                                { rotate: expanded ? "90deg" : "0deg" },
-                            ],
-                        }}>
-                        <Feather
-                            name="chevron-right"
-                            size={18}
-                            color="#ffffff"
-                        />
-                    </View>
+                    onPress={issues.onPress}>
+                    <Feather
+                        name="chevron-right"
+                        size={18}
+                        color="#ffffff"
+                    />
                 </TouchableOpacity>
             </View>
-            {/*dropdown*/}
-            {expanded && (
-                <TrailDropdown
-                    beforeImageUri={issues.beforeImageUri ?? null}
-                    afterImageUri={issues.afterImageUri ?? null}
-                    notes={notes}
-                    onNotesChange={setNotes}
-                    onCameraPress={issues.onCameraPress ?? (() => {})}
-                />
-            )}
         </View>
+
+        </>
     );
 }
 
@@ -142,7 +116,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: "#35A853",
+        backgroundColor: "#3ba45c",
         justifyContent: "center",
         alignItems: "center",
         marginLeft: 8,

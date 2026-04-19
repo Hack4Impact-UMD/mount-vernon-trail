@@ -76,23 +76,24 @@ export default function RootLayout() {
 
         const nonAuthRoutes = new Set(["auth"]);
         const authRoutes = new Set([
-            "(tabs)", 
-            "trello", 
+            "(tabs)",
+            "trello",
             "home-screen",
-            "trail-document-screen", 
+            "trail-document-screen",
             "camera-view",
+            "trail-issue-screen",
             "setup-event",
             "active-event",
-            "event-summary"
+            "event-summary",
         ]);
-        // if user not authenticated, re-route to /auth if an auth route is being accessed 
+        // if user not authenticated, re-route to /auth if an auth route is being accessed
         if (!user) {
             if (!nonAuthRoutes.has(route)) {
                 router.replace("/auth");
             }
             return;
         }
-        // if user is authenticated, re-route to "home" if non-auth route is being accessed  
+        // if user is authenticated, re-route to "home" if non-auth route is being accessed
         if (!authRoutes.has(route)) {
             router.replace("/(tabs)");
         }
@@ -126,6 +127,10 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                     name="trail-document-screen"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="trail-issue-screen"
                     options={{ headerShown: false }}
                 />
                 <Stack.Screen

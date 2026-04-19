@@ -1,10 +1,10 @@
-// test-trello-integration.ts
+// test-trello.ts
 //
 // This integration test requires the Expo runtime (expo-secure-store)
 // and cannot be run directly with Node.js / ts-node.
 //
-// TrelloClient now resolves tokens from expo-secure-store internally,
-// so it cannot be instantiated outside the Expo runtime.
+// fetchTrailIssues and fetchUpcomingEvents now resolve tokens from
+// expo-secure-store internally, so they cannot be called outside Expo.
 //
 // See frontend/scripts/test-trello-auth.ts for Node-compatible unit tests.
 

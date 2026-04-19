@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text } from "react-native";
 import { TrailIssuesCard, type TrailIssueItem } from "@/components/ui/trail-issues-card";
 import { UpcomingEventsCard, type UpcomingEventItem } from "@/components/ui/upcoming-events-card";
 import { fetchTrailIssues, fetchUpcomingEvents } from "@/services/trello-service";
+import React, { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text } from "react-native";
 
-// hardcoded for testing, need to swap for real auth later
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
-const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
 
 export default function TrelloTestScreen() {
     const [issues, setIssues] = useState<TrailIssueItem[]>([]);
@@ -20,7 +18,7 @@ export default function TrelloTestScreen() {
     const [eventsError, setEventsError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!API_KEY || !API_TOKEN) {
+        if (!API_KEY) {
             const msg = "Missing Trello API credentials";
             setIssuesError(msg);
             setEventsError(msg);
@@ -28,11 +26,11 @@ export default function TrelloTestScreen() {
             setEventsLoading(false);
             return;
         }
-        fetchTrailIssues(API_KEY, API_TOKEN)
+        fetchTrailIssues(API_KEY)
             .then(setIssues)
             .catch((e) => setIssuesError(e.message))
             .finally(() => setIssuesLoading(false));
-        fetchUpcomingEvents(API_KEY, API_TOKEN)
+        fetchUpcomingEvents(API_KEY)
             .then(setEvents)
             .catch((e) => setEventsError(e.message))
             .finally(() => setEventsLoading(false));
