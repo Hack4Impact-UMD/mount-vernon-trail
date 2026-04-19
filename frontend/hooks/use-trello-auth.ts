@@ -32,7 +32,11 @@ export function useTrelloAuth() {
                     setToken(stored);
                 }
             } catch (err) {
-                console.error("Failed to restore Trello token:", err);
+                if (err instanceof TrelloAuthError) {
+                    setError(err);
+                } else {
+                    console.error("Failed to restore Trello token:", err);
+                }
             } finally {
                 setInitializing(false);
             }

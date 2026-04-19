@@ -11,7 +11,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import BottomNav from "./bottom-nav";
+
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -84,10 +84,6 @@ export default function TrelloLoginUI({
                 </View>
             </View>
 
-            <BottomNav
-                active="home"
-                onTabPress={() => {}}
-            />
         </View>
     );
 }

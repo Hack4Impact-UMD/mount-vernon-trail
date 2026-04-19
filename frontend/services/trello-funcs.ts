@@ -28,7 +28,8 @@ function isTrelloHost(url: string): boolean {
         return (
             hostname === "trello.com" ||
             hostname.endsWith(".trello.com") ||
-            hostname.endsWith(".trellousercontent.com")
+            hostname.endsWith(".trellousercontent.com") ||
+            hostname === "trello-attachments.s3.amazonaws.com"
         );
     } catch {
         return false;
