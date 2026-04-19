@@ -81,10 +81,11 @@ export default function TrailDocumentScreen() {
 
         async function loadTrailDocument() {
             if (!API_KEY) {
-                setIssuesError("Missing Trello API Credentials");
+                setLoadError("Missing Trello API Credentials");
                 return;
             }
             try {
+                setLoadError(null);
                 const trello = new TrelloClient(API_KEY);
                 const eventCard = await trello.getEventCardByID(currentEvent.trelloCardId, true);
                 const issues = await fetchDocumentTrailIssues(API_KEY, eventCard);

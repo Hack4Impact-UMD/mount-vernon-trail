@@ -31,8 +31,8 @@ export async function getTrelloToken(): Promise<string | null> {
 
     const expiryStr = await SecureStore.getItemAsync(TRELLO_TOKEN_EXPIRY_KEY);
     if (expiryStr) {
-        const expiryMs = parseInt(expiryStr, 10);
-        if (Number.isNaN(expiryMs)) {
+        const expiryMs = Number(expiryStr);
+        if (!Number.isSafeInteger(expiryMs)) {
             await clearTrelloToken();
             throw new TrelloAuthError(
                 "AUTH_FAILED",
