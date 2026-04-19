@@ -3,7 +3,13 @@ import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 import { getTrelloToken } from "../auth/trello-token-storage";
 import { TrelloAuthError } from "./trello-auth-error";
-import type { Board, Card, EventCard, List } from "./trello-types";
+import type {
+    Board,
+    Card,
+    EventCard,
+    List,
+    TrelloAttachment,
+} from "./trello-types";
 
 // helper for error message from unknown error type
 function getErrorMessage(error: unknown): string {
@@ -125,11 +131,11 @@ export class TrelloClient {
     async getCards(
         listID: string,
         sortByCreationDate: boolean = false,
-        getAttachments: boolean = false,
+        getAttachments: boolean | "cover" = false,
     ): Promise<Card[]> {
         try {
             const response = await this.client.get<Card[]>(
-                `/lists/${listID}/cards${getAttachments ? "?attachments=cover" : ""}`,
+                `/lists/${listID}/cards?attachments=${getAttachments}`,
             );
             // map to get the creation time
             // reference: https://support.atlassian.com/trello/docs/getting-the-time-a-card-or-board-was-created/
@@ -283,6 +289,69 @@ export class TrelloClient {
                 `unable to update card ${cardID}:`,
                 getErrorMessage(error),
             );
+            throw error;
+        }
+    }
+
+    // extract card ID from attachment url (so it can be fetched separately / collected for filtering)
+    // returns null if url is not a Trello card url
+    private static extractCardIDFromAttachment(
+        attachment: TrelloAttachment,
+    ): string | null {
+        const regex = /https:\/\/trello\.com\/c\/(.+?)\//;
+        const match = regex.exec(attachment.url);
+        return match ? match[1] : null;
+    }
+
+    // gets (issue) card IDs that are attachments to an event card
+    async getEventCardAttachmentIDs(eventCard: EventCard): Promise<string[]> {
+        if (!eventCard.attachments) {
+            return [];
+        }
+        const cardIDs: string[] = [];
+        for (const attachment of eventCard.attachments) {
+            const cardID = TrelloClient.extractCardIDFromAttachment(attachment);
+            if (cardID) {
+                cardIDs.push(cardID);
+            }
+        }
+        return cardIDs;
+    }
+
+    async getCardByID(
+        cardID: string,
+        getAttachments: boolean | "cover" = false,
+    ): Promise<Card> {
+        try {
+            const response = await this.client.get<Card>(
+                `/cards/${cardID}?attachments=${getAttachments}`,
+            );
+            const card = response.data;
+            card.creationDate = new Date(
+                1000 * Number.parseInt(card.id.substring(0, 8), 16),
+            );
+            return card;
+        } catch (error) {
+            console.error("unable to get card:", error);
+            throw error;
+        }
+    }
+
+    async getEventCardByID(
+        cardID: string,
+        getAttachments: boolean | "cover" = false,
+    ): Promise<EventCard> {
+        try {
+            const card = await this.getCardByID(cardID, getAttachments);
+            const eventCard = TrelloClient.cardToEventCard(card, true);
+            if (!eventCard) {
+                throw new Error(
+                    `Card with ID "${cardID}" is not a valid event card`,
+                );
+            }
+            return eventCard;
+        } catch (error) {
+            console.error("unable to get event card:", error);
             throw error;
         }
     }
