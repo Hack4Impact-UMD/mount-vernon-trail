@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         letterSpacing: -0.15,
         color: "#0A0A0A",
-        width: 70,
+        width: 100,
     },
     detailValue: {
         fontSize: 14,
