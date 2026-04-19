@@ -72,7 +72,7 @@ export default function RootLayout() {
         if (user === undefined || !fontsLoaded) return;
         SplashScreen.hideAsync();
 
-        const route = segments.join("/");
+        const route = segments[0] ?? "";
 
         const nonAuthRoutes = new Set(["auth"]);
         const authRoutes = new Set([

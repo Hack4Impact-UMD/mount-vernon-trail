@@ -93,6 +93,8 @@ export default function TrailIssueDetailScreen() {
                         style={styles.backButton}
                         onPress={() => router.back()}
                         activeOpacity={0.8}
+                        accessibilityLabel="Go back"
+                        accessibilityRole="button"
                     >
                         <Feather name="chevron-left" size={22} color="#ffffff" />
                     </TouchableOpacity>

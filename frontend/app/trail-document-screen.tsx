@@ -9,7 +9,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View, Alert, Modal, Pressable, TextInput, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { saveDraft, publishEvent } from "@/services/event-service";
+import { saveDraft, publishEvent, getActiveEvent } from "@/services/event-service";
 
 // TODO remove this after trello auth is done
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
@@ -32,11 +32,24 @@ export default function TrailDocumentScreen() {
     const [showPublishModal, setShowPublishModal] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [savingDraft, setSavingDraft] = useState(false);
+    const [activeEventId, setActiveEventId] = useState<string | null>(null);
     const [issuesError, setIssuesError] = useState<string | null>(null);
     const [statsData, setStatsData] = useState({
         trashCollection: 0,
         restorationEffort: 0,
     });
+    useEffect(() => {
+        async function loadActiveEvent() {
+            try {
+                const event = await getActiveEvent();
+                if (event) setActiveEventId(event.eventId);
+            } catch (err) {
+                console.error("Failed to fetch active event:", err);
+            }
+        }
+        loadActiveEvent();
+    }, []);
+
     useEffect(() => {
         async function loadTrailDocument() {
             if (!eventCardID) {
@@ -93,12 +106,15 @@ export default function TrailDocumentScreen() {
     }
 
     async function handleSaveDraft() {
+        if (!activeEventId) {
+            Alert.alert("Error", "No active event found.");
+            return;
+        }
         setSavingDraft(true);
         try {
-            // TODO: swap "ACTIVE_EVENT_ID" for real eventId from Firebase
-            await saveDraft("ACTIVE_EVENT_ID", notepad);
+            await saveDraft(activeEventId, notepad);
             Alert.alert("Saved", "Event saved to drafts.");
-            router.replace("/drafts");
+            router.replace("/(tabs)");
         } catch {
             Alert.alert("Error", "Could not save draft.");
         } finally {
@@ -107,10 +123,14 @@ export default function TrailDocumentScreen() {
     }
 
     async function handlePublish() {
+        if (!activeEventId) {
+            Alert.alert("Error", "No active event found.");
+            return;
+        }
         setPublishing(true);
         try {
             // TODO: call trello-service.moveCardToCompleted here too
-            await publishEvent("ACTIVE_EVENT_ID");
+            await publishEvent(activeEventId);
             setShowPublishModal(false);
             Alert.alert("Published!", "Event posted to Trello.");
             router.replace("/");

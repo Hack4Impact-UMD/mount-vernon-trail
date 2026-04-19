@@ -71,6 +71,7 @@ export async function createEvent(
         albumId,
         albumUrl,
         isActive: true,
+        isDraft: false,
         startDate: Timestamp.now(),
         endDate: null,
         createdAt: Timestamp.now(),
@@ -141,6 +142,8 @@ export async function publishEvent(eventId: string): Promise<void> {
     const db = getFirestore();
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         isDraft: false,
+        isActive: false,
+        endDate: Timestamp.now(),
         publishedAt: Timestamp.now(),
     });
 }
