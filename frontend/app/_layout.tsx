@@ -71,48 +71,30 @@ export default function RootLayout() {
     useEffect(() => {
         if (user === undefined || !fontsLoaded) return;
         SplashScreen.hideAsync();
-<<<<<<< feature/trail-issue-card-draft/chloe-srinidhi
 
         const route = segments.join("/");
 
         const nonAuthRoutes = new Set(["auth"]);
         const authRoutes = new Set([
-            "(tabs)", 
-            "trello", 
+            "(tabs)",
+            "trello",
             "home-screen",
-            "trail-document-screen", 
+            "trail-document-screen",
             "camera-view",
             "trail-issue-screen",
+            "setup-event",
+            "active-event",
+            "event-summary",
         ]);
-        // if user not authenticated, re-route to /auth if an auth route is being accessed 
+        // if user not authenticated, re-route to /auth if an auth route is being accessed
         if (!user) {
             if (!nonAuthRoutes.has(route)) {
-                router.replace("/trail-document-screen");
+                router.replace("/auth");
             }
             return;
         }
-        // if user is authenticated, re-route to "home" if non-auth route is being accessed  
+        // if user is authenticated, re-route to "home" if non-auth route is being accessed
         if (!authRoutes.has(route)) {
-=======
-        const inTabs = segments[0] === "(tabs)";
-        const onAuth = segments[0] === "auth";
-        const onTrello = segments[0] === "trello";
-        const onSetupEvent = segments[0] === "setup-event";
-        const onActiveEvent = segments[0] === "active-event";
-        const onHomeScreen = segments[0] === "home-screen";
-        const onTrailDocument = segments[0] === "trail-document-screen";
-        const onEventSummary = segments[0] === "event-summary";
-        if (
-            user &&
-            !inTabs &&
-            !onTrello &&
-            !onSetupEvent &&
-            !onActiveEvent &&
-            !onHomeScreen &&
-            !onTrailDocument &&
-            !onEventSummary
-        ) {
->>>>>>> main
             router.replace("/(tabs)");
         }
     }, [user, fontsLoaded, segments, router]);
@@ -145,6 +127,10 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                     name="trail-document-screen"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="trail-issue-screen"
                     options={{ headerShown: false }}
                 />
                 <Stack.Screen

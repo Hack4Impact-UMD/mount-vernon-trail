@@ -26,6 +26,7 @@ export default function TrailDocumentScreen() {
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [issuesData, setIssuesData] = useState([] as TrailDocumentIssueItem[]);
     const [notepad, setNotepad] = useState("");
     const [showPublishModal, setShowPublishModal] = useState(false);
@@ -40,22 +41,40 @@ export default function TrailDocumentScreen() {
         async function loadTrailDocument() {
             if (!eventCardID) {
                 console.error("event card id not found");
+                setLoadError("event card ID required");
                 return;
             }
 
-            if(!API_KEY || !API_TOKEN){
+            if (!API_KEY || !API_TOKEN) {
                 setIssuesError("Missing Trello API Credentials");
                 return;
             }
             const trello = new TrelloClient(API_KEY, API_TOKEN);
             const eventCard = await trello.getEventCardByID(eventCardID, true);
-            const issues = await fetchDocumentTrailIssues(API_KEY, API_TOKEN, eventCard);
+            const issues = await fetchDocumentTrailIssues(
+                API_KEY,
+                API_TOKEN,
+                eventCard,
+            );
             // TODO fetch stats once that flow is figured out
             const stats = {
                 trashCollection: 12,
                 restorationEffort: 250,
-            }
-            setIssuesData(issues);
+            };
+            setIssuesData([
+                {
+                    id: "mock-issue-1",
+                    name: "Fallen Tree on Main Trail",
+                    creationDate: new Date(),
+                    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/7/7f/Usamljeni_jasen_-_panoramio_%28cropped%29.jpg", // Placeholder image
+                },
+                {
+                    id: "mock-issue-2",
+                    name: "Washed out bridge",
+                    creationDate: new Date(),
+                    imageUrl: "https://www.nps.gov/neri/planyourvisit/images/web_NRG-Bridge_Louise_McLaughlin-_longer.jpg?maxwidth=1300&maxheight=1300&autorotate=false&format=webp", // Placeholder image
+                },
+            ]);
             setStatsData(stats);
         }
         loadTrailDocument();
@@ -109,19 +128,19 @@ export default function TrailDocumentScreen() {
         // temporary buttons to test navigation to camera view
         /*
         <View>
-            <Button title="before" onPress={() => 
-                router.push({ 
-                    pathname: '/camera-view', 
-                    params: { mode: 'before' }, 
+            <Button title="before" onPress={() =>
+                router.push({
+                    pathname: '/camera-view',
+                    params: { mode: 'before' },
                 })}
             />
-            <Button title="after" onPress={() => 
-                router.push({ 
-                    pathname: '/camera-view', 
-                    params: { 
+            <Button title="after" onPress={() =>
+                router.push({
+                    pathname: '/camera-view',
+                    params: {
                         mode: 'after',
                         beforeImageUri: beforeImageUri ?? "",
-                    }, 
+                    },
                 })}
             />
             {beforeImageUri ? (
@@ -147,11 +166,13 @@ export default function TrailDocumentScreen() {
         <>
             <Stack.Screen options={{ headerShown: false }} />
             <View style={styles.screen}>
-                <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                    style={styles.container}
+                    showsVerticalScrollIndicator={false}>
                     {/* App Header */}
-                    <Header userName={null} />
+                    <Header userName={""} />
                     <View style={styles.contentContainer}>
-                        {/* Page Header*/ } 
+                        {/* Page Header*/}
                         {/* TODO replace with actual page header after it is implemented */}
                         <View style={styles.headerSpacer}></View>
                         {/* Trail Issues Section */}
@@ -167,6 +188,11 @@ export default function TrailDocumentScreen() {
                                 <Text style={{ color: "#5B2D8E", fontWeight: "600", fontSize: 13 }}>Add Issue</Text>
                             </TouchableOpacity>
                         </View>
+                        {loadError && (
+                            <Text style={{ color: "red", marginBottom: 12 }}>
+                                {loadError}
+                            </Text>
+                        )}
                         <View style={styles.listContainer}>
                             {issuesData.map((issue) => (
                                 <TrailDocIssuesCard
@@ -183,7 +209,7 @@ export default function TrailDocumentScreen() {
                             ))}
                         </View>
 
-                        
+
                        {/* Notepad Section */}
                     <Text style={styles.sectionTitle}>Notepad</Text>
                     <TextInput
@@ -227,12 +253,11 @@ export default function TrailDocumentScreen() {
                     </View>
                     </View>
                 </ScrollView>
-                <BottomNav 
-                    active={active} 
-                    onTabPress={(tab) => setActive(tab)}
-                ></BottomNav>
+                <BottomNav
+                    active={active}
+                    onTabPress={(tab) => setActive(tab)}></BottomNav>
             </View>
-            
+
             <Modal visible={showPublishModal} transparent animationType="fade"
                 onRequestClose={() => setShowPublishModal(false)}>
                 <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
@@ -280,11 +305,11 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         fontSize: 20,
-        fontWeight: '700',
+        fontWeight: "700",
         marginBottom: 12,
     },
     headerSpacer: {
-        height: 120
+        height: 120,
     },
     container: {
         flex: 1,

@@ -55,7 +55,7 @@ export async function fetchDocumentTrailIssues(
     return await Promise.all(
         attachmentIDs.map(async (id) => {
             // get issue card by ID
-            const card = await trello.getCardByID(id, true);
+            const card = await trello.getCardByID(id, "cover");
             // get cover image (if it exists) associated with issue card
             // that is an attachment to the event card
             const imageUrl =
