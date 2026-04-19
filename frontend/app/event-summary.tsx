@@ -118,8 +118,7 @@ export default function EventSummaryScreen() {
         setSaving(true);
         try {
             const key = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
-            const token = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN ?? "";
-            await moveCardToCompleted(event.trelloCardId, key, token);
+            await moveCardToCompleted(event.trelloCardId, key);
             setSaved(true);
         } catch (e) {
             Alert.alert("Save failed", (e as Error).message);
