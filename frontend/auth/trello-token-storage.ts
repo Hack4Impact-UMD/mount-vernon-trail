@@ -4,10 +4,8 @@ import { TrelloAuthError } from "../services/trello-auth-error";
 const TRELLO_TOKEN_KEY = "trello_user_token";
 const TRELLO_TOKEN_EXPIRY_KEY = "trello_token_expiry";
 
-
-
 // Save the Trello oauth token
-//  expiresInDays defaults to 30 (matching our Trello OAuth config). 
+//  expiresInDays defaults to 30 (matching our Trello OAuth config).
 export async function saveTrelloToken(
     token: string,
     expiresInDays: number | null = 30,
@@ -35,8 +33,11 @@ export async function getTrelloToken(): Promise<string | null> {
     if (expiryStr) {
         const expiryMs = parseInt(expiryStr, 10);
         if (Number.isNaN(expiryMs)) {
-            await SecureStore.deleteItemAsync(TRELLO_TOKEN_EXPIRY_KEY);
-            return token;
+            await clearTrelloToken();
+            throw new TrelloAuthError(
+                "AUTH_FAILED",
+                "Invalid token expiry format.",
+            );
         }
         if (Date.now() > expiryMs) {
             await clearTrelloToken();

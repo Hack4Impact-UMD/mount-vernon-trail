@@ -2,6 +2,7 @@ import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import { TrailDocStatsCard } from "@/components/ui/trail-doc-stats-card";
+import { TrelloAuthError } from "@/services/trello-auth-error";
 import { TrelloClient } from "@/services/trello-funcs";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
@@ -9,9 +10,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-// TODO remove this after trello auth is done
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
-const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
 
 export default function TrailDocumentScreen() {
     const router = useRouter();
@@ -41,36 +40,31 @@ export default function TrailDocumentScreen() {
                 return;
             }
 
-            if (!API_KEY || !API_TOKEN) {
+            if (!API_KEY) {
                 setIssuesError("Missing Trello API Credentials");
                 return;
             }
-            const trello = new TrelloClient(API_KEY);
-            const eventCard = await trello.getEventCardByID(eventCardID, true);
-            const issues = await fetchDocumentTrailIssues(
-                API_KEY,
-                eventCard,
-            );
-            // TODO fetch stats once that flow is figured out
-            const stats = {
-                trashCollection: 12,
-                restorationEffort: 250,
-            };
-            setIssuesData([
-                {
-                    id: "mock-issue-1",
-                    name: "Fallen Tree on Main Trail",
-                    creationDate: new Date(),
-                    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/7/7f/Usamljeni_jasen_-_panoramio_%28cropped%29.jpg", // Placeholder image
-                },
-                {
-                    id: "mock-issue-2",
-                    name: "Washed out bridge",
-                    creationDate: new Date(),
-                    imageUrl: "https://www.nps.gov/neri/planyourvisit/images/web_NRG-Bridge_Louise_McLaughlin-_longer.jpg?maxwidth=1300&maxheight=1300&autorotate=false&format=webp", // Placeholder image
-                },
-            ]);
-            setStatsData(stats);
+            try {
+                const trello = new TrelloClient(API_KEY);
+                const eventCard = await trello.getEventCardByID(eventCardID, true);
+                const issues = await fetchDocumentTrailIssues(
+                    API_KEY,
+                    eventCard,
+                );
+                // TODO fetch stats once that flow is figured out
+                const stats = {
+                    trashCollection: 12,
+                    restorationEffort: 250,
+                };
+                setIssuesData(issues);
+                setStatsData(stats);
+            } catch (error) {
+                if (error instanceof TrelloAuthError) {
+                    setLoadError(error.message);
+                    return;
+                }
+                setLoadError((error as Error).message || "Failed to load trail document");
+            }
         }
         loadTrailDocument();
     }, [eventCardID]);

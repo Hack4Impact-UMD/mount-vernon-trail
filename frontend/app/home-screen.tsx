@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/upcoming-events-card";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { fetchUpcomingEvents } from "@/services/trello-service";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import BottomNav from "../components/ui/bottom-nav";
@@ -47,7 +47,8 @@ const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
 ];
 
 export default function HomeScreen() {
-    const { token, isAuthenticated, promptSignIn, loading, initializing } = useTrelloAuth();
+    const router = useRouter();
+    const { isAuthenticated, promptSignIn, loading, initializing, error: trelloError } = useTrelloAuth();
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
@@ -55,6 +56,13 @@ export default function HomeScreen() {
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
+
+    const handleTrelloSignIn = async () => {
+        const ok = await promptSignIn();
+        if (ok) {
+            router.replace("/home-screen");
+        }
+    }
 
     useEffect(() => {
         if (!isAuthenticated || !API_KEY) {
@@ -72,8 +80,9 @@ export default function HomeScreen() {
         return (
             <TrelloLoginUI
                 userName="Sarah"
-                onPressTrello={promptSignIn}
+                onPressTrello={handleTrelloSignIn}
                 isLoading={loading || initializing}
+                errorMessage={trelloError?.message ?? null}
             />
         )
     }
