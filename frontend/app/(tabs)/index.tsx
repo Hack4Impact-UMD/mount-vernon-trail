@@ -16,9 +16,6 @@ export default function HomeScreen() {
     const router = useRouter();
     const { loading: trelloLoading, handleSignOut: handleTrelloSignOut, isAuthenticated } = useTrelloAuth();
     const { user, loading, error, handleSignOut } = useGoogleAuth();
-    
-    // temporary for testing trail document screen 
-    const eventCardID = "69b9c0d995522b9b514f88fb";
     const [checkingEvent, setCheckingEvent] = useState(true);
     const [eventError, setEventError] = useState<string | null>(null);
 
