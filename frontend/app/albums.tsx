@@ -4,6 +4,7 @@ import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -45,10 +46,23 @@ function formatDate(isoString?: string): string {
 }
 
 function AlbumCard({ album }: { album: GooglePhotosAlbum }) {
+    const [favorited, setFavorited] = useState(false);
     const photoCount = (album as any).mediaItemsCount ?? null;
     const coverUrl = album.coverPhotoBaseUrl
         ? `${album.coverPhotoBaseUrl}=w600-h300-c`
         : null;
+
+    useEffect(() => {
+        AsyncStorage.getItem(`favorite:${album.id}`).then((val) => {
+            if (val !== null) setFavorited(val === "true");
+        });
+    }, [album.id]);
+
+    const toggleFavorite = async () => {
+        const next = !favorited;
+        setFavorited(next);
+        await AsyncStorage.setItem(`favorite:${album.id}`, String(next));
+    };
 
     return (
         <View style={styles.card}>
@@ -66,13 +80,21 @@ function AlbumCard({ album }: { album: GooglePhotosAlbum }) {
                         </Text>
                     </View>
                 )}
-                <View style={styles.starBadge}>
+                <Pressable
+                    style={[
+                        styles.starBadge,
+                        favorited
+                            ? styles.starBadgeFavorited
+                            : styles.starBadgeUnfavorited,
+                    ]}
+                    onPress={toggleFavorite}
+                    hitSlop={8}>
                     <MaterialIcons
                         name="star"
                         size={18}
                         color="#fff"
                     />
-                </View>
+                </Pressable>
             </View>
             <View style={styles.cardFooter}>
                 <View style={styles.cardFooterLeft}>
@@ -301,9 +323,14 @@ const styles = StyleSheet.create({
         width: 34,
         height: 34,
         borderRadius: 17,
-        backgroundColor: "#D4930D",
         justifyContent: "center",
         alignItems: "center",
+    },
+    starBadgeFavorited: {
+        backgroundColor: "#FFD700",
+    },
+    starBadgeUnfavorited: {
+        backgroundColor: "#AAAAAA",
     },
     cardFooter: {
         flexDirection: "row",
