@@ -19,12 +19,14 @@ type TrelloLoginUIProps = {
     userName: string;
     onPressTrello: () => void;
     isLoading?: boolean;
+    errorMessage?: string | null;
 };
 
 export default function TrelloLoginUI({
     userName,
     onPressTrello,
     isLoading = false,
+    errorMessage = null,
 }: TrelloLoginUIProps) {
     const insets = useSafeAreaInsets();
 
@@ -73,6 +75,9 @@ export default function TrelloLoginUI({
                             )}
                         </View>
                     </Pressable>
+                    {errorMessage && (
+                        <Text style={styles.errorText}>{errorMessage}</Text>
+                    )}
                 </View>
 
                 <View style={styles.beaverWrap}>
@@ -172,4 +177,11 @@ const styles = StyleSheet.create({
         width: SCREEN_WIDTH * (270 / 390),
         height: SCREEN_HEIGHT * (200 / 810),
     },
+    errorText: {
+        color: "red",
+        textAlign: "center",
+        marginTop: 12,
+        fontFamily: "Lato_700Bold",
+        fontSize: 14,
+    }
 });

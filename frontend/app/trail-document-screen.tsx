@@ -3,17 +3,16 @@ import HomeHeader from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import { TrailDocStatsCard } from "@/components/ui/trail-doc-stats-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
+import type { Event } from "@/services/event-service";
+import { getActiveEvent, getEventById, publishEvent, saveDraft } from "@/services/event-service";
 import { TrelloClient } from "@/services/trello-funcs";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
-import type { Event } from "@/services/event-service";
-import { getEventById, saveDraft, publishEvent, getActiveEvent } from "@/services/event-service";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Alert, Modal, Pressable, TextInput, TouchableOpacity } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
-// TODO remove this after trello auth is done
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
 export default function TrailDocumentScreen() {
@@ -82,10 +81,11 @@ export default function TrailDocumentScreen() {
 
         async function loadTrailDocument() {
             if (!API_KEY) {
-                setIssuesError("Missing Trello API Credentials");
+                setLoadError("Missing Trello API Credentials");
                 return;
             }
             try {
+                setLoadError(null);
                 const trello = new TrelloClient(API_KEY);
                 const eventCard = await trello.getEventCardByID(currentEvent.trelloCardId, true);
                 const issues = await fetchDocumentTrailIssues(API_KEY, eventCard);

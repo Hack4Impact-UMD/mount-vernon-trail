@@ -11,8 +11,8 @@ import { TrelloAuthError } from "../services/trello-auth-error";
 WebBrowser.maybeCompleteAuthSession();
 
 // better for security reasons to have 30days as an expiration
-const TOKEN_EXPIRATION = "30days";
 const TOKEN_EXPIRATION_DAYS = 30; // must match TOKEN_EXPIRATION
+const TOKEN_EXPIRATION = `${TOKEN_EXPIRATION_DAYS}days`;
 
 // hook for trello oauth lifecycle
 // sign in, sign out, token restoration, and handling auth failures
@@ -71,6 +71,7 @@ export function useTrelloAuth() {
                 if (accessToken) {
                     await saveTrelloToken(accessToken, TOKEN_EXPIRATION_DAYS);
                     setToken(accessToken);
+                    return true;
                 } else {
                     setError(
                         new TrelloAuthError(
@@ -78,9 +79,11 @@ export function useTrelloAuth() {
                             "No token found in callback URL.",
                         ),
                     );
+                    return false;
                 }
             } else if (result.type === "dismiss" || result.type === "cancel") {
                 setError(new TrelloAuthError("AUTH_CANCELLED"));
+                return false;
             } else {
                 setError(
                     new TrelloAuthError(
@@ -88,11 +91,13 @@ export function useTrelloAuth() {
                         "Authentication session failed or was aborted.",
                     ),
                 );
+                return false;
             }
         } catch (err) {
             setError(
                 new TrelloAuthError("AUTH_FAILED", (err as Error).message),
             );
+            return false;
         } finally {
             setLoading(false);
         }

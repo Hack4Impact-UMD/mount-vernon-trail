@@ -50,7 +50,8 @@ const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
 ];
 
 export default function HomeScreen() {
-    const { token, isAuthenticated, promptSignIn, loading, initializing } = useTrelloAuth();
+    const router = useRouter();
+    const { isAuthenticated, promptSignIn, loading, initializing, error: trelloError } = useTrelloAuth();
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
@@ -60,6 +61,13 @@ export default function HomeScreen() {
     const [eventsError, setEventsError] = useState<string | null>(null);
     const isAdmin = useIsAdmin();
     const router = useRouter();
+
+    const handleTrelloSignIn = async () => {
+        const ok = await promptSignIn();
+        if (ok) {
+            router.replace("/home-screen");
+        }
+    }
 
     useEffect(() => {
         if (!isAuthenticated || !API_KEY) {
@@ -77,8 +85,9 @@ export default function HomeScreen() {
         return (
             <TrelloLoginUI
                 userName="Sarah"
-                onPressTrello={promptSignIn}
+                onPressTrello={handleTrelloSignIn}
                 isLoading={loading || initializing}
+                errorMessage={trelloError?.message ?? null}
             />
         )
     }
