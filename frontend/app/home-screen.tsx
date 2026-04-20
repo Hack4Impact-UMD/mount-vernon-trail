@@ -1,7 +1,9 @@
+import TrelloLoginUI from "@/components/ui/trello-login";
 import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
+import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { fetchUpcomingEvents } from "@/services/trello-service";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -13,9 +15,7 @@ import MakeBeforeAfterGraphic from "@/components/ui/make-graphic";
 import CreateNewEvent from "@/components/ui/create-new-event";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 
-// hardcoded for testing, need to swap for real auth later
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
-const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
 
 // THESE ARE PLACEHOLDER EVENTS FOR THE PAST EVENTS FIGMA DESIGN
 const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
@@ -50,6 +50,7 @@ const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
 ];
 
 export default function HomeScreen() {
+    const { token, isAuthenticated, promptSignIn, loading, initializing } = useTrelloAuth();
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
@@ -61,16 +62,26 @@ export default function HomeScreen() {
     const router = useRouter();
 
     useEffect(() => {
-        if (!API_KEY || !API_TOKEN) {
-            setEventsError("Missing Trello API credentials");
+        if (!isAuthenticated || !API_KEY) {
             setEventsLoading(false);
             return;
         }
-        fetchUpcomingEvents(API_KEY, API_TOKEN)
+        setEventsLoading(true);
+        fetchUpcomingEvents(API_KEY)
             .then(setEvents)
             .catch((e) => setEventsError(e.message))
             .finally(() => setEventsLoading(false));
-    }, []);
+    }, [isAuthenticated]);
+
+    if (!isAuthenticated) {
+        return (
+            <TrelloLoginUI
+                userName="Sarah"
+                onPressTrello={promptSignIn}
+                isLoading={loading || initializing}
+            />
+        )
+    }
 
     return (
         <>

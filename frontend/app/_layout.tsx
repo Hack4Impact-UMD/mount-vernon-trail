@@ -81,6 +81,7 @@ export default function RootLayout() {
             "home-screen",
             "trail-document-screen",
             "camera-view",
+            "trail-issue-screen",
             "setup-event",
             "active-event",
             "event-summary",
@@ -127,6 +128,10 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                     name="trail-document-screen"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="trail-issue-screen"
                     options={{ headerShown: false }}
                 />
                 <Stack.Screen

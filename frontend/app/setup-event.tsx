@@ -18,7 +18,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const TRELLO_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
-const TRELLO_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN ?? "";
 
 export default function SetupEventScreen() {
     const router = useRouter();
@@ -59,7 +58,6 @@ export default function SetupEventScreen() {
                 getDateString(eventDate),
                 description.trim(),
                 TRELLO_KEY,
-                TRELLO_TOKEN,
             );
 
             // adds the album link to the trello card
@@ -67,7 +65,6 @@ export default function SetupEventScreen() {
                 cardId,
                 albumUrl,
                 TRELLO_KEY,
-                TRELLO_TOKEN,
             );
 
             // creates an event document in firebase
