@@ -7,6 +7,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
+import { getFirestore, getDocs, collection } from "firebase/firestore";
 import {
     ActivityIndicator,
     Image,
@@ -18,25 +19,54 @@ import {
     View,
 } from "react-native";
 
+// Google Photos API return mediaItemsCount as string instead of number
+// Created a new type that has mediaItemsCount as number
+type NormalizedAlbum = Omit<GooglePhotosAlbum, "mediaItemsCount"> & {
+    mediaItemsCount: number | null;
+    appCreatedAt?: number;
+};
+async function getAlbumMeta() {
+    const db = getFirestore();
+    const snapshot = await getDocs(collection(db, "albums"));
+    const map: Record<string, number> = {};
+    snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.albumId && data.createdAt) {
+            map[data.albumId] = data.createdAt.toMillis();
+        }
+    });
+    return map;
+}
+
 async function fetchAllAlbums(
     accessToken: string,
-): Promise<GooglePhotosAlbum[]> {
-    const all: GooglePhotosAlbum[] = [];
+): Promise<NormalizedAlbum[]> {
+    const all: NormalizedAlbum[] = [];
     let pageToken: string | undefined;
+    const metaMap = await getAlbumMeta();
     do {
         const { albums, nextPageToken } = await listAlbums(
             accessToken,
             pageToken,
         );
-        all.push(...albums);
+        const normalized = await Promise.all(
+            albums.map(async (a) => {
+                return {
+                    ...a,
+                    mediaItemsCount: a.mediaItemsCount !== undefined ? Number(a.mediaItemsCount) : null,
+                    appCreatedAt: metaMap[a.id],
+                };
+            })
+        );
+        all.push(...normalized);
         pageToken = nextPageToken;
     } while (pageToken);
     return all;
 }
 
-function formatDate(isoString?: string): string {
-    if (!isoString) return "";
-    const d = new Date(isoString);
+function formatDate(value?: string | number): string {
+    if (!value) return "";
+    const d = new Date(value);
     if (isNaN(d.getTime())) return "";
     return d.toLocaleDateString("en-US", {
         month: "short",
@@ -45,7 +75,7 @@ function formatDate(isoString?: string): string {
     });
 }
 
-function AlbumCard({ album }: { album: GooglePhotosAlbum }) {
+function AlbumCard({ album }: { album: NormalizedAlbum }) {
     const [favorited, setFavorited] = useState(false);
     const photoCount = (album as any).mediaItemsCount ?? null;
     const coverUrl = album.coverPhotoBaseUrl
@@ -65,22 +95,23 @@ function AlbumCard({ album }: { album: GooglePhotosAlbum }) {
     };
 
     return (
-        <View style={styles.card}>
-            <View style={styles.coverWrap}>
-                {coverUrl ? (
-                    <Image
-                        source={{ uri: coverUrl }}
-                        style={styles.coverImage}
-                        resizeMode="cover"
-                    />
-                ) : (
-                    <View style={[styles.coverImage, styles.coverPlaceholder]}>
-                        <Text style={styles.coverPlaceholderCount}>
-                            {photoCount ?? ""}
-                        </Text>
-                    </View>
-                )}
-                <Pressable
+        <View style={styles.cardShadow}>
+            <View style={styles.card}>
+                <View style={styles.coverWrap}>
+                    {coverUrl ? (
+                        <Image
+                            source={{ uri: coverUrl }}
+                            style={styles.coverImage}
+                            resizeMode="cover"
+                        />
+                    ) : (
+                        <View style={[styles.coverImage, styles.coverPlaceholder]}>
+                            <Text style={styles.coverPlaceholderCount}>
+                                {photoCount !== null ? photoCount : ""}
+                            </Text>
+                        </View>
+                    )}
+                    <Pressable
                     style={[
                         styles.starBadge,
                         favorited
@@ -89,38 +120,39 @@ function AlbumCard({ album }: { album: GooglePhotosAlbum }) {
                     ]}
                     onPress={toggleFavorite}
                     hitSlop={8}>
-                    <MaterialIcons
-                        name="star"
-                        size={18}
-                        color="#fff"
-                    />
-                </Pressable>
-            </View>
-            <View style={styles.cardFooter}>
-                <View style={styles.cardFooterLeft}>
-                    <Text
-                        style={styles.albumTitle}
-                        numberOfLines={1}>
-                        {album.title}
-                    </Text>
-                    <View style={styles.dateRow}>
                         <MaterialIcons
-                            name="calendar-today"
-                            size={12}
-                            color="#888"
+                            name="star"
+                            size={18}
+                            color="#fff"
                         />
-                        <Text style={styles.albumDate}>
-                            {formatDate((album as any).creationTime)}
-                        </Text>
-                    </View>
+                    </Pressable>
                 </View>
-                {photoCount !== null && (
-                    <View style={styles.photoBadge}>
-                        <Text style={styles.photoBadgeText}>
-                            {photoCount} photo{photoCount !== 1 ? "s" : ""}
+                <View style={styles.cardFooter}>
+                    <View style={styles.cardFooterLeft}>
+                        <Text
+                            style={styles.albumTitle}
+                            numberOfLines={1}>
+                            {album.title}
                         </Text>
+                        <View style={styles.dateRow}>
+                            <MaterialIcons
+                                name="calendar-today"
+                                size={14}
+                                color="#6D6E71"
+                            />
+                            <Text style={styles.albumDate}>
+                                {album.appCreatedAt ? formatDate(album.appCreatedAt) : ""}
+                            </Text>
+                        </View>
                     </View>
-                )}
+                    {photoCount !== null && (
+                        <View style={styles.photoBadge}>
+                            <Text style={styles.photoBadgeText}>
+                                {photoCount} photo{photoCount !== 1 ? "s" : ""}
+                            </Text>
+                        </View>
+                    )}
+                </View>
             </View>
         </View>
     );
@@ -128,7 +160,7 @@ function AlbumCard({ album }: { album: GooglePhotosAlbum }) {
 
 export default function AlbumsScreen() {
     const isAdmin = useIsAdmin();
-    const [albums, setAlbums] = useState<GooglePhotosAlbum[]>([]);
+    const [albums, setAlbums] = useState<NormalizedAlbum[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -151,14 +183,20 @@ export default function AlbumsScreen() {
     }, []);
 
     useEffect(() => {
+        if (!isAdmin) {
+            setLoading(false);
+            return;
+        }
+
         loadAlbums().finally(() => setLoading(false));
-    }, [loadAlbums]);
+    }, [loadAlbums, isAdmin]);
 
     const handleRefresh = useCallback(async () => {
+        if (!isAdmin) return;
         setRefreshing(true);
         await loadAlbums();
         setRefreshing(false);
-    }, [loadAlbums]);
+    }, [loadAlbums, isAdmin]);
 
     const renderContent = () => {
         if (loading) {
@@ -168,6 +206,20 @@ export default function AlbumsScreen() {
                         size="large"
                         color={Palette.primaryPurple100}
                     />
+                </View>
+            );
+        }
+        if (!isAdmin) {
+            return (
+                <View style={styles.centered}>
+                    <MaterialIcons
+                        name="lock-outline"
+                        size={48}
+                        color="#ccc"
+                    />
+                    <Text style={styles.emptyText}>
+                        Albums are only accessible to the admin account.
+                    </Text>
                 </View>
             );
         }
@@ -185,20 +237,6 @@ export default function AlbumsScreen() {
                         onPress={handleRefresh}>
                         <Text style={styles.retryText}>Retry</Text>
                     </Pressable>
-                </View>
-            );
-        }
-        if (!isAdmin) {
-            return (
-                <View style={styles.centered}>
-                    <MaterialIcons
-                        name="lock-outline"
-                        size={48}
-                        color="#ccc"
-                    />
-                    <Text style={styles.emptyText}>
-                        Albums are only accessible to the admin account.
-                    </Text>
                 </View>
             );
         }
@@ -244,7 +282,7 @@ export default function AlbumsScreen() {
                     }>
                     <View style={styles.headingRow}>
                         <Text style={styles.heading}>Albums</Text>
-                        {!loading && !error && albums.length > 0 && (
+                        {isAdmin && !loading && !error && albums.length > 0 && (
                             <Text style={styles.albumCount}>
                                 {albums.length} album
                                 {albums.length !== 1 ? "s" : ""}
@@ -291,20 +329,29 @@ const styles = StyleSheet.create({
     card: {
         backgroundColor: "#fff",
         borderRadius: 16,
+        paddingBottom: 15,
         overflow: "hidden",
+    },
+    cardShadow: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
         elevation: 3,
+        borderRadius: 16,
     },
     coverWrap: {
         position: "relative",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.18,
+        shadowRadius: 6,
     },
     coverImage: {
         width: "100%",
         height: 160,
         backgroundColor: Palette.teal,
+        elevation: 2,
     },
     coverPlaceholder: {
         justifyContent: "center",
@@ -351,22 +398,23 @@ const styles = StyleSheet.create({
     dateRow: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 4,
+        gap: 5,
+        marginTop: 5,
     },
     albumDate: {
         fontSize: 12,
-        color: "#888",
+        color: "#6D6E71",
         fontFamily: "Lato_400Regular",
     },
     photoBadge: {
-        backgroundColor: "#F0F0F0",
+        backgroundColor: "#F5F5F5",
         paddingHorizontal: 10,
-        paddingVertical: 4,
+        paddingVertical: 5,
         borderRadius: 20,
     },
     photoBadgeText: {
         fontSize: 12,
-        color: "#555",
+        color: "#939598",
         fontWeight: "600",
         fontFamily: "Lato_700Bold",
     },

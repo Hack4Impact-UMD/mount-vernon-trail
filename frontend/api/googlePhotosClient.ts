@@ -9,6 +9,7 @@ export interface GooglePhotosAlbum {
     title: string;
     productUrl?: string;
     isWriteable?: boolean;
+    mediaItemsCount?: string;
     coverPhotoBaseUrl?: string;
     coverPhotoMediaItemId?: string;
 }
