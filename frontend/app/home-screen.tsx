@@ -5,12 +5,15 @@ import {
 } from "@/components/ui/upcoming-events-card";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { fetchUpcomingEvents } from "@/services/trello-service";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import BottomNav from "../components/ui/bottom-nav";
-import Header from "../components/ui/header";
-import StartEventCard from "../components/ui/start-event-card";
+import BottomNav from "@/components/ui/bottom-nav";
+import Header from "@/components/ui/header";
+import TakeAfterPicture from "@/components/ui/take-after-picture";
+import MakeBeforeAfterGraphic from "@/components/ui/make-graphic";
+import CreateNewEvent from "@/components/ui/create-new-event";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
@@ -55,6 +58,8 @@ export default function HomeScreen() {
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
+    const isAdmin = useIsAdmin();
+    const router = useRouter();
 
     useEffect(() => {
         if (!isAuthenticated || !API_KEY) {
@@ -81,7 +86,6 @@ export default function HomeScreen() {
     return (
         <>
             <Stack.Screen options={{ headerShown: false }} />
-
             <View style={styles.screen}>
                 <ScrollView
                     style={styles.scroll}
@@ -89,7 +93,11 @@ export default function HomeScreen() {
                     showsVerticalScrollIndicator={false}>
                     <Header userName="Sarah" showGreeting />
                     <View style={styles.cardWrapper}>
-                        <StartEventCard />
+                        <TakeAfterPicture />
+                        <MakeBeforeAfterGraphic />
+                        {isAdmin && (
+                            <CreateNewEvent onPress={() => router.push("/setup-event")} />
+                        )}
                     </View>
                     <View style={styles.eventsSection}>
                         <UpcomingEventsCard
@@ -142,6 +150,7 @@ const styles = StyleSheet.create({
     cardWrapper: {
         marginTop: 10,
         paddingHorizontal: 20,
+        gap: 10,
     },
     eventsSection: {
         marginTop: 35,

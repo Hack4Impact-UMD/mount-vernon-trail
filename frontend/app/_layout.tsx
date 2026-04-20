@@ -85,6 +85,7 @@ export default function RootLayout() {
             "setup-event",
             "active-event",
             "event-summary",
+            "albums",
         ]);
         // if user not authenticated, re-route to /auth if an auth route is being accessed
         if (!user) {
@@ -139,6 +140,10 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                     name="event-summary"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="albums"
                     options={{ headerShown: false }}
                 />
             </Stack>

@@ -109,6 +109,11 @@ export default function HomeScreen() {
                     </Pressable>
                 }
                 <Pressable
+                    style={styles.button}
+                    onPress={() => router.push("/albums")}>
+                    <Text style={styles.buttonText}>Albums</Text>
+                </Pressable>
+                <Pressable
                     style={[
                         styles.signOutButton,
                         loading && styles.signOutDisabled,
