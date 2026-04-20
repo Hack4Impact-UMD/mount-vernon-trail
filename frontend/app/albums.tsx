@@ -53,7 +53,7 @@ async function fetchAllAlbums(
             albums.map(async (a) => {
                 return {
                     ...a,
-                    mediaItemsCount: a.mediaItemsCount !== undefined ? Number(a.mediaItemsCount) : null,
+                    mediaItemsCount: a.mediaItemsCount ? Number(a.mediaItemsCount) : null,
                     appCreatedAt: metaMap[a.id],
                 };
             })
@@ -77,7 +77,7 @@ function formatDate(value?: string | number): string {
 
 function AlbumCard({ album }: { album: NormalizedAlbum }) {
     const [favorited, setFavorited] = useState(false);
-    const photoCount = (album as any).mediaItemsCount ?? null;
+    const photoCount = album.mediaItemsCount ?? null;
     const coverUrl = album.coverPhotoBaseUrl
         ? `${album.coverPhotoBaseUrl}=w600-h300-c`
         : null;
@@ -107,7 +107,7 @@ function AlbumCard({ album }: { album: NormalizedAlbum }) {
                     ) : (
                         <View style={[styles.coverImage, styles.coverPlaceholder]}>
                             <Text style={styles.coverPlaceholderCount}>
-                                {photoCount !== null ? photoCount : ""}
+                                {photoCount ?? ""}
                             </Text>
                         </View>
                     )}
@@ -145,7 +145,7 @@ function AlbumCard({ album }: { album: NormalizedAlbum }) {
                             </Text>
                         </View>
                     </View>
-                    {photoCount !== null && (
+                    {photoCount && (
                         <View style={styles.photoBadge}>
                             <Text style={styles.photoBadgeText}>
                                 {photoCount} photo{photoCount !== 1 ? "s" : ""}
