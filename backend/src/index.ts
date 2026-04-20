@@ -51,6 +51,27 @@ const scopes = [
 let accessToken: string | null = null;
 let tokenExpiryTime: number = 0;
 
+// Returns a valid access token, refreshing via the stored refresh token if needed.
+async function getAccessToken(): Promise<string> {
+    // 60s buffer so token isnt handed out that expires mid request
+    if (accessToken && Date.now() < tokenExpiryTime - 60000) {
+        return accessToken;
+    }
+    // Fetch refresh token from Redis
+    const refreshToken = await redis.get<string>("refresh_token");
+    if (!refreshToken) {
+        throw new Error("No refresh token, need to sign in");
+    }
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
+    const { token } = await oauth2Client.getAccessToken();
+    if (!token) {
+        throw new Error("Failed to refresh access token");
+    }
+    accessToken = token;
+    tokenExpiryTime = oauth2Client.credentials.expiry_date!;
+    return token;
+}
+
 app.get("/", (req: Request, res: Response) => {
     res.send("Hello World!");
 });
@@ -131,9 +152,38 @@ app.post("/api/albums", async (req: Request, res: Response) => {
     // code here
 });
 
-// TODO: google photos list albums endpoint
+// Lists albums created by this app
 app.get("/api/albums", async (req: Request, res: Response) => {
-    // code here
+    try {
+        const token = await getAccessToken();
+        const response = await fetch(
+            "https://photoslibrary.googleapis.com/v1/albums",
+            { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!response.ok) {
+            const body = await response.text();
+            console.error("Google Photos API error:", response.status, body);
+            return res.status(502).json({
+                error: "Google Photos API error",
+                status: response.status,
+                body,
+            });
+        }
+        const data = await response.json();
+        return res.status(200).json(data);
+    } catch (error) {
+        // Missing refresh token
+        if (
+            error instanceof Error &&
+            error.message.includes("No refresh token")
+        ) {
+            return res.status(401).json({
+                error: "Not authenticated. Admin must sign in.",
+            });
+        }
+        console.error("Error listing albums:", error);
+        return res.status(500).json({ error: "Failed to list albums" });
+    }
 });
 
 // TODO: get images in album endpoint
