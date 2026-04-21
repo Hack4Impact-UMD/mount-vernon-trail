@@ -23,8 +23,6 @@ export default function TrailEventCard({
 }: TrailEventCardProps) {
     const [showConfirmation, setShowConfirmation] = useState(false);
 
-    if (!event) return null;
-
     const handleClose = () => {
         setShowConfirmation(false);
         onClose();
@@ -36,96 +34,100 @@ export default function TrailEventCard({
             transparent
             animationType="slide"
             onRequestClose={handleClose}>
-            <View style={styles.modalContainer}>
-                <Pressable
-                    style={styles.backdrop}
-                    onPress={handleClose}
-                />
-
-                <View style={styles.card}>
-                    {/* Back button */}
+            {event ? (
+                <View style={styles.modalContainer}>
                     <Pressable
-                        style={styles.backButton}
+                        style={styles.backdrop}
                         onPress={handleClose}
-                        hitSlop={8}>
-                        <ArrowLeft
-                            size={20}
-                            color={"#0A0A0A"}
-                        />
-                        <Text style={styles.backText}>Back</Text>
-                    </Pressable>
+                    />
 
-                    {/* Title */}
-                    <Text style={styles.heading}>Today's Event</Text>
-                    <View style={styles.divider} />
+                    <View style={styles.card}>
+                        {/* Back button */}
+                        <Pressable
+                            style={styles.backButton}
+                            onPress={handleClose}
+                            hitSlop={8}>
+                            <ArrowLeft
+                                size={20}
+                                color={"#0A0A0A"}
+                            />
+                            <Text style={styles.backText}>Back</Text>
+                        </Pressable>
 
-                    {/* Event details */}
-                    <Text style={styles.eventName}>{event.name}</Text>
-                    <Text style={styles.eventDate}>
-                        {formatEventDate(event.date)}
-                    </Text>
+                        {/* Title */}
+                        <Text style={styles.heading}>Today's Event</Text>
+                        <View style={styles.divider} />
 
-                    <View style={styles.detailsSection}>
-                        {event.eventLeader ? (
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>
-                                    Event Leader:
-                                </Text>
-                                <Text style={styles.detailValue}>
-                                    {event.eventLeader}
-                                </Text>
-                            </View>
-                        ) : null}
-                        {event.zoneLeaders ? (
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>
-                                    Zone Leaders:
-                                </Text>
-                                <Text style={styles.detailValue}>
-                                    {event.zoneLeaders}
-                                </Text>
-                            </View>
-                        ) : null}
-                        {event.workScope ? (
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>
-                                    Work Scope:
-                                </Text>
-                                <Text style={styles.detailValue}>
-                                    {event.workScope}
-                                </Text>
-                            </View>
-                        ) : null}
+                        {/* Event details */}
+                        <Text style={styles.eventName}>{event.name}</Text>
+                        <Text style={styles.eventDate}>
+                            {formatEventDate(event.date)}
+                        </Text>
+
+                        <View style={styles.detailsSection}>
+                            {event.eventLeader ? (
+                                <View style={styles.detailRow}>
+                                    <Text style={styles.detailLabel}>
+                                        Event Leader:
+                                    </Text>
+                                    <Text style={styles.detailValue}>
+                                        {event.eventLeader}
+                                    </Text>
+                                </View>
+                            ) : null}
+                            {event.zoneLeaders ? (
+                                <View style={styles.detailRow}>
+                                    <Text style={styles.detailLabel}>
+                                        Zone Leaders:
+                                    </Text>
+                                    <Text style={styles.detailValue}>
+                                        {event.zoneLeaders}
+                                    </Text>
+                                </View>
+                            ) : null}
+                            {event.workScope ? (
+                                <View style={styles.detailRow}>
+                                    <Text style={styles.detailLabel}>
+                                        Work Scope:
+                                    </Text>
+                                    <Text style={styles.detailValue}>
+                                        {event.workScope}
+                                    </Text>
+                                </View>
+                            ) : null}
+                        </View>
+
+                        {/* Start Event button */}
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.startButton,
+                                pressed && styles.startButtonPressed,
+                            ]}
+                            onPress={() => setShowConfirmation(true)}>
+                            <Play
+                                size={16}
+                                color="#FFFFFF"
+                                fill="#FFFFFF"
+                                style={styles.playIcon}
+                            />
+                            <Text style={styles.startButtonText}>
+                                Start Event
+                            </Text>
+                        </Pressable>
                     </View>
 
-                    {/* Start Event button */}
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.startButton,
-                            pressed && styles.startButtonPressed,
-                        ]}
-                        onPress={() => setShowConfirmation(true)}>
-                        <Play
-                            size={16}
-                            color="#FFFFFF"
-                            fill="#FFFFFF"
-                            style={styles.playIcon}
+                    {showConfirmation && (
+                        <StartEventConfirmation
+                            visible
+                            onCancel={() => setShowConfirmation(false)}
+                            onConfirm={() => {
+                                setShowConfirmation(false);
+                                onStartEvent(event);
+                            }}
                         />
-                        <Text style={styles.startButtonText}>Start Event</Text>
-                    </Pressable>
+                    )}
                 </View>
-
-                {showConfirmation && (
-                    <StartEventConfirmation
-                        visible
-                        onCancel={() => setShowConfirmation(false)}
-                        onConfirm={() => {
-                            setShowConfirmation(false);
-                            onStartEvent(event);
-                        }}
-                    />
-                )}
-            </View>
+            ) : null}
         </Modal>
     );
 }
@@ -220,7 +222,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         letterSpacing: -0.15,
         color: "#0A0A0A",
-        width: 70,
+        width: 100,
     },
     detailValue: {
         fontSize: 14,
