@@ -14,12 +14,14 @@ const ROUTES: Record<TabKey, string> = {
     profile: "/profile",
 };
 
-const PATH_TO_TAB: Record<string, TabKey> = {
-    "/home-screen": "home",
-    "/drafts": "drafts",
-    "/albums": "albums",
-    "/profile": "profile",
-};
+function pathToTab(pathname: string): TabKey | undefined {
+    for (const [tab, route] of Object.entries(ROUTES)) {
+        if (pathname === route || pathname.startsWith(route + "/")) {
+            return tab as TabKey;
+        }
+    }
+    return undefined;
+}
 
 type BottomNavProps = {
     active?: TabKey;
@@ -82,9 +84,10 @@ export default function BottomNav({ active, onTabPress }: BottomNavProps) {
     const pathname = usePathname();
     const insets = useSafeAreaInsets();
 
-    const activeTab = active ?? PATH_TO_TAB[pathname] ?? "home";
+    const activeTab = active ?? pathToTab(pathname) ?? "home";
 
     const handlePress = (tab: TabKey) => {
+        if (tab === activeTab) return;
         onTabPress?.(tab);
         router.replace(ROUTES[tab] as any);
     };
