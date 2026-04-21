@@ -1,125 +1,16 @@
-import * as dotenv from "dotenv";
-import { TrelloClient } from "../services/trello-funcs";
+// test-trello-integration.ts
+//
+// This integration test requires the Expo runtime (expo-secure-store)
+// and cannot be run directly with Node.js / ts-node.
+//
+// TrelloClient now resolves tokens from expo-secure-store internally,
+// so it cannot be instantiated outside the Expo runtime.
+//
+// See frontend/scripts/test-trello-auth.ts for Node-compatible unit tests.
 
-dotenv.config();
-
-const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
-const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
-
-if (!API_KEY || !API_TOKEN) {
-    console.error("Issue with API Key or Token");
-    process.exit(1);
-}
-
-const trello = new TrelloClient(API_KEY, API_TOKEN);
-
-async function Card(
-    boardName: string,
-    listName: string,
-    cardName: string,
-    cardDescription: string,
-) {
-    const boards = await trello.getBoards();
-    const targetBoard = boards.find((board) => board.name === boardName);
-
-    if (!targetBoard) {
-        console.error("board name not found");
-        return;
-    }
-
-    console.log(`\nfound board: ${targetBoard.name}`);
-
-    const lists = await trello.getLists(targetBoard.id);
-
-    if (lists.length > 0) {
-        const targetList = lists.find((list) => list.name === listName);
-
-        if (!targetList) {
-            console.error("list name not found");
-            return;
-        }
-
-        console.log(`found list: ${targetList.name}`);
-
-        await trello.createCard(targetList.id, cardName, cardDescription);
-        console.log(`success!`);
-    } else {
-        console.log("No lists in this board");
-    }
-}
-
-async function listIssues(boardName: string) {
-    const listName = "Trail Issues and Problems - Intake";
-    const boards = await trello.getBoards();
-    const targetBoard = boards.find((board) => board.name === boardName);
-    if (!targetBoard) {
-        console.error("board name not found");
-        return;
-    }
-    const lists = await trello.getLists(targetBoard.id);
-    if (lists.length > 0) {
-        const targetList = lists.find((list) => list.name === listName);
-        if (!targetList) {
-            console.error("list name not found");
-            return;
-        }
-        // sort by creation date, descending order
-        const cards = await trello.getCards(targetList.id, true, true);
-        console.log(`Cards in list "${targetList.name}":`);
-        for (const card of cards) {
-            console.log(`- ${card.name}: ${card.desc || "No description"}`);
-            console.log(`  Created at: ${card.creationDate.toLocaleString()}`);
-            console.log(
-                ` Attachments: ${card.attachments ? card.attachments.length : 0}`,
-            );
-        }
-        console.log();
-        return cards;
-    }
-}
-
-// issue cards are for testing the logic of fetching cards that are attachments to event cards
-async function listEvents(boardName: string, removeDate: boolean = false) {
-    const listName = "Scheduled Events";
-    const boards = await trello.getBoards();
-    const targetBoard = boards.find((board) => board.name === boardName);
-    if (!targetBoard) {
-        console.error("board name not found");
-        return;
-    }
-    const lists = await trello.getLists(targetBoard.id);
-    if (lists.length > 0) {
-        const targetList = lists.find((list) => list.name === listName);
-        if (!targetList) {
-            console.error("list name not found");
-            return;
-        }
-        const days = 30;
-        const cards = await trello.getEventCardsFiltered(
-            targetList.id,
-            days,
-            true,
-            removeDate,
-        );
-        console.log(`Cards in list "${targetList.name}" (${days} days):`);
-        for (const card of cards) {
-            console.log(`- ${card.name}: ${card.desc || "No description"}`);
-            console.log(`  Created at: ${card.creationDate.toLocaleString()}`);
-            const attachmentIDs = await trello.getEventCardAttachmentIDs(card);
-            for (const id of attachmentIDs) {
-                const attachmentCard = await trello.getCardByID(id);
-                console.log(
-                    `   - Attachment card: ${attachmentCard.name} (ID: ${attachmentCard.id})`,
-                );
-            }
-        }
-        return cards;
-    }
-}
-
-(async () => {
-    // Card("MVT Mock Board", "Today", "clean up trail 5", "pick up trash");
-    // await listIssues("MVT Mock Board");
-    await listEvents("MVT Mock Board", true);
-    // await listEvents("MVT Mock Board", false);
-})();
+console.error(
+    "ERROR: This test requires the Expo runtime (expo-secure-store).\n" +
+        "It cannot be run with Node.js / ts-node.\n" +
+        "Run integration tests within the Expo app instead.",
+);
+process.exit(1);

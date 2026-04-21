@@ -17,7 +17,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
-const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN ?? "";
 
 interface TrailEventHeaderProps {
     event: Event;
@@ -97,7 +96,6 @@ export default function TrailEventHeader({
             const url = await fetchCardUrl(
                 event.trelloCardId,
                 API_KEY,
-                API_TOKEN,
             );
             await Share.share({ message: url });
         } catch (e) {

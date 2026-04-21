@@ -10,6 +10,7 @@ import {
     updateDoc,
     where,
     writeBatch,
+    orderBy,
 } from "firebase/firestore";
 
 export interface Event {
@@ -20,8 +21,10 @@ export interface Event {
     trelloCardId: string;
     albumId: string;
     albumUrl: string;
-    isActive: boolean; // deprecated: use startDate && !endDate
     startDate: Timestamp | null;
+    isActive: boolean;
+    isDraft: boolean;
+    savedAsDraftAt?: Timestamp;
     endDate: Timestamp | null;
     createdAt: Timestamp;
     trailImprovements: number;
@@ -58,8 +61,9 @@ export async function createEvent(
         trelloCardId,
         albumId,
         albumUrl,
-        isActive: false,
-        startDate: null,
+        isActive: true,
+        isDraft: false,
+        startDate: Timestamp.now(),
         endDate: null,
         createdAt: Timestamp.now(),
         trailImprovements: 0,
@@ -145,4 +149,39 @@ export async function setEventInactive(eventId: string): Promise<void> {
         isActive: false,
         endDate: Timestamp.now(),
     });
+}
+
+// Save a completed event as a draft instead of immediately publishing
+export async function saveDraft(eventId: string, notepad?: string): Promise<void> {
+    const db = getFirestore();
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
+        isDraft: true,
+        isActive: false,
+        endDate: Timestamp.now(),
+        savedAsDraftAt: Timestamp.now(),
+        ...(notepad !== undefined ? { notepad } : {}),
+    });
+}
+
+// Mark a draft as published (call this after the Trello publish succeeds)
+export async function publishEvent(eventId: string): Promise<void> {
+    const db = getFirestore();
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
+        isDraft: false,
+        isActive: false,
+        endDate: Timestamp.now(),
+        publishedAt: Timestamp.now(),
+    });
+}
+
+// Fetch all drafts, newest first
+export async function getDraftEvents(): Promise<Event[]> {
+    const db = getFirestore();
+    const q = query(
+        collection(db, EVENTS_COLLECTION),
+        where("isDraft", "==", true),
+        orderBy("savedAsDraftAt", "desc"),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => d.data() as Event);
 }

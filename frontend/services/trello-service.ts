@@ -37,11 +37,8 @@ function parseEventDescription(desc: string) {
 
 // fetches trail issues by most recent
 // key and token are passed as parameters so auth can be swapped later
-export async function fetchTrailIssues(
-    key: string,
-    token: string,
-): Promise<TrailIssueItem[]> {
-    const trello = new TrelloClient(key, token);
+export async function fetchTrailIssues(key: string): Promise<TrailIssueItem[]> {
+    const trello = new TrelloClient(key);
     // find target board and list
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
@@ -72,10 +69,9 @@ export async function fetchTrailIssues(
 // key and token are passed as parameters so auth can be swapped later
 export async function fetchDocumentTrailIssues(
     key: string,
-    token: string,
     eventCard: EventCard,
 ): Promise<TrailDocumentIssueItem[]> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const attachmentIDs = await trello.getEventCardAttachmentIDs(eventCard);
     return await Promise.all(
         attachmentIDs.map(async (id) => {
@@ -101,9 +97,8 @@ export async function fetchDocumentTrailIssues(
 // fetches upcoming event cards within the next 30 days
 export async function fetchUpcomingEvents(
     key: string,
-    token: string,
 ): Promise<UpcomingEventItem[]> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     // find target board and list
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
@@ -140,9 +135,8 @@ export async function createEventCard(
     dateStr: string,
     description: string,
     key: string,
-    token: string,
 ): Promise<{ cardId: string; cardUrl: string }> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
     if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
@@ -164,9 +158,8 @@ export async function createEventCard(
 export async function fetchCardUrl(
     cardId: string,
     key: string,
-    token: string,
 ): Promise<string> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const card = await trello.getCard(cardId);
     if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
     return card.shortUrl;
@@ -176,9 +169,8 @@ export async function fetchCardUrl(
 export async function moveCardToCompleted(
     cardId: string,
     key: string,
-    token: string,
 ): Promise<void> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
     if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
@@ -195,9 +187,8 @@ export async function addAlbumLinkToCard(
     cardID: string,
     albumUrl: string,
     key: string,
-    token: string,
 ): Promise<void> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const card = await trello.getCard(cardID);
     const currentDescription = card.desc ?? "";
 
