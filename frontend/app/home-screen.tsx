@@ -3,11 +3,13 @@ import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
+import TrailEventCard from "@/components/ui/trail-event-card";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { fetchUpcomingEvents } from "@/services/trello-service";
+import { startEvent } from "@/services/event-service";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import TakeAfterPicture from "@/components/ui/take-after-picture";
@@ -59,8 +61,9 @@ export default function HomeScreen() {
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
+    const [selectedEvent, setSelectedEvent] =
+        useState<UpcomingEventItem | null>(null);
     const isAdmin = useIsAdmin();
-    const router = useRouter();
 
     const handleTrelloSignIn = async () => {
         const ok = await promptSignIn();
@@ -92,6 +95,20 @@ export default function HomeScreen() {
         )
     }
 
+    const handleStartEvent = async (event: UpcomingEventItem) => {
+        try {
+            await startEvent(event.id);
+            setSelectedEvent(null);
+            Alert.alert("Event Started", `${event.name} is now in progress.`);
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Failed to start event";
+            Alert.alert("Error", message);
+        }
+    };
+
     return (
         <>
             <Stack.Screen options={{ headerShown: false }} />
@@ -115,9 +132,7 @@ export default function HomeScreen() {
                             error={eventsError}
                             maxItems={3}
                             onShowMore={() => {}}
-                            onPressItem={(event) =>
-                                console.log("pressed:", event.name)
-                            }
+                            onPressItem={(event) => setSelectedEvent(event)}
                         />
                     </View>
 
@@ -139,6 +154,14 @@ export default function HomeScreen() {
                 <BottomNav
                     active={active}
                     onTabPress={(tab) => setActive(tab)}
+                />
+
+                <TrailEventCard
+                    event={selectedEvent}
+                    visible={selectedEvent !== null}
+                    onClose={() => setSelectedEvent(null)}
+                    onStartEvent={handleStartEvent}
+
                 />
             </View>
         </>

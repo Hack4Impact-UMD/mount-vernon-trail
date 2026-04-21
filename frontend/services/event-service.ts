@@ -21,9 +21,9 @@ export interface Event {
     trelloCardId: string;
     albumId: string;
     albumUrl: string;
+    startDate: Timestamp | null;
     isActive: boolean;
     isDraft: boolean;
-    startDate?: Timestamp;
     savedAsDraftAt?: Timestamp;
     endDate: Timestamp | null;
     createdAt: Timestamp;
@@ -49,15 +49,6 @@ export async function createEvent(
     if (!currentUser) {
         throw new Error(
             "User is not authenticated. Please sign in to create an event.",
-        );
-    }
-
-    const existing = await getDocs(
-        query(collection(db, EVENTS_COLLECTION), where("isActive", "==", true)),
-    );
-    if (!existing.empty) {
-        throw new Error(
-            "An event is already active. End it before creating a new one.",
         );
     }
 
@@ -93,21 +84,56 @@ export async function createEvent(
     return eventRef.id;
 }
 
-// get the currently active event
-export async function getActiveEvent(): Promise<Event | null> {
+// start event by setting startDate to current timestamp
+export async function startEvent(trelloCardId: string): Promise<void> {
     const db = getFirestore();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error(
+            "User is not authenticated. Please sign in to start an event.",
+        );
+    }
 
     const q = query(
         collection(db, EVENTS_COLLECTION),
-        where("isActive", "==", true),
+        where("trelloCardId", "==", trelloCardId),
     );
-
     const snapshot = await getDocs(q);
+
     if (snapshot.empty) {
-        return null;
+        throw new Error(`No event found for trello card: ${trelloCardId}`);
     }
 
-    return snapshot.docs[0].data() as Event;
+    const eventDoc = snapshot.docs[0];
+    const eventData = eventDoc.data() as Event;
+
+    if (eventData.startDate) {
+        throw new Error("This event has already been started.");
+    }
+
+    await updateDoc(eventDoc.ref, {
+        startDate: Timestamp.now(),
+    });
+}
+
+// get the currently active event (startDate && !endDate)
+export async function getActiveEvent(): Promise<Event | null> {
+    const db = getFirestore();
+    const q = query(
+        collection(db, EVENTS_COLLECTION),
+        where("startDate", "!=", null),
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) return null;
+
+    const activeDoc = snapshot.docs.find((doc) => {
+        const data = doc.data();
+        return data.endDate === null || data.endDate === undefined;
+    });
+
+    if (!activeDoc) return null;
+    return activeDoc.data() as Event;
 }
 
 export async function getEventById(eventId: string): Promise<Event | null> {
