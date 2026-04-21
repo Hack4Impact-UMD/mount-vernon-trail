@@ -82,9 +82,6 @@ export default function EventSummaryScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { eventId } = useLocalSearchParams<{ eventId: string }>();
-    const [activeTab, setActiveTab] = useState<
-        "home" | "new-event" | "history" | "profile"
-    >("home");
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [event, setEvent] = useState<Event>();
@@ -251,13 +248,7 @@ export default function EventSummaryScreen() {
                 </Pressable>
             </ScrollView>
 
-            <BottomNav
-                active={activeTab}
-                onTabPress={(tab) => {
-                    setActiveTab(tab);
-                    if (tab === "home") router.replace("/(tabs)");
-                }}
-            />
+            <BottomNav />
         </View>
     );
 }
