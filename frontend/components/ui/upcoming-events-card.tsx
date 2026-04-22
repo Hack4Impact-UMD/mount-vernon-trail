@@ -47,7 +47,7 @@ const EVENT_STATUS = {
     color: "#D4930D",
 };
 
-// const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder.png");
+const PLACEHOLDER_IMAGE = require("@/assets/images/mvt-beaver-logo.png");
 
 export function formatEventDate(date: Date): string {
     return date.toLocaleDateString("en-US", {
@@ -110,12 +110,14 @@ export function UpcomingEventsCard({
                                 styles.card,
                                 pressed && styles.cardPressed,
                             ]}>
-                            {event.imageUrl && (
-                                <Image
-                                    source={{ uri: event.imageUrl }}
-                                    style={styles.thumbnail}
-                                />
-                            )}
+                            <Image
+                                source={
+                                    event.imageUrl
+                                        ? { uri: event.imageUrl }
+                                        : PLACEHOLDER_IMAGE
+                                }
+                                style={styles.thumbnail}
+                            />
                             <View style={styles.cardContent}>
                                 <Text
                                     style={styles.cardTitle}
@@ -223,7 +225,6 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 8,
-        backgroundColor: "#e0e0e0",
     },
     cardContent: {
         flex: 1,
