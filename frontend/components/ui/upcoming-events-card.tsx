@@ -14,6 +14,11 @@ export interface UpcomingEventItem {
     description: string;
     date: Date;
     imageUrl: string | null;
+    eventLeader?: string;
+    zoneLeaders?: string;
+    toolHaulers?: string;
+    gloverLover?: string;
+    workScope?: string;
 }
 
 interface UpcomingEventsCardProps {
@@ -44,7 +49,7 @@ const EVENT_STATUS = {
 
 // const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder.png");
 
-function formatEventDate(date: Date): string {
+export function formatEventDate(date: Date): string {
     return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",

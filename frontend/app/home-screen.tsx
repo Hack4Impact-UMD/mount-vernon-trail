@@ -3,7 +3,8 @@ import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
-import { getEventByTrelloCardId } from "@/services/event-service";
+import { getEventByTrelloCardId , startEvent } from "@/services/event-service";
+import TrailEventCard from "@/components/ui/trail-event-card";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { fetchUpcomingEvents } from "@/services/trello-service";
 import { Stack, useRouter } from "expo-router";
@@ -56,6 +57,8 @@ export default function HomeScreen() {
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
+    const [selectedEvent, setSelectedEvent] =
+        useState<UpcomingEventItem | null>(null);
     const isAdmin = useIsAdmin();
 
     const handleTrelloSignIn = async () => {
@@ -87,6 +90,20 @@ export default function HomeScreen() {
             />
         )
     }
+
+    const handleStartEvent = async (event: UpcomingEventItem) => {
+        try {
+            await startEvent(event.id);
+            setSelectedEvent(null);
+            Alert.alert("Event Started", `${event.name} is now in progress.`);
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Failed to start event";
+            Alert.alert("Error", message);
+        }
+    };
 
     return (
         <>
@@ -144,6 +161,14 @@ export default function HomeScreen() {
                     </View>
                 </ScrollView>
                 <BottomNav />
+
+                <TrailEventCard
+                    event={selectedEvent}
+                    visible={selectedEvent !== null}
+                    onClose={() => setSelectedEvent(null)}
+                    onStartEvent={handleStartEvent}
+
+                />
             </View>
         </>
     );
