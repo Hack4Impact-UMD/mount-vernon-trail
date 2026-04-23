@@ -3,7 +3,7 @@ import type { TrailIssueItem } from "@/components/ui/trail-issues-card";
 import type { UpcomingEventItem } from "@/components/ui/upcoming-events-card";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { TrelloClient } from "./trello-funcs";
-import { EventCard } from "./trello-types";
+import { EventCard, TrelloAttachment } from "./trello-types";
 
 const BOARD_NAME = "MVT Mock Board";
 const TRAIL_ISSUES_LIST = "Trail Issues and Problems - Intake";
@@ -109,13 +109,10 @@ export async function fetchUpcomingEvents(
     if (!list) throw new Error(`List "${UPCOMING_EVENTS_LIST}" not found`);
 
     const cards = await trello.getEventCardsFiltered(list.id, 30, true, true);
-
     return Promise.all(
         cards.map(async (card) => {
-            const imageUrl =
-                card.attachments && card.attachments.length > 0
-                    ? await trello.loadTrelloImage(card.attachments[0].url)
-                    : null;
+            const imgAttachmentUrl = getFirstImageAttachment(card.attachments);
+			const imageUrl = imgAttachmentUrl ? await trello.loadTrelloImage(imgAttachmentUrl) : null;
             const parsed = parseEventDescription(card.desc ?? "");
             return {
                 id: card.id,
@@ -127,6 +124,15 @@ export async function fetchUpcomingEvents(
             };
         }),
     );
+}
+
+// finds the first image (not trello card or other) attached to a card to display with it
+function getFirstImageAttachment(attachments: TrelloAttachment[] | undefined): string | null {
+	if (!attachments || attachments.length === 0) return null;
+
+	const pattern = /image/;
+	const img = attachments.find((attachment) => pattern.exec(attachment.mimeType));
+	return img?.url ?? null;
 }
 
 // creates a new event card in the Scheduled Events list with the card name prefixed with date

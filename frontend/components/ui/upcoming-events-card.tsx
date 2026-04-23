@@ -31,16 +31,6 @@ interface UpcomingEventsCardProps {
     onPressItem: (event: UpcomingEventItem) => void;
 }
 
-const EVENT_TYPES: {
-    label: string;
-    backgroundColor: string;
-    color: string;
-}[] = [
-    { label: "Invasive Removal", backgroundColor: "#693894", color: "#FFFFFF" },
-    { label: "Litter Cleanup", backgroundColor: "#215EAC", color: "#FFFFFF" },
-    { label: "Erosion Repair", backgroundColor: "#2D8682", color: "#FFFFFF" },
-];
-
 const EVENT_STATUS = {
     label: "Not started",
     backgroundColor: "#D4930D18",
@@ -101,7 +91,6 @@ export function UpcomingEventsCard({
             {!loading &&
                 !error &&
                 visibleEvents.map((event, index) => {
-                    const typePill = EVENT_TYPES[index % EVENT_TYPES.length];
                     return (
                         <Pressable
                             key={event.id}
@@ -126,22 +115,6 @@ export function UpcomingEventsCard({
                                     {formatEventDate(event.date)}
                                 </Text>
                                 <View style={styles.tagsRow}>
-                                    <View
-                                        style={[
-                                            styles.tagPill,
-                                            {
-                                                backgroundColor:
-                                                    typePill.backgroundColor,
-                                            },
-                                        ]}>
-                                        <Text
-                                            style={[
-                                                styles.tagText,
-                                                { color: typePill.color },
-                                            ]}>
-                                            {typePill.label}
-                                        </Text>
-                                    </View>
                                     <View
                                         style={[
                                             styles.tagPill,

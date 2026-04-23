@@ -24,6 +24,7 @@ export interface Card {
 
 export interface TrelloAttachment {
     url: string;
+	mimeType: string;
 }
 
 export interface EventCard extends Card {
