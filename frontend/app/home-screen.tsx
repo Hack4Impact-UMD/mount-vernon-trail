@@ -93,14 +93,27 @@ export default function HomeScreen() {
 
     const handleStartEvent = async (event: UpcomingEventItem) => {
         try {
+			// set startDate in firebase
             await startEvent(event.id);
+			// close modal
             setSelectedEvent(null);
-            Alert.alert("Event Started", `${event.name} is now in progress.`);
+			// go to in progress screen
+			const firebaseEvent = await getEventByTrelloCardId(event.id).catch(() => null);
+			if (firebaseEvent) {
+				router.push({
+					pathname: "/trail-document-screen",
+					params: { eventId: firebaseEvent.eventId },
+				});
+			} else {
+				Alert.alert("Not available", "This event hasn't been set up in the app yet.");
+			}
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
                     : "Failed to start event";
+			// close modal
+            setSelectedEvent(null);
             Alert.alert("Error", message);
         }
     };
@@ -131,17 +144,7 @@ export default function HomeScreen() {
                             error={eventsError}
                             maxItems={3}
                             onShowMore={() => {}}
-                            onPressItem={async (event) => {
-                                const firebaseEvent = await getEventByTrelloCardId(event.id).catch(() => null);
-                                if (firebaseEvent) {
-                                    router.push({
-                                        pathname: "/trail-document-screen",
-                                        params: { eventId: firebaseEvent.eventId },
-                                    });
-                                } else {
-                                    Alert.alert("Not available", "This event hasn't been set up in the app yet.");
-                                }
-                            }}
+                            onPressItem={(event) => setSelectedEvent(event)}
                         />
                     </View>
 

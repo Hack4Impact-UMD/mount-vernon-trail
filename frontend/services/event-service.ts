@@ -63,7 +63,7 @@ export async function createEvent(
         albumUrl,
         isActive: true,
         isDraft: false,
-        startDate: Timestamp.now(),
+		startDate: null,
         endDate: null,
         createdAt: Timestamp.now(),
         trailImprovements: 0,
