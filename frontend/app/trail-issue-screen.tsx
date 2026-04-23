@@ -11,23 +11,24 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
+import HomeHeader from "@/components/ui/header";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type PhotoSlot = "before" | "after";
 
 export default function TrailIssueDetailScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams<{
+    const { issueId, issueName, imageUrl, eventId, beforeImageUri, afterImageUri } = useLocalSearchParams<{
+		issueId?: string;
         issueName?: string;
-        imageUrl?: string;
+		imageUrl?: string;
+		eventId?: string;
         isNew?: string;
+		beforeImageUri?: string;
+		afterImageUri?: string;
     }>();
-    const issueName = params.issueName ?? "New Issue";
-    const imageUrl = params.imageUrl ?? null;
     const [notes, setNotes] = useState("");
     const [metrics, setMetrics] = useState("");
-    const [beforeImageUri, setBeforeImageUri] = useState<string | null>(null);
-    const [afterImageUri, setAfterImageUri] = useState<string | null>(null);
 
     const status = "In Progress"; // hardcoded for now
     const photos = { before: beforeImageUri, after: afterImageUri };
@@ -36,8 +37,10 @@ export default function TrailIssueDetailScreen() {
         router.push({
             pathname: "/camera-view",
             params: {
+				activeIssueId: issueId,
                 mode: slot,
                 beforeImageUri: beforeImageUri ?? "",
+				eventId: eventId
             },
         });
     };
@@ -73,9 +76,10 @@ export default function TrailIssueDetailScreen() {
             <Stack.Screen options={{ headerShown: false }} />
             <ScrollView
                 style={styles.scroll}
-                contentContainerStyle={{ paddingBottom: 40 }}
-                showsVerticalScrollIndicator={false}
-            >
+				contentContainerStyle={{ paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}>
+				{/* App Header */}
+				<HomeHeader userName="Sarah" />
                 {/* Cover Image */}
                 <View style={styles.coverContainer}>
                     {imageUrl ? (

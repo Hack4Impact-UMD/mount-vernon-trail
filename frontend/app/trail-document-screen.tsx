@@ -244,7 +244,10 @@ export default function TrailDocumentScreen() {
                                             params: {
                                                 issueId: issue.id,
                                                 issueName: issue.name,
+												imageUrl: issue.imageUrl,
                                                 eventId: event.eventId,
+												beforeImageUri: issueImages[issue.id]?.before,
+												afterImageUri: issueImages[issue.id]?.after
                                             },
                                         })
                                     }
