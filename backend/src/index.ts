@@ -138,12 +138,108 @@ app.get("/api/auth/status", async (req: Request, res: Response) => {
     }
 });
 
-// TODO: google photos upload endpoint
+// Uploads up to 50 photos to a specific album in one call
+// Expects:
+//   - "photos": one or more image files
+//   - "albumId": the target album's id (string)
 app.post(
     "/api/upload",
-    upload.single("photo"),
+    // Max upload size is 50 photos
+    upload.array("photos", 50),
     async (req: Request, res: Response) => {
-        // code here
+        try {
+            const files = req.files as Express.Multer.File[] | undefined;
+            if (!files || files.length === 0) {
+                return res
+                    .status(400)
+                    .json({ error: "at least one photo is required" });
+            }
+            const { albumId } = req.body;
+            if (typeof albumId !== "string" || albumId.trim() === "") {
+                return res.status(400).json({ error: "albumId is required" });
+            }
+
+            const token = await getAccessToken();
+
+            // Upload each photo's bytes and collect upload tokens in an array
+            const uploadTokens: string[] = [];
+            for (const file of files) {
+                const uploadResponse = await fetch(
+                    "https://photoslibrary.googleapis.com/v1/uploads",
+                    {
+                        method: "POST",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            "Content-Type": "application/octet-stream",
+                            "X-Goog-Upload-Content-Type": file.mimetype,
+                            "X-Goog-Upload-Protocol": "raw",
+                        },
+                        body: new Uint8Array(file.buffer),
+                    },
+                );
+                if (!uploadResponse.ok) {
+                    const body = await uploadResponse.text();
+                    console.error(
+                        "Google Photos upload error:",
+                        uploadResponse.status,
+                        body,
+                    );
+                    return res.status(502).json({
+                        error: "Google Photos upload failed",
+                        status: uploadResponse.status,
+                        body,
+                    });
+                }
+                uploadTokens.push(await uploadResponse.text());
+            }
+
+            // Attach all upload tokens to the album in one batchCreate call
+            const batchResponse = await fetch(
+                "https://photoslibrary.googleapis.com/v1/mediaItems:batchCreate",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        albumId,
+                        newMediaItems: uploadTokens.map((uploadToken, idx) => ({
+                            simpleMediaItem: {
+                                fileName: files[idx].originalname,
+                                uploadToken,
+                            },
+                        })),
+                    }),
+                },
+            );
+            if (!batchResponse.ok) {
+                const body = await batchResponse.text();
+                console.error(
+                    "Google Photos batchCreate error:",
+                    batchResponse.status,
+                    body,
+                );
+                return res.status(502).json({
+                    error: "Google Photos batchCreate failed",
+                    status: batchResponse.status,
+                    body,
+                });
+            }
+            const data = await batchResponse.json();
+            return res.status(201).json(data);
+        } catch (error) {
+            if (
+                error instanceof Error &&
+                error.message.includes("No refresh token")
+            ) {
+                return res.status(401).json({
+                    error: "Not authenticated. Admin must sign in.",
+                });
+            }
+            console.error("Error uploading photos:", error);
+            return res.status(500).json({ error: "Failed to upload photos" });
+        }
     },
 );
 
