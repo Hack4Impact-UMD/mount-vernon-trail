@@ -312,9 +312,19 @@ export class TrelloClient {
     private static extractCardIDFromAttachment(
         attachment: TrelloAttachment,
     ): string | null {
-        const regex = /https:\/\/trello\.com\/c\/(.+?)\//;
-        const match = regex.exec(attachment.url);
-        return match ? match[1] : null;
+        try {
+            const url = new URL(attachment.url);
+            if (url.hostname !== "trello.com") {
+                return null;
+            }
+            // check for /c/{cardID} pattern and extract id if it exists
+            const regex = /^\/c\/([a-zA-Z0-9]+)/;
+            const match = regex.exec(url.pathname);
+            return match ? match[1] : null;
+        } catch {
+            // invalid url
+            return null;
+        }
     }
 
     // gets (issue) card IDs that are attachments to an event card
