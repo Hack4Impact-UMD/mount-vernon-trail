@@ -3,10 +3,10 @@ import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
+import { getEventByTrelloCardId , startEvent } from "@/services/event-service";
 import TrailEventCard from "@/components/ui/trail-event-card";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { fetchUpcomingEvents } from "@/services/trello-service";
-import { startEvent } from "@/services/event-service";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
@@ -54,10 +54,6 @@ const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
 export default function HomeScreen() {
     const router = useRouter();
     const { isAuthenticated, promptSignIn, loading, initializing, error: trelloError } = useTrelloAuth();
-    const [active, setActive] = useState<
-        "home" | "new-event" | "history" | "profile"
-    >("home");
-
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
@@ -87,7 +83,6 @@ export default function HomeScreen() {
     if (!isAuthenticated) {
         return (
             <TrelloLoginUI
-                userName="Sarah"
                 onPressTrello={handleTrelloSignIn}
                 isLoading={loading || initializing}
                 errorMessage={trelloError?.message ?? null}
@@ -97,14 +92,27 @@ export default function HomeScreen() {
 
     const handleStartEvent = async (event: UpcomingEventItem) => {
         try {
+			// set startDate in firebase
             await startEvent(event.id);
+			// close modal
             setSelectedEvent(null);
-            Alert.alert("Event Started", `${event.name} is now in progress.`);
+			// go to in progress screen
+			const firebaseEvent = await getEventByTrelloCardId(event.id).catch(() => null);
+			if (firebaseEvent) {
+				router.push({
+					pathname: "/trail-document-screen",
+					params: { eventId: firebaseEvent.eventId },
+				});
+			} else {
+				Alert.alert("Not available", "This event hasn't been set up in the app yet.");
+			}
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
                     : "Failed to start event";
+			// close modal
+            setSelectedEvent(null);
             Alert.alert("Error", message);
         }
     };
@@ -117,7 +125,7 @@ export default function HomeScreen() {
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}>
-                    <Header userName="Sarah" showGreeting />
+                    <Header showGreeting />
                     <View style={styles.cardWrapper}>
                         <TakeAfterPicture />
                         <MakeBeforeAfterGraphic />
@@ -151,10 +159,7 @@ export default function HomeScreen() {
                         />
                     </View>
                 </ScrollView>
-                <BottomNav
-                    active={active}
-                    onTabPress={(tab) => setActive(tab)}
-                />
+                <BottomNav />
 
                 <TrailEventCard
                     event={selectedEvent}

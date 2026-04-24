@@ -4,14 +4,25 @@ import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import { TrailDocStatsCard } from "@/components/ui/trail-doc-stats-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event } from "@/services/event-service";
-import { getActiveEvent, getEventById, publishEvent, saveDraft } from "@/services/event-service";
+import {
+    getActiveEvent,
+    getEventById,
+} from "@/services/event-service";
 import { TrelloClient } from "@/services/trello-funcs";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
@@ -22,24 +33,21 @@ export default function TrailDocumentScreen() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
     // Trail issue, state, and camera state
-    const { beforeImageUri, afterImageUri, activeIssueId, eventId } = useLocalSearchParams<{
-        beforeImageUri?: string;
-        afterImageUri?: string;
-        activeIssueId?: string;
-        eventId?: string;
-    }>();
-    const [active, setActive] = useState<
-        "home" | "new-event" | "history" | "profile"
-    >("home");
+    const { beforeImageUri, afterImageUri, activeIssueId, eventId } =
+        useLocalSearchParams<{
+            beforeImageUri?: string;
+            afterImageUri?: string;
+            activeIssueId?: string;
+            eventId?: string;
+        }>();
     const [issuesData, setIssuesData] = useState(
         [] as TrailDocumentIssueItem[],
     );
-    const [issueImages, setIssueImages] = useState<Record<string, { before?: string; after?: string }>>({});
+    const [issueImages, setIssueImages] = useState<
+        Record<string, { before?: string; after?: string }>
+    >({});
     const [loadError, setLoadError] = useState<string | null>(null);
     const [notepad, setNotepad] = useState("");
-    const [showPublishModal, setShowPublishModal] = useState(false);
-    const [publishing, setPublishing] = useState(false);
-    const [savingDraft, setSavingDraft] = useState(false);
     const [activeEventId, setActiveEventId] = useState<string | null>(null);
     const [issuesError, setIssuesError] = useState<string | null>(null);
     const [statsData, setStatsData] = useState({
@@ -76,8 +84,8 @@ export default function TrailDocumentScreen() {
 
     useEffect(() => {
         if (!event) return;
-            let cancelled = false;
-            const currentEvent = event;
+        let cancelled = false;
+        const currentEvent = event;
 
         async function loadTrailDocument() {
             if (!API_KEY) {
@@ -87,33 +95,46 @@ export default function TrailDocumentScreen() {
             try {
                 setLoadError(null);
                 const trello = new TrelloClient(API_KEY);
-                const eventCard = await trello.getEventCardByID(currentEvent.trelloCardId, true);
-                const issues = await fetchDocumentTrailIssues(API_KEY, eventCard);
+                const eventCard = await trello.getEventCardByID(
+                    currentEvent.trelloCardId,
+                    true,
+                );
+                const issues = await fetchDocumentTrailIssues(
+                    API_KEY,
+                    eventCard,
+                );
                 // TODO fetch stats once that flow is figured out
                 if (!cancelled) {
                     setIssuesData(issues);
-                    setStatsData({ trashCollection: 12, restorationEffort: 250 });
+                    setStatsData({
+                        trashCollection: 12,
+                        restorationEffort: 250,
+                    });
                 }
             } catch (err) {
                 console.error("Error loading trail issues:", err);
                 if (!cancelled) {
-                    setIssuesError((err as Error).message ?? "Failed to load trail issues");
+                    setIssuesError(
+                        (err as Error).message ?? "Failed to load trail issues",
+                    );
                 }
             }
         }
         loadTrailDocument();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [event]);
 
     // when the user returns from camera-view, store the captured image under the correct issue
     useEffect(() => {
         if (activeIssueId && (beforeImageUri || afterImageUri)) {
-            setIssueImages(prev => ({
+            setIssueImages((prev) => ({
                 ...prev,
                 [activeIssueId]: {
                     before: beforeImageUri ?? prev[activeIssueId]?.before,
                     after: afterImageUri ?? prev[activeIssueId]?.after,
-                }
+                },
             }));
         }
     }, [activeIssueId, beforeImageUri, afterImageUri]);
@@ -131,78 +152,74 @@ export default function TrailDocumentScreen() {
         });
     }
 
-    async function handleSaveDraft() {
-        const eid = activeEventId ?? eventId;
-        if (!eid) {
-            Alert.alert("Error", "No active event found.");
-            return;
-        }
-        setSavingDraft(true);
-        try {
-            await saveDraft(eid, notepad);
-            Alert.alert("Saved", "Event saved to drafts.");
-            router.replace("/(tabs)");
-        } catch {
-            Alert.alert("Error", "Could not save draft.");
-        } finally {
-            setSavingDraft(false);
-        }
-    }
-
-    async function handlePublish() {
-        const eid = activeEventId ?? eventId;
-        if (!eid) {
-            Alert.alert("Error", "No active event found.");
-            return;
-        }
-        setPublishing(true);
-        try {
-            // TODO: call trello-service.moveCardToCompleted here too
-            await publishEvent(eid);
-            setShowPublishModal(false);
-            Alert.alert("Published!", "Event posted to Trello.");
-            router.replace("/");
-        } catch {
-            Alert.alert("Error", "Could not publish.");
-        } finally {
-            setPublishing(false);
-        }
-    }
-
     if (loading) return <ActivityIndicator style={styles.loader} />;
-    if (error || !event) return (
-        <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error ?? "Event not found."}</Text>
-        </View>
-    );
+    if (error || !event)
+        return (
+            <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>
+                    {error ?? "Event not found."}
+                </Text>
+            </View>
+        );
     return (
         <>
             <View style={styles.screen}>
-                <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                    style={styles.container}
+                    showsVerticalScrollIndicator={false}>
                     {/* App Header */}
-                    <HomeHeader userName="Sarah" />
-                        <TrailEventHeader
-                            event={event}
-                            variant="document"
-                            onStop={() =>
-                                router.replace({
-                                    pathname: "/event-summary",
-                                    params: { eventId: event.eventId },
-                                })
-                            }
-                        />
+                    <HomeHeader />
+                    <TrailEventHeader
+                        event={event}
+                        variant="document"
+                        onStop={() =>
+                            router.replace({
+                                pathname: "/event-summary",
+                                params: {
+                                    eventId: event.eventId,
+                                    notepad: notepad,
+                                },
+                            })
+                        }
+                    />
                     <View style={styles.contentContainer}>
                         {/* Trail Issues Section */}
-                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                            <Text style={styles.sectionTitle}>Trail Issues</Text>
+                        <View
+                            style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                marginBottom: 12,
+                            }}>
+                            <Text style={styles.sectionTitle}>
+                                Trail Issues
+                            </Text>
                             <TouchableOpacity
                                 onPress={handleAddIssue}
-                                style={{ flexDirection: "row", alignItems: "center", gap: 4,
-                                        borderWidth: 1.5, borderColor: "#5B2D8E", borderRadius: 20,
-                                        paddingHorizontal: 12, paddingVertical: 6, backgroundColor: "#FAF7FF" }}
-                            >
-                                <Ionicons name="add" size={16} color="#5B2D8E" />
-                                <Text style={{ color: "#5B2D8E", fontWeight: "600", fontSize: 13 }}>Add Issue</Text>
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    borderWidth: 1.5,
+                                    borderColor: "#5B2D8E",
+                                    borderRadius: 20,
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 6,
+                                    backgroundColor: "#FAF7FF",
+                                }}>
+                                <Ionicons
+                                    name="add"
+                                    size={16}
+                                    color="#5B2D8E"
+                                />
+                                <Text
+                                    style={{
+                                        color: "#5B2D8E",
+                                        fontWeight: "600",
+                                        fontSize: 13,
+                                    }}>
+                                    Add Issue
+                                </Text>
                             </TouchableOpacity>
                         </View>
                         {issuesError && (
@@ -221,10 +238,19 @@ export default function TrailDocumentScreen() {
                                     name={issue.name}
                                     date={issue.creationDate}
                                     imageUrl={issue.imageUrl}
-                                    onPress={() => router.push({
-                                        pathname: "/trail-issue-screen",
-                                        params: { issueId: issue.id, issueName: issue.name, eventId: event.eventId },
-                                    })}
+                                    onPress={() =>
+                                        router.push({
+                                            pathname: "/trail-issue-screen",
+                                            params: {
+                                                issueId: issue.id,
+                                                issueName: issue.name,
+												imageUrl: issue.imageUrl,
+                                                eventId: event.eventId,
+												beforeImageUri: issueImages[issue.id]?.before,
+												afterImageUri: issueImages[issue.id]?.after
+                                            },
+                                        })
+                                    }
                                 />
                             ))}
                         </View>
@@ -232,9 +258,16 @@ export default function TrailDocumentScreen() {
                         {/* Notepad Section */}
                         <Text style={styles.sectionTitle}>Notepad</Text>
                         <TextInput
-                            style={{ borderWidth: 1.5, borderColor: "#E5E5E5", borderRadius: 12,
-                                    padding: 14, fontSize: 14, minHeight: 100, marginBottom: 24,
-                                    backgroundColor: "#FAFAFA" }}
+                            style={{
+                                borderWidth: 1.5,
+                                borderColor: "#E5E5E5",
+                                borderRadius: 12,
+                                padding: 14,
+                                fontSize: 14,
+                                minHeight: 100,
+                                marginBottom: 24,
+                                backgroundColor: "#FAFAFA",
+                            }}
                             value={notepad}
                             onChangeText={setNotepad}
                             multiline
@@ -248,57 +281,155 @@ export default function TrailDocumentScreen() {
                         <TrailDocStatsCard {...statsData} />
 
                         {/* Action Buttons */}
-                        <View style={{ flexDirection: "row", gap: 12, marginTop: 16, marginBottom: 24 }}>
+                        {/* <View
+                            style={{
+                                flexDirection: "row",
+                                gap: 12,
+                                marginTop: 16,
+                                marginBottom: 24,
+                            }}>
                             <TouchableOpacity
                                 onPress={handleSaveDraft}
                                 disabled={savingDraft}
-                                style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                                        paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: "#DADADA",
-                                        backgroundColor: "#F5F5F5" }}
-                            >
-                                <Ionicons name="document-outline" size={18} color="#555" style={{ marginRight: 6 }} />
-                                <Text style={{ color: "#444", fontWeight: "600", fontSize: 14 }}>Save as draft</Text>
+                                style={{
+                                    flex: 1,
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    paddingVertical: 14,
+                                    borderRadius: 12,
+                                    borderWidth: 1.5,
+                                    borderColor: "#DADADA",
+                                    backgroundColor: "#F5F5F5",
+                                }}>
+                                <Ionicons
+                                    name="document-outline"
+                                    size={18}
+                                    color="#555"
+                                    style={{ marginRight: 6 }}
+                                />
+                                <Text
+                                    style={{
+                                        color: "#444",
+                                        fontWeight: "600",
+                                        fontSize: 14,
+                                    }}>
+                                    Save as draft
+                                </Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 onPress={() => setShowPublishModal(true)}
-                                style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                                        paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: "#5B2D8E",
-                                        backgroundColor: "#FAF7FF" }}
-                            >
-                                <Ionicons name="share-outline" size={18} color="#5B2D8E" style={{ marginRight: 6 }} />
-                                <Text style={{ color: "#5B2D8E", fontWeight: "600", fontSize: 14 }}>Post to Trello</Text>
+                                style={{
+                                    flex: 1,
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    paddingVertical: 14,
+                                    borderRadius: 12,
+                                    borderWidth: 1.5,
+                                    borderColor: "#5B2D8E",
+                                    backgroundColor: "#FAF7FF",
+                                }}>
+                                <Ionicons
+                                    name="share-outline"
+                                    size={18}
+                                    color="#5B2D8E"
+                                    style={{ marginRight: 6 }}
+                                />
+                                <Text
+                                    style={{
+                                        color: "#5B2D8E",
+                                        fontWeight: "600",
+                                        fontSize: 14,
+                                    }}>
+                                    Post to Trello
+                                </Text>
                             </TouchableOpacity>
-                        </View>
+                        </View> */}
                     </View>
                 </ScrollView>
-                <BottomNav active={active} onTabPress={(tab) => setActive(tab)} />
+                <BottomNav />
             </View>
 
-            <Modal visible={showPublishModal} transparent animationType="fade"
+            {/* <Modal
+                visible={showPublishModal}
+                transparent
+                animationType="fade"
                 onRequestClose={() => setShowPublishModal(false)}>
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
-                            alignItems: "center", justifyContent: "center" }}>
-                    <View style={{ width: "82%", backgroundColor: "#fff", borderRadius: 16, padding: 24 }}>
-                        <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 10 }}>Post to Trello?</Text>
-                        <Text style={{ fontSize: 14, color: "#555", lineHeight: 20, marginBottom: 24 }}>
-                            This will publish the event to your Trello board and mark it as complete.
+                <View
+                    style={{
+                        flex: 1,
+                        backgroundColor: "rgba(0,0,0,0.45)",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}>
+                    <View
+                        style={{
+                            width: "82%",
+                            backgroundColor: "#fff",
+                            borderRadius: 16,
+                            padding: 24,
+                        }}>
+                        <Text
+                            style={{
+                                fontSize: 18,
+                                fontWeight: "700",
+                                marginBottom: 10,
+                            }}>
+                            Post to Trello?
+                        </Text>
+                        <Text
+                            style={{
+                                fontSize: 14,
+                                color: "#555",
+                                lineHeight: 20,
+                                marginBottom: 24,
+                            }}>
+                            This will publish the event to your Trello board and
+                            mark it as complete.
                         </Text>
                         <View style={{ flexDirection: "row", gap: 12 }}>
-                            <Pressable onPress={() => setShowPublishModal(false)}
-                                style={{ flex: 1, paddingVertical: 12, borderRadius: 10,
-                                        borderWidth: 1.5, borderColor: "#DDD", alignItems: "center" }}>
-                                <Text style={{ color: "#555", fontWeight: "600" }}>Cancel</Text>
+                            <Pressable
+                                onPress={() => setShowPublishModal(false)}
+                                style={{
+                                    flex: 1,
+                                    paddingVertical: 12,
+                                    borderRadius: 10,
+                                    borderWidth: 1.5,
+                                    borderColor: "#DDD",
+                                    alignItems: "center",
+                                }}>
+                                <Text
+                                    style={{
+                                        color: "#555",
+                                        fontWeight: "600",
+                                    }}>
+                                    Cancel
+                                </Text>
                             </Pressable>
-                            <Pressable onPress={handlePublish} disabled={publishing}
-                                style={{ flex: 1, paddingVertical: 12, borderRadius: 10,
-                                        backgroundColor: "#5B2D8E", alignItems: "center" }}>
-                                <Text style={{ color: "#fff", fontWeight: "700" }}>Post</Text>
+                            <Pressable
+                                onPress={handlePublish}
+                                disabled={publishing}
+                                style={{
+                                    flex: 1,
+                                    paddingVertical: 12,
+                                    borderRadius: 10,
+                                    backgroundColor: "#5B2D8E",
+                                    alignItems: "center",
+                                }}>
+                                <Text
+                                    style={{
+                                        color: "#fff",
+                                        fontWeight: "700",
+                                    }}>
+                                    Post
+                                </Text>
                             </Pressable>
                         </View>
                     </View>
                 </View>
-            </Modal>
+            </Modal> */}
         </>
     );
 }

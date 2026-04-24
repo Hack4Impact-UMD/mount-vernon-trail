@@ -3,7 +3,7 @@ import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
-import { getEventById } from "@/services/event-service";
+import { getEventById, publishEvent, saveDraft } from "@/services/event-service";
 import { moveCardToCompleted } from "@/services/trello-service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -81,12 +81,10 @@ function MetricCard({
 export default function EventSummaryScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { eventId } = useLocalSearchParams<{ eventId: string }>();
-    const [activeTab, setActiveTab] = useState<
-        "home" | "new-event" | "history" | "profile"
-    >("home");
+    const { eventId, notepad } = useLocalSearchParams<{ eventId: string, notepad: string }>();
     const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
+    const [savedDraft, setSavedDraft] = useState(false);
+	const [savedTrello, setSavedTrello] = useState(false);
     const [event, setEvent] = useState<Event>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
@@ -107,21 +105,38 @@ export default function EventSummaryScreen() {
     }, [eventId]);
 
     if (loading) return <ActivityIndicator style={styles.loader} />;
-    if (error || !event) return (
-        <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error ?? "Event not found."}</Text>
-        </View>
-    );
+    if (error || !event)
+        return (
+            <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>
+                    {error ?? "Event not found."}
+                </Text>
+            </View>
+        );
 
-    const handleSave = async () => {
-        if (saving || saved) return;
+    const handlePublish = async () => {
+        if (saving || savedDraft || savedTrello) return;
         setSaving(true);
         try {
             const key = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
             await moveCardToCompleted(event.trelloCardId, key);
-            setSaved(true);
+			await publishEvent(eventId);
+            setSavedTrello(true);
         } catch (e) {
             Alert.alert("Save failed", (e as Error).message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSaveDraft = async () => {
+        if (saving || savedDraft || savedTrello) return;
+        setSaving(true);
+        try {
+            await saveDraft(eventId, notepad);
+            setSavedDraft(true);
+        } catch {
+            Alert.alert("Error", "Could not save event to drafts.");
         } finally {
             setSaving(false);
         }
@@ -130,7 +145,7 @@ export default function EventSummaryScreen() {
     return (
         <View style={styles.screen}>
             <View>
-                <HomeHeader userName="Sarah" />
+                <HomeHeader />
                 <TrailEventHeader
                     event={event}
                     variant="summary"
@@ -194,17 +209,17 @@ export default function EventSummaryScreen() {
                 <Pressable
                     style={[
                         styles.actionCard,
-                        saved && styles.actionCardSaved,
+                        savedDraft && styles.actionCardSaved,
                         saving && styles.actionCardDisabled,
                     ]}
-                    onPress={handleSave}
-                    disabled={saving || saved}>
+                    onPress={handleSaveDraft}
+                    disabled={saving || savedDraft || savedTrello}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
                             <ActivityIndicator
                                 color={Palette.primaryPurple100}
                             />
-                        ) : saved ? (
+                        ) : savedDraft ? (
                             <MaterialCommunityIcons
                                 name="check"
                                 size={24}
@@ -220,11 +235,11 @@ export default function EventSummaryScreen() {
                     </View>
                     <View>
                         <Text style={styles.actionCardTitle}>
-                            {saved ? "Saved to Trello!" : "Save as draft"}
+                            {savedDraft ? "Saved as draft!" : "Save as draft"}
                         </Text>
                         <Text style={styles.actionCardSubtitle}>
-                            {saved
-                                ? "Summary uploaded to Trello card"
+                            {savedDraft
+                                ? "Edit later from the Drafts tab"
                                 : "Continue editing later"}
                         </Text>
                     </View>
@@ -232,32 +247,53 @@ export default function EventSummaryScreen() {
 
                 <Pressable
                     style={styles.actionCard}
-                    onPress={() => router.back()}>
+                    onPress={handlePublish}
+					disabled={saving || savedDraft || savedTrello}>
                     <View style={styles.actionIconWrap}>
-                        <MaterialCommunityIcons
-                            name="pencil-outline"
-                            size={24}
-                            color="#666"
-                        />
+						{saving ? (
+                            <ActivityIndicator
+                                color={Palette.primaryPurple100}
+                            />
+                        ) : savedTrello ? (
+                            <MaterialCommunityIcons
+                                name="check"
+                                size={24}
+                                color={GREEN}
+                            />
+                        ) : (
+                        	<MaterialCommunityIcons
+                            	name="pencil-outline"
+                            	size={24}
+                            	color="#666"
+                        	/>
+                        )}
                     </View>
                     <View>
-                        <Text style={styles.actionCardTitle}>
-                            Edit event now
+						<Text style={styles.actionCardTitle}>
+                            {savedTrello ? "Posted to Trello!" : "Post to Trello"}
                         </Text>
                         <Text style={styles.actionCardSubtitle}>
-                            Complete & upload to Trello
+                            {savedTrello
+                                ? "Event info has been saved"
+                                : "Complete & upload to Trello"}
                         </Text>
                     </View>
                 </Pressable>
+
+                {(savedDraft || savedTrello) && (
+                    <Pressable
+                        style={styles.actionCard}
+                        onPress={() => router.replace("/home-screen")}>
+                        <View>
+                            <Text style={styles.actionCardTitle}>
+                                Back to home screen
+                            </Text>
+                        </View>
+                    </Pressable>
+                )}
             </ScrollView>
 
-            <BottomNav
-                active={activeTab}
-                onTabPress={(tab) => {
-                    setActiveTab(tab);
-                    if (tab === "home") router.replace("/(tabs)");
-                }}
-            />
+            <BottomNav />
         </View>
     );
 }

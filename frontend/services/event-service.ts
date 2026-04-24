@@ -63,7 +63,7 @@ export async function createEvent(
         albumUrl,
         isActive: true,
         isDraft: false,
-        startDate: Timestamp.now(),
+		startDate: null,
         endDate: null,
         createdAt: Timestamp.now(),
         trailImprovements: 0,
@@ -141,6 +141,17 @@ export async function getEventById(eventId: string): Promise<Event | null> {
     const snapshot = await getDoc(doc(db, EVENTS_COLLECTION, eventId));
     if (!snapshot.exists()) return null;
     return snapshot.data() as Event;
+}
+
+export async function getEventByTrelloCardId(trelloCardId: string): Promise<Event | null> {
+    const db = getFirestore();
+    const q = query(
+        collection(db, EVENTS_COLLECTION),
+        where("trelloCardId", "==", trelloCardId),
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    return snapshot.docs[0].data() as Event;
 }
 
 export async function setEventInactive(eventId: string): Promise<void> {

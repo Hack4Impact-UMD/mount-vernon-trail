@@ -1,5 +1,6 @@
 import { listAlbums, type GooglePhotosAlbum } from "@/api/googlePhotosClient";
 import { getValidAccessToken } from "@/auth/google-auth";
+import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
 import { useIsAdmin } from "@/hooks/use-is-admin";
@@ -291,6 +292,7 @@ export default function AlbumsScreen() {
                     </View>
                     {renderContent()}
                 </ScrollView>
+                <BottomNav />
             </View>
         </>
     );

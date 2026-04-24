@@ -86,6 +86,8 @@ export default function RootLayout() {
             "active-event",
             "event-summary",
             "albums",
+            "drafts",
+            "profile",
         ]);
         // if user not authenticated, re-route to /auth if an auth route is being accessed
         if (!user) {
@@ -96,7 +98,7 @@ export default function RootLayout() {
         }
         // if user is authenticated, re-route to "home" if non-auth route is being accessed
         if (!authRoutes.has(route)) {
-            router.replace("/(tabs)");
+            router.replace("/home-screen");
         }
     }, [user, fontsLoaded, segments, router]);
 
@@ -143,8 +145,20 @@ export default function RootLayout() {
                     options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                    name="home-screen"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="drafts"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
                     name="albums"
-                    options={{ headerShown: false }}
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="profile"
+                    options={{ headerShown: false, animation: "none" }}
                 />
             </Stack>
             <StatusBar style="auto" />
