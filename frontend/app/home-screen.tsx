@@ -83,7 +83,6 @@ export default function HomeScreen() {
     if (!isAuthenticated) {
         return (
             <TrelloLoginUI
-                userName="Sarah"
                 onPressTrello={handleTrelloSignIn}
                 isLoading={loading || initializing}
                 errorMessage={trelloError?.message ?? null}
@@ -126,10 +125,7 @@ export default function HomeScreen() {
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}>
-                    <Header
-                        userName="Sarah"
-                        showGreeting
-                    />
+                    <Header showGreeting />
                     <View style={styles.cardWrapper}>
                         <TakeAfterPicture />
                         <MakeBeforeAfterGraphic />

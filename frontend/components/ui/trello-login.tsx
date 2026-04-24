@@ -1,6 +1,9 @@
+import { useGoogleAuth } from "@/auth";
+import { subscribeToAuthState } from "@/auth/google-auth";
 import { Palette } from "@/constants/theme";
 import { Stack } from "expo-router";
-import React from "react";
+import { User } from "firebase/auth";
+import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Dimensions,
@@ -16,19 +19,18 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type TrelloLoginUIProps = {
-    userName: string;
     onPressTrello: () => void;
     isLoading?: boolean;
     errorMessage?: string | null;
 };
 
 export default function TrelloLoginUI({
-    userName,
     onPressTrello,
     isLoading = false,
     errorMessage = null,
 }: TrelloLoginUIProps) {
     const insets = useSafeAreaInsets();
+	const { user } = useGoogleAuth();
 
     return (
         <View style={styles.container}>
@@ -46,7 +48,7 @@ export default function TrelloLoginUI({
                     <View style={styles.content}>
                         <Text style={styles.welcome}>
                             Welcome,{" "}
-                            <Text style={styles.userName}>{userName}!</Text>
+                            <Text style={styles.userName}>{user?.displayName?.split(" ")[0]}!</Text>
                         </Text>
                         <Text style={styles.subtitle}>
                             Log in with Trello to view your events!

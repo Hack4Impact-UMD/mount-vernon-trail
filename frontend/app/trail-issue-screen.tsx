@@ -79,7 +79,7 @@ export default function TrailIssueDetailScreen() {
 				contentContainerStyle={{ paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}>
 				{/* App Header */}
-				<HomeHeader userName="Sarah" />
+				<HomeHeader />
                 {/* Cover Image */}
                 <View style={styles.coverContainer}>
                     {imageUrl ? (

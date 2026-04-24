@@ -1,16 +1,17 @@
+import { useGoogleAuth } from "@/auth";
 import { Palette } from "@/constants/theme";
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HomeHeader({
-    userName,
     showGreeting = false,
 }: {
-    userName: string;
     showGreeting?: boolean;
 }) {
     const insets = useSafeAreaInsets();
+	const { user } = useGoogleAuth();
+
     return (
         <View>
             <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -28,7 +29,7 @@ export default function HomeHeader({
                 <View style={styles.greetingContainer}>
                     <Text style={styles.greeting}>
                         Ready to make an impact,{"\n"}
-                        <Text style={styles.name}>{userName}</Text>?
+                        <Text style={styles.name}>{user?.displayName?.split(" ")[0]}</Text>?
                     </Text>
                 </View>
             )}

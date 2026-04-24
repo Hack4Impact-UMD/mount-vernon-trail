@@ -145,7 +145,7 @@ export default function EventSummaryScreen() {
     return (
         <View style={styles.screen}>
             <View>
-                <HomeHeader userName="Sarah" />
+                <HomeHeader />
                 <TrailEventHeader
                     event={event}
                     variant="summary"

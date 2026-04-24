@@ -168,7 +168,7 @@ export default function TrailDocumentScreen() {
                     style={styles.container}
                     showsVerticalScrollIndicator={false}>
                     {/* App Header */}
-                    <HomeHeader userName="Sarah" />
+                    <HomeHeader />
                     <TrailEventHeader
                         event={event}
                         variant="document"
