@@ -147,9 +147,50 @@ app.post(
     },
 );
 
-// TODO: google photos create album endpoint
+// Creates a new Google Photos album, expects body: { "title": "Album name" }
 app.post("/api/albums", async (req: Request, res: Response) => {
-    // code here
+    try {
+        const { title } = req.body;
+        // Validate input
+        if (typeof title !== "string" || title.trim() === "") {
+            return res.status(400).json({ error: "title is required" });
+        }
+        const token = await getAccessToken();
+        const response = await fetch(
+            "https://photoslibrary.googleapis.com/v1/albums",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ album: { title } }),
+            },
+        );
+        // Check for Google request error
+        if (!response.ok) {
+            const body = await response.text();
+            console.error("Google Photos API error:", response.status, body);
+            return res.status(502).json({
+                error: "Google Photos API error",
+                status: response.status,
+                body,
+            });
+        }
+        const data = await response.json();
+        return res.status(201).json(data);
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            error.message.includes("No refresh token")
+        ) {
+            return res.status(401).json({
+                error: "Not authenticated. Admin must sign in.",
+            });
+        }
+        console.error("Error creating album:", error);
+        return res.status(500).json({ error: "Failed to create album" });
+    }
 });
 
 // Lists albums created by this app
