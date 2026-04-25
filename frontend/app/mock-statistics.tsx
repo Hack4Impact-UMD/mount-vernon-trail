@@ -1,7 +1,7 @@
-import { updateEventStats } from "@/services/event-service";
+import { extractStats, getEventById, updateEventStats } from "@/services/event-service";
 import type { StatsData } from "@/types/trail-types";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
     Alert,
     KeyboardAvoidingView,
@@ -38,6 +38,7 @@ export default function MockStatisticsScreen() {
     const [values, setValues] = useState<
         Partial<Record<keyof StatsData, string>>
     >({});
+    const [loading, setLoading] = useState<boolean>(true);
     const [saving, setSaving] = useState(false);
 
     const handleSave = async () => {
@@ -47,7 +48,7 @@ export default function MockStatisticsScreen() {
             const stats: Partial<StatsData> = {};
             for (const { key } of FIELDS) {
                 const n = parseInt(values[key] ?? "0", 10);
-                (stats as Record<string, number>)[key] = isNaN(n) ? 0 : n;
+                (stats as Record<string, number>)[key] = isNaN(n) ? 0 : Math.max(0, n);
             }
             await updateEventStats(eventId, stats);
             router.back();
@@ -57,6 +58,29 @@ export default function MockStatisticsScreen() {
             setSaving(false);
         }
     };
+
+    const loadInitialValues = useCallback(async () => {
+        if (!eventId) return Alert.alert("Error", "No event ID.");
+        setLoading(true);
+        try {
+            const event = await getEventById(eventId);
+            if (event === null) return Alert.alert("Error", "Event not found.");
+            const stats = extractStats(event);
+            const formattedStats: Partial<Record<keyof StatsData, string>> = {};
+            for (const { key } of FIELDS) {
+                formattedStats[key] = stats[key]?.toString() ?? "0";
+            }
+            setValues(formattedStats);
+        } catch (e) {
+            Alert.alert("Error", (e as Error).message);
+        } finally {
+            setLoading(false);
+        }
+    }, [eventId]);
+
+    useEffect(() => {
+        loadInitialValues()
+    }, [eventId, loadInitialValues]);
 
     return (
         <KeyboardAvoidingView
