@@ -197,6 +197,7 @@ const styles = StyleSheet.create({
         letterSpacing: -0.31,
         color: "#0A0A0A",
         marginBottom: 4,
+        textAlign: "center",
     },
     eventDate: {
         fontSize: 14,
@@ -206,6 +207,7 @@ const styles = StyleSheet.create({
         letterSpacing: -0.15,
         color: "#4A5565",
         marginBottom: 20,
+        textAlign: "center",
     },
     detailsSection: {
         gap: 8,
