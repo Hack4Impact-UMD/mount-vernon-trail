@@ -2,6 +2,7 @@ import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import { TrailDocStatsCard } from "@/components/ui/trail-doc-stats-card";
+import { MetricCounter } from "@/components/ui/metric-counter";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event } from "@/services/event-service";
 import {
@@ -278,8 +279,10 @@ export default function TrailDocumentScreen() {
 
                         {/* Statistics Section */}
                         <Text style={styles.sectionTitle}>Statistics</Text>
-                        <TrailDocStatsCard {...statsData} />
-
+                        { /* <TrailDocStatsCard {...statsData} /> */ }
+                        <MetricCounter label={"Number of drains / culverts cleaned"} unit={"drains"} value={0} onChange={function (val: number): void {
+                            throw new Error("Function not implemented.");
+                        } } />
                         {/* Action Buttons */}
                         {/* <View
                             style={{
