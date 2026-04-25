@@ -4,10 +4,7 @@ import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import { TrailDocStatsCard } from "@/components/ui/trail-doc-stats-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event } from "@/services/event-service";
-import {
-    getActiveEvent,
-    getEventById,
-} from "@/services/event-service";
+import { getActiveEvent, getEventById } from "@/services/event-service";
 import { TrelloClient } from "@/services/trello-funcs";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
@@ -244,10 +241,14 @@ export default function TrailDocumentScreen() {
                                             params: {
                                                 issueId: issue.id,
                                                 issueName: issue.name,
-												imageUrl: issue.imageUrl,
+                                                imageUrl: issue.imageUrl,
                                                 eventId: event.eventId,
-												beforeImageUri: issueImages[issue.id]?.before,
-												afterImageUri: issueImages[issue.id]?.after
+                                                beforeImageUri:
+                                                    issueImages[issue.id]
+                                                        ?.before,
+                                                afterImageUri:
+                                                    issueImages[issue.id]
+                                                        ?.after,
                                             },
                                         })
                                     }
@@ -279,6 +280,38 @@ export default function TrailDocumentScreen() {
                         {/* Statistics Section */}
                         <Text style={styles.sectionTitle}>Statistics</Text>
                         <TrailDocStatsCard {...statsData} />
+
+                        {/* temporary button for mock stats for testing */}
+                        <TouchableOpacity
+                            style={{
+                                marginTop: 10,
+                                marginBottom: 8,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 6,
+                                paddingVertical: 10,
+                                borderRadius: 10,
+                                borderWidth: 1,
+                                borderColor: "#FBBF24",
+                                backgroundColor: "#FFF3CD",
+                            }}
+                            onPress={() =>
+                                router.push({
+                                    pathname: "/mock-statistics",
+                                    params: { eventId: event.eventId },
+                                })
+                            }>
+                            <Text
+                                style={{
+                                    fontSize: 13,
+                                    fontWeight: "700",
+                                    color: "#92400E",
+                                }}>
+                                Edit Mock Statistics
+                            </Text>
+                        </TouchableOpacity>
+                        {/* delete from here to the previous comment when done */}
 
                         {/* Action Buttons */}
                         {/* <View
