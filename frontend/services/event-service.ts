@@ -1,16 +1,17 @@
 import { auth } from "@/config/firebase";
+import type { StatsData } from "@/types/trail-types";
 import {
     collection,
     doc,
     getDoc,
     getDocs,
     getFirestore,
+    orderBy,
     query,
     Timestamp,
     updateDoc,
     where,
     writeBatch,
-    orderBy,
 } from "firebase/firestore";
 
 export interface Event {
@@ -63,7 +64,7 @@ export async function createEvent(
         albumUrl,
         isActive: true,
         isDraft: false,
-		startDate: null,
+        startDate: null,
         endDate: null,
         createdAt: Timestamp.now(),
         trailImprovements: 0,
@@ -143,7 +144,9 @@ export async function getEventById(eventId: string): Promise<Event | null> {
     return snapshot.data() as Event;
 }
 
-export async function getEventByTrelloCardId(trelloCardId: string): Promise<Event | null> {
+export async function getEventByTrelloCardId(
+    trelloCardId: string,
+): Promise<Event | null> {
     const db = getFirestore();
     const q = query(
         collection(db, EVENTS_COLLECTION),
@@ -163,7 +166,10 @@ export async function setEventInactive(eventId: string): Promise<void> {
 }
 
 // Save a completed event as a draft instead of immediately publishing
-export async function saveDraft(eventId: string, notepad?: string): Promise<void> {
+export async function saveDraft(
+    eventId: string,
+    notepad?: string,
+): Promise<void> {
     const db = getFirestore();
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         isDraft: true,
@@ -195,4 +201,42 @@ export async function getDraftEvents(): Promise<Event[]> {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d) => d.data() as Event);
+}
+
+export async function updateEventStats(
+    eventId: string,
+    stats: Partial<StatsData>,
+): Promise<void> {
+    const db = getFirestore();
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
+        ...stats,
+    });
+}
+
+export function extractStats(event: Event): StatsData {
+    const e = event as unknown as Record<string, unknown>;
+    return {
+        trailImprovements: (e["trailImprovements"] as number) ?? 0,
+        drainage: (e["drainage"] as number) ?? 0,
+        graffiti: (e["graffiti"] as number) ?? 0,
+        stickers: (e["stickers"] as number) ?? 0,
+        otherImprovements: (e["otherImprovements"] as number) ?? 0,
+        painting: (e["painting"] as number) ?? 0,
+        pressureWashing: (e["pressureWashing"] as number) ?? 0,
+        repairs: (e["repairs"] as number) ?? 0,
+        safetyImprovements: (e["safetyImprovements"] as number) ?? 0,
+        potholes: (e["potholes"] as number) ?? 0,
+        trash: (e["trash"] as number) ?? 0,
+        trees: (e["trees"] as number) ?? 0,
+        vegetationImprovements: (e["vegetationImprovements"] as number) ?? 0,
+        hoursOfService: (() => {
+            if (!event.startDate) return 0;
+            const end = event.endDate ? event.endDate.toMillis() : Date.now();
+            return parseFloat(
+                (
+                    Math.max(0, end - event.startDate.toMillis()) / 3_600_000
+                ).toFixed(1),
+            );
+        })(),
+    };
 }
