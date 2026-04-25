@@ -9,8 +9,8 @@ import { TrelloClient } from "@/services/trello-funcs";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     ScrollView,
@@ -29,6 +29,7 @@ export default function TrailDocumentScreen() {
     const [event, setEvent] = useState<Event>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
+    const pressedTrailIssueRef = useRef<boolean>(false);
     // Trail issue, state, and camera state
     const { beforeImageUri, afterImageUri, activeIssueId, eventId } =
         useLocalSearchParams<{
@@ -51,6 +52,11 @@ export default function TrailDocumentScreen() {
         trashCollection: 0,
         restorationEffort: 0,
     });
+
+    useFocusEffect(useCallback(() => {
+        pressedTrailIssueRef.current = false;
+        return undefined;
+    }, []));
 
     useEffect(() => {
         async function loadActiveEvent() {
@@ -235,7 +241,12 @@ export default function TrailDocumentScreen() {
                                     name={issue.name}
                                     date={issue.creationDate}
                                     imageUrl={issue.imageUrl}
-                                    onPress={() =>
+                                    onPress={() => {
+                                        if (pressedTrailIssueRef.current) {
+                                            // dont route again
+                                            return;
+                                        }
+                                        pressedTrailIssueRef.current = true;
                                         router.push({
                                             pathname: "/trail-issue-screen",
                                             params: {
@@ -251,7 +262,7 @@ export default function TrailDocumentScreen() {
                                                         ?.after,
                                             },
                                         })
-                                    }
+                                    }}
                                 />
                             ))}
                         </View>
