@@ -2,7 +2,8 @@ import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import { TrailDocStatsCard } from "@/components/ui/trail-doc-stats-card";
-import { MetricCounter } from "@/components/ui/metric-counter";
+import { MetricCategory} from "@/components/ui/metric-category";
+import { METRICS_CONFIG } from "@/config/metricsConfig";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event } from "@/services/event-service";
 import {
@@ -55,7 +56,8 @@ export default function TrailDocumentScreen() {
         trashCollection: 0,
         restorationEffort: 0,
     });
-
+    const [metrics, setMetrics] = useState<Record<string, number>>({});
+    
     useEffect(() => {
         async function loadActiveEvent() {
             try {
@@ -151,6 +153,10 @@ export default function TrailDocumentScreen() {
                 eventId: event.eventId,
             },
         });
+    }
+
+    function updateMetric(fieldId: string, val: number) {
+        setMetrics((prev) => ({ ...prev, [fieldId]: val }));
     }
 
     if (loading) return <ActivityIndicator style={styles.loader} />;
@@ -279,10 +285,19 @@ export default function TrailDocumentScreen() {
 
                         {/* Statistics Section */}
                         <Text style={styles.sectionTitle}>Statistics</Text>
-                        { /* <TrailDocStatsCard {...statsData} /> */ }
-                        <MetricCounter label={"Number of drains / culverts cleaned"} unit={"drains"} value={0} onChange={function (val: number): void {
-                            throw new Error("Function not implemented.");
-                        } } />
+                        <Text>
+                            {`${Object.values(metrics).filter(v => v > 0).length} of ${METRICS_CONFIG.flatMap(c => c.fields).length} Filled`}
+                        </Text>
+                        <View style={styles.metricsContainer}>
+                            {METRICS_CONFIG.map((category) => (
+                            <MetricCategory
+                                key={category.id}
+                                category={category}
+                                values={metrics}
+                                onChange={updateMetric}
+                            />
+                            ))}
+                        </View>
                         {/* Action Buttons */}
                         {/* <View
                             style={{
@@ -477,5 +492,9 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: "#888",
         textAlign: "center",
+    },
+    metricsContainer: {
+        marginHorizontal: -20,
+        marginBottom: 24,
     },
 });
