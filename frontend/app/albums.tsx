@@ -7,8 +7,8 @@ import { useIsAdmin } from "@/hooks/use-is-admin";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
+import { collection, getDocs, getFirestore } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
-import { getFirestore, getDocs, collection } from "firebase/firestore";
 import {
     ActivityIndicator,
     Image,
@@ -123,7 +123,7 @@ function AlbumCard({ album }: { album: NormalizedAlbum }) {
                     hitSlop={8}>
                         <MaterialIcons
                             name="star"
-                            size={18}
+                            size={favorited ? 22 : 18}
                             color="#fff"
                         />
                     </Pressable>
@@ -269,7 +269,7 @@ export default function AlbumsScreen() {
         <>
             <Stack.Screen options={{ headerShown: false }} />
             <View style={styles.screen}>
-                <Header userName="" />
+                <Header />
                 <ScrollView
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}
