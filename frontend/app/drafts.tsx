@@ -5,7 +5,6 @@ import { Palette } from "@/constants/theme";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { Event, getDraftEvents } from "@/services/event-service";
 import { MaterialIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
 import { Timestamp } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
@@ -34,20 +33,6 @@ function formatDate(value?: Timestamp): string {
 }
 
 function DraftCard({ event } : Readonly<{ event: Event }>) {
-    const [favorited, setFavorited] = useState(false);
-
-    useEffect(() => {
-        AsyncStorage.getItem(`favoriteDraft:${event.eventId}`).then((val) => {
-            if (val !== null) setFavorited(val === "true");
-        });
-    }, [event.eventId]);
-
-    const toggleFavorite = async () => {
-        const next = !favorited;
-        setFavorited(next);
-        await AsyncStorage.setItem(`favoriteDraft:${event.eventId}`, String(next));
-    };
-
     return (
         <View style={styles.cardShadow}>
             <View style={styles.card}>
@@ -209,7 +194,7 @@ export default function DraftsScreen() {
                         {isAdmin && !loading && !error && draftEvents.length > 0 && (
                             <Text style={styles.draftCount}>
                                 {draftEvents.length} draft
-                                {draftEvents.length !== 1 ? "s" : ""}
+                                {draftEvents.length === 1 ? "" : "s"}
                             </Text>
                         )}
                     </View>
