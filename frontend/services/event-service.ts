@@ -30,6 +30,11 @@ export interface Event {
     createdAt: Timestamp;
     trailImprovements: number;
     trashBags: number;
+    eventLeader: string;
+    zoneLeaders: string;
+    toolHaulers: string;
+    gloverLover: string;
+    notes: string;
 }
 
 const EVENTS_COLLECTION = "events";
@@ -43,6 +48,12 @@ export async function createEvent(
     trelloCardId: string,
     albumId: string,
     albumUrl: string,
+    eventLeader: string,
+    zoneLeaders: string,
+    toolHaulers: string,
+    gloverLover: string,
+    notes: string,
+    isDraft: boolean,
 ): Promise<string> {
     const db = getFirestore();
     const currentUser = auth.currentUser;
@@ -63,12 +74,17 @@ export async function createEvent(
         albumId,
         albumUrl,
         isActive: true,
-        isDraft: false,
+        isDraft,
         startDate: null,
         endDate: null,
         createdAt: Timestamp.now(),
         trailImprovements: 0,
         trashBags: 0,
+        eventLeader,
+        zoneLeaders,
+        toolHaulers,
+        gloverLover,
+        notes,
     };
 
     const batch = writeBatch(db);

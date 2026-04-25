@@ -85,13 +85,23 @@ export default function TrailEventCard({
                                     </Text>
                                 </View>
                             ) : null}
-                            {event.workScope ? (
+                            {event.toolHaulers ? (
                                 <View style={styles.detailRow}>
                                     <Text style={styles.detailLabel}>
-                                        Work Scope:
+                                        Tool Haulers:
                                     </Text>
                                     <Text style={styles.detailValue}>
-                                        {event.workScope}
+                                        {event.toolHaulers}
+                                    </Text>
+                                </View>
+                            ) : null}
+                            {event.gloverLover ? (
+                                <View style={styles.detailRow}>
+                                    <Text style={styles.detailLabel}>
+                                        Glover Lover:
+                                    </Text>
+                                    <Text style={styles.detailValue}>
+                                        {event.gloverLover}
                                     </Text>
                                 </View>
                             ) : null}
@@ -219,9 +229,8 @@ const styles = StyleSheet.create({
     },
     detailLabel: {
         fontSize: 14,
-        fontFamily: "Lato_400Regular",
-        fontWeight: "500",
-        lineHeight: 20,
+        fontFamily: "Lato_700Bold",
+        lineHeight: 14,
         letterSpacing: -0.15,
         color: "#0A0A0A",
         width: 100,
