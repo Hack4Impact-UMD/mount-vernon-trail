@@ -32,7 +32,7 @@ export function MetricCounter({ label, unit, value, onChange, isLast = false }: 
                 </View>
                 <TouchableOpacity
                     onPress={() => onChange(value + 1)}
-                    style={[styles.btn, styles.btnActive]}
+                    style={[styles.btn]}
                     activeOpacity={0.7}
                 >
                 <Feather name="plus" size={18} color="#ffffff" />
@@ -47,6 +47,8 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+        paddingHorizontal: 22,
+        paddingVertical: 15,
     },
     rowBorder: {
         borderBottomWidth: StyleSheet.hairlineWidth,
@@ -69,9 +71,10 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         alignItems: "center",
         justifyContent: "center",
+        backgroundColor: Palette.primaryPurple100,
     },
     btnActive: {
-        backgroundColor: Palette.primaryPurple100,
+        backgroundColor: "#69389418",
     },
     btnDisabled: {
         backgroundColor: "#F0F0F0",
