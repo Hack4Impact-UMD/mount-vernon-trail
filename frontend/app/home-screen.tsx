@@ -3,10 +3,11 @@ import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
+import { PastEventsCard } from "@/components/ui/past-events-card";
 import { getEventByTrelloCardId , startEvent } from "@/services/event-service";
 import TrailEventCard from "@/components/ui/trail-event-card";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
-import { fetchUpcomingEvents } from "@/services/trello-service";
+import { fetchUpcomingEvents, fetchPastEvents } from "@/services/trello-service";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
@@ -19,44 +20,15 @@ import { useIsAdmin } from "@/hooks/use-is-admin";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
-// THESE ARE PLACEHOLDER EVENTS FOR THE PAST EVENTS FIGMA DESIGN
-const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
-    {
-        id: "past-1",
-        name: "Snow cleanup on Sector A",
-        description: "",
-        date: new Date(2026, 1, 15),
-        imageUrl: null,
-    },
-    {
-        id: "past-2",
-        name: "Trail marker restoration at Mile 3",
-        description: "",
-        date: new Date(2026, 0, 22),
-        imageUrl: null,
-    },
-    {
-        id: "past-3",
-        name: "Fallen tree removal near bridge",
-        description: "",
-        date: new Date(2025, 11, 10),
-        imageUrl: null,
-    },
-    {
-        id: "past-4",
-        name: "Holiday litter sweep",
-        description: "",
-        date: new Date(2025, 11, 1),
-        imageUrl: null,
-    },
-];
-
 export default function HomeScreen() {
     const router = useRouter();
     const { isAuthenticated, promptSignIn, loading, initializing, error: trelloError } = useTrelloAuth();
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
+    const [pastEvents, setPastEvents] = useState<UpcomingEventItem[]>([]);
+    const [pastEventsLoading, setPastEventsLoading] = useState(true);
+    const [pastEventsError, setPastEventsError] = useState<string | null>(null);
     const [selectedEvent, setSelectedEvent] =
         useState<UpcomingEventItem | null>(null);
     const isAdmin = useIsAdmin();
@@ -78,6 +50,10 @@ export default function HomeScreen() {
             .then(setEvents)
             .catch((e) => setEventsError(e.message))
             .finally(() => setEventsLoading(false));
+        fetchPastEvents(API_KEY)
+            .then(setPastEvents)
+            .catch((e) => setPastEventsError(e.message))
+            .finally(() => setPastEventsLoading(false));
     }, [isAuthenticated]);
 
     if (!isAuthenticated) {
@@ -143,19 +119,12 @@ export default function HomeScreen() {
                             onPressItem={(event) => setSelectedEvent(event)}
                         />
                     </View>
-
-                    {/* PLACEHOLDER FOR PAST EVENTS IN FIGMA */}
                     <View style={styles.eventsSection}>
-                        <UpcomingEventsCard
-                            title="Past Events"
-                            events={PLACEHOLDER_PAST_EVENTS}
-                            loading={false}
-                            error={null}
+                        <PastEventsCard
+                            events={pastEvents}
+                            loading={pastEventsLoading}
+                            error={pastEventsError}
                             maxItems={3}
-                            onShowMore={() => {}}
-                            onPressItem={(event) =>
-                                console.log("pressed past:", event.name)
-                            }
                         />
                     </View>
                 </ScrollView>
