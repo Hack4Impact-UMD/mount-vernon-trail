@@ -84,11 +84,14 @@ export default function DraftsScreen() {
     }, []);
 
     useEffect(() => {
+        // check if admin status undetermined
+        if (isAdmin === null) return; 
         if (!isAdmin) {
             setLoading(false);
             return;
         }
-
+        // start loading drafts
+        setLoading(true);
         loadDraftEvents().finally(() => setLoading(false));
     }, [loadDraftEvents, isAdmin]);
 

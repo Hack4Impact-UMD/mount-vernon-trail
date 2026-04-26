@@ -184,11 +184,14 @@ export default function AlbumsScreen() {
     }, []);
 
     useEffect(() => {
+        // check if admin status undetermined
+        if (isAdmin === null) return; 
         if (!isAdmin) {
             setLoading(false);
             return;
         }
-
+        // start loading albums
+        setLoading(true);
         loadAlbums().finally(() => setLoading(false));
     }, [loadAlbums, isAdmin]);
 

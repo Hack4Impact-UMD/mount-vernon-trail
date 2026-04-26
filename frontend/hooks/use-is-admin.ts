@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 
 const ADMIN_EMAIL = process.env.EXPO_PUBLIC_ADMIN_EMAIL ?? "";
 
-export function useIsAdmin(): boolean {
-    const [isAdmin, setIsAdmin] = useState(false);
+export function useIsAdmin(): boolean | null {
+    const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {

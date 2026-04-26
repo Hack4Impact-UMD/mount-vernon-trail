@@ -128,9 +128,9 @@ export default function MockStatisticsScreen() {
                 <Pressable
                     style={styles.saveBtn}
                     onPress={handleSave}
-                    disabled={saving}>
+                    disabled={saving || loading}>
                     <Text style={styles.saveText}>
-                        {saving ? "Saving…" : "Save"}
+                        {loading ? "Loading…" : saving ? "Saving…" : "Save"}
                     </Text>
                 </Pressable>
             </View>
