@@ -326,7 +326,7 @@ app.get("/api/albums", async (req: Request, res: Response) => {
 // Lists media items in an album
 app.get("/api/albums/:albumId/photos", async (req: Request, res: Response) => {
     try {
-        const { albumId } = req.params;
+        const albumId = req.params.albumId as string;
         const pageToken = req.query.pageToken as string | undefined;
         const token = await getAccessToken();
         const body: Record<string, unknown> = { albumId, pageSize: 100 };
@@ -370,7 +370,7 @@ app.get("/api/albums/:albumId/photos", async (req: Request, res: Response) => {
 // Gets a single media item by ID
 app.get("/api/photos/:photoId", async (req: Request, res: Response) => {
     try {
-        const { photoId } = req.params;
+        const photoId = req.params.photoId as string;
         const token = await getAccessToken();
         const response = await fetch(
             `https://photoslibrary.googleapis.com/v1/mediaItems/${encodeURIComponent(photoId)}`,
