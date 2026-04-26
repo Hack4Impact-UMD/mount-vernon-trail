@@ -7,7 +7,7 @@ import type { Event } from "@/services/event-service";
 import { getActiveEvent, getEventById } from "@/services/event-service";
 import { TrelloClient } from "@/services/trello-funcs";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
-import { TrailDocumentIssueItem } from "@/types/trail-types";
+import { StatsData, TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -22,6 +22,23 @@ import {
 } from "react-native";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
+
+const DEFAULT_STATS_DATA: StatsData = {
+    trash: 0,
+    trailImprovements: 0,
+    drainage: 0,
+    graffiti: 0,
+    stickers: 0,
+    otherImprovements: 0,
+    painting: 0,
+    pressureWashing: 0,
+    repairs: 0,
+    safetyImprovements: 0,
+    potholes: 0,
+    trees: 0,
+    vegetationImprovements: 0,
+    hoursOfService: 0,
+};
 
 export default function TrailDocumentScreen() {
     const router = useRouter();
@@ -48,10 +65,7 @@ export default function TrailDocumentScreen() {
     const [notepad, setNotepad] = useState("");
     const [activeEventId, setActiveEventId] = useState<string | null>(null);
     const [issuesError, setIssuesError] = useState<string | null>(null);
-    const [statsData, setStatsData] = useState({
-        trashCollection: 0,
-        restorationEffort: 0,
-    });
+    const [statsData, setStatsData] = useState<StatsData>(DEFAULT_STATS_DATA);
 
     useFocusEffect(useCallback(() => {
         pressedTrailIssueRef.current = false;
@@ -110,8 +124,9 @@ export default function TrailDocumentScreen() {
                 if (!cancelled) {
                     setIssuesData(issues);
                     setStatsData({
-                        trashCollection: 12,
-                        restorationEffort: 250,
+                        ...DEFAULT_STATS_DATA,
+                        trash: 12,
+                        trailImprovements: 250,
                     });
                 }
             } catch (err) {

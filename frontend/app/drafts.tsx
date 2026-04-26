@@ -1,4 +1,3 @@
-import { getValidAccessToken } from "@/auth/google-auth";
 import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
@@ -76,13 +75,6 @@ export default function DraftsScreen() {
     const loadDraftEvents = useCallback(async () => {
         setError(null);
         try {
-            const token = await getValidAccessToken();
-            if (!token) {
-                setError(
-                    "Not signed in or session expired. Please sign in again.",
-                );
-                return;
-            }
             const data = await getDraftEvents();
             setDraftEvents(data);
         } catch (e) {

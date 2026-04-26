@@ -8,7 +8,7 @@ export function TrailDocStatsCard(stats: Readonly<StatsData>) {
         <View style={styles.cardContainer}>
             {/* Trash Collection Card */}
             <View style={styles.card}>
-                <Text style={styles.value}>{stats.trashCollection}</Text>
+                <Text style={styles.value}>{stats.trash}</Text>
                 <View style={styles.textContainer}>
                     <Text style={styles.label}>Trash collection</Text>
                     <Text style={styles.subLabel}>In pounds (lbs)</Text>
@@ -16,7 +16,7 @@ export function TrailDocStatsCard(stats: Readonly<StatsData>) {
             </View> 
             {/* Restoration Effort Card */}
             <View style={styles.card}>
-                <Text style={styles.value}>{stats.restorationEffort}</Text>
+                <Text style={styles.value}>{stats.trailImprovements}</Text>
                 <View style={styles.textContainer}>
                     <Text style={styles.label}>Restoration effort</Text>
                     <Text style={styles.subLabel}>In sq.footage</Text>

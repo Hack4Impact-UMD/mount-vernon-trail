@@ -60,11 +60,21 @@ export default function MockStatisticsScreen() {
     };
 
     const loadInitialValues = useCallback(async () => {
-        if (!eventId) return Alert.alert("Error", "No event ID.");
+        if (!eventId) {
+            Alert.alert("Error", "No event ID.", [
+                { text: "OK", onPress: () => router.back() },
+            ]);
+            return;
+        }
         setLoading(true);
         try {
             const event = await getEventById(eventId);
-            if (event === null) return Alert.alert("Error", "Event not found.");
+            if (event === null) {
+                Alert.alert("Error", "Event not found.", [
+                    { text: "OK", onPress: () => router.back() },
+                ]);
+                return;
+            }
             const stats = extractStats(event);
             const formattedStats: Partial<Record<keyof StatsData, string>> = {};
             for (const { key } of FIELDS) {

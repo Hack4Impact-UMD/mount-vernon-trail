@@ -46,7 +46,11 @@ export default function SetupEventScreen() {
     const handleCancel = () => {
         if (creating || canceling) return;
         setCanceling(true);
-        router.back();
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+        setCanceling(false);
     }
 
     const handleCreate = async () => {
