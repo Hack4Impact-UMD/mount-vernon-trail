@@ -109,11 +109,10 @@ app.get("/auth/callback", async (req: Request, res: Response) => {
         if (tokens.refresh_token) {
             await redis.set("refresh_token", tokens.refresh_token);
         }
-        // check if we got a access otken, and if so, store in memory
+        // check if we got an access token, and if so, store in memory
         if (tokens.access_token) {
-            const expiresIn = 3600;
             accessToken = tokens.access_token;
-            tokenExpiryTime = Date.now() + expiresIn * 1000;
+            tokenExpiryTime = tokens.expiry_date ?? Date.now() + 3600 * 1000;
         }
         return res
             .status(200)
@@ -293,10 +292,12 @@ app.post("/api/albums", async (req: Request, res: Response) => {
 app.get("/api/albums", async (req: Request, res: Response) => {
     try {
         const token = await getAccessToken();
-        const response = await fetch(
-            "https://photoslibrary.googleapis.com/v1/albums",
-            { headers: { Authorization: `Bearer ${token}` } },
-        );
+        const pageToken = req.query.pageToken as string | undefined;
+        let url = "https://photoslibrary.googleapis.com/v1/albums?pageSize=50";
+        if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+        const response = await fetch(url, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
         if (!response.ok) {
             const body = await response.text();
             console.error("Google Photos API error:", response.status, body);
@@ -309,7 +310,6 @@ app.get("/api/albums", async (req: Request, res: Response) => {
         const data = await response.json();
         return res.status(200).json(data);
     } catch (error) {
-        // Missing refresh token
         if (
             error instanceof Error &&
             error.message.includes("No refresh token")
@@ -323,14 +323,82 @@ app.get("/api/albums", async (req: Request, res: Response) => {
     }
 });
 
-// TODO: get images in album endpoint
+// Lists media items in an album
 app.get("/api/albums/:albumId/photos", async (req: Request, res: Response) => {
-    // code here
+    try {
+        const { albumId } = req.params;
+        const pageToken = req.query.pageToken as string | undefined;
+        const token = await getAccessToken();
+        const body: Record<string, unknown> = { albumId, pageSize: 100 };
+        if (pageToken) body.pageToken = pageToken;
+        const response = await fetch(
+            "https://photoslibrary.googleapis.com/v1/mediaItems:search",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(body),
+            },
+        );
+        if (!response.ok) {
+            const text = await response.text();
+            console.error("Google Photos API error:", response.status, text);
+            return res.status(502).json({
+                error: "Google Photos API error",
+                status: response.status,
+                body: text,
+            });
+        }
+        const data = await response.json();
+        return res.status(200).json(data);
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            error.message.includes("No refresh token")
+        ) {
+            return res.status(401).json({
+                error: "Not authenticated. Admin must sign in.",
+            });
+        }
+        console.error("Error listing photos:", error);
+        return res.status(500).json({ error: "Failed to list photos" });
+    }
 });
 
-// TODO: get photo by ID
+// Gets a single media item by ID
 app.get("/api/photos/:photoId", async (req: Request, res: Response) => {
-    // code here
+    try {
+        const { photoId } = req.params;
+        const token = await getAccessToken();
+        const response = await fetch(
+            `https://photoslibrary.googleapis.com/v1/mediaItems/${encodeURIComponent(photoId)}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!response.ok) {
+            const text = await response.text();
+            console.error("Google Photos API error:", response.status, text);
+            return res.status(response.status === 404 ? 404 : 502).json({
+                error: "Google Photos API error",
+                status: response.status,
+                body: text,
+            });
+        }
+        const data = await response.json();
+        return res.status(200).json(data);
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            error.message.includes("No refresh token")
+        ) {
+            return res.status(401).json({
+                error: "Not authenticated. Admin must sign in.",
+            });
+        }
+        console.error("Error fetching photo:", error);
+        return res.status(500).json({ error: "Failed to fetch photo" });
+    }
 });
 
 app.listen(port, () => {
