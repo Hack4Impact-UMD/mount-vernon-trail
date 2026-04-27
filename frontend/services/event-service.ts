@@ -13,7 +13,7 @@ import {
     orderBy,
 } from "firebase/firestore";
 
-// per even metrics colelcted during trail event
+// per even metrics collected during trail event
 export interface EventMetrics {
     drainageCleaned: number;
     graffitiTagsRemoved: number;
@@ -196,12 +196,18 @@ export async function getEventByTrelloCardId(trelloCardId: string): Promise<Even
 }
 
 
-// update metrics on an event optional stuff
+// only changed numeric fields are written via dotted metrics.* paths
 export async function updateEventMetrics(
     eventId: string,
     updates: Partial<EventMetrics>,
 ): Promise<void> {
     const db = getFirestore();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error(
+            "User is not authenticated. Please sign in to update metrics.",
+        );
+    }
     const eventRef = doc(db, EVENTS_COLLECTION, eventId);
 
     const dottedUpdates: Record<string, number> = {};

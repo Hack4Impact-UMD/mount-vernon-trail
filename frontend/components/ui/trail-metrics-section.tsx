@@ -4,7 +4,7 @@ import {
     updateEventMetrics,
 } from "@/services/event-service";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import {
     StyleSheet,
     Text,
@@ -177,17 +177,32 @@ export default function TrailMetricsSection({
         setExpandedId((prev) => (prev === id ? null : id));
     }
 
+    const debounceTimers = useRef<Map<keyof EventMetrics, ReturnType<typeof setTimeout>>>(new Map());
     async function setField(key: keyof EventMetrics, value: number) {
         const safe = Number.isFinite(value) && value >= 0 ? value : 0;
         setMetrics((prev) => ({ ...prev, [key]: safe }));
-        try {
-            await updateEventMetrics(eventId, { [key]: safe });
-            setSaveError(null);
-        } catch (err) {
-            console.error("Failed to save metric:", err);
-            setSaveError("Couldn't save — will retry on next change.");
-        }
+        const existing = debounceTimers.current.get(key);
+        if (existing) clearTimeout(existing);
+
+        const timer = setTimeout(async () => {
+            try {
+                await updateEventMetrics(eventId, { [key]: safe });
+                setSaveError(null);
+            } catch (err) {
+                console.error("Failed to save metric:", err);
+                setSaveError("Couldn't save — will retry on next change.");
+            }
+            debounceTimers.current.delete(key);
+        }, 400);
+        debounceTimers.current.set(key, timer);
     }
+
+    useEffect(() => {
+        const timers = debounceTimers.current;
+        return () => {
+            timers.forEach((timer) => clearTimeout(timer));
+        };
+    }, []);
 
     function categoryFilledTotal(cat: MetricCategory): number {
         return cat.fields.reduce(
@@ -220,7 +235,7 @@ export default function TrailMetricsSection({
                                 borderWidth: 2,
                                 shadowOpacity: 0.12,
                                 shadowRadius: 20,
-                                elevation: 4,
+                                elevation: 2,
                             },
                         ]}>
                         <TouchableOpacity
@@ -303,7 +318,7 @@ function Stepper({ label, unit, value, onChange }: StepperProps) {
             <Text style={styles.stepperLabel}>{label}</Text>
             <View style={styles.stepperControls}>
                 <TouchableOpacity
-                    onPress={() => onChange(Math.max(0, value - 1))}
+                    onPress={() => { if (!isZero) onChange(value - 1); }} disabled={isZero}
                     style={[ styles.stepperBtn, isZero ? styles.stepperBtnDisabled : styles.stepperBtnActive ]}
                     accessibilityLabel={`Decrease ${label}`}>
                     <Ionicons name="remove" size={18} color={isZero ? "#CCCCCC" : Palette.primaryPurple100}/>
@@ -356,7 +371,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.07, 
         shadowRadius: 12,
-        elevation: 3,
+        elevation: 1,
     },
     cardHeader: {
         flexDirection: "row",
