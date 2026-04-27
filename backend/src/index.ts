@@ -1,5 +1,6 @@
 import { Redis } from "@upstash/redis";
 import cors from "cors";
+import crypto from "crypto";
 import dotenv from "dotenv";
 import express, { NextFunction, Request, Response } from "express";
 import { google } from "googleapis";
@@ -76,30 +77,38 @@ app.get("/", (req: Request, res: Response) => {
     res.send("Hello World!");
 });
 
-// Ensure that this matched the GOOGLE_REDIRECT_URI
-app.get("/auth/url", (req: Request, res: Response) => {
-    const secret = req.query.secret as string;
-    if (secret !== process.env.ADMIN_SECRET_KEY) {
+// Ensure that this matches the GOOGLE_REDIRECT_URI.
+// Gated by x-api-key: ADMIN_SECRET_KEY (header, not query param).
+// Generates a one-time random CSRF nonce stored in Redis for callback validation.
+app.get("/auth/url", async (req: Request, res: Response) => {
+    const apiKey = req.headers["x-api-key"];
+    if (!apiKey || apiKey !== process.env.ADMIN_SECRET_KEY) {
         return res
             .status(401)
             .json({ error: "Unauthorized: Invalid auth secret" });
     }
+    const state = crypto.randomBytes(32).toString("hex");
+    // Store nonce in Redis with a 10-minute TTL — single use
+    await redis.set("oauth_state", state, { ex: 600 });
     const authUrl = oauth2Client.generateAuthUrl({
         access_type: "offline",
         scope: scopes,
         prompt: "consent",
-        state: secret,
+        state,
     });
     res.redirect(authUrl);
 });
 
 app.get("/auth/callback", async (req: Request, res: Response) => {
     const state = req.query.state as string;
-    if (state !== process.env.ADMIN_SECRET_KEY) {
+    const storedState = await redis.get<string>("oauth_state");
+    if (!state || !storedState || state !== storedState) {
         return res
             .status(401)
-            .json({ error: "Unauthorized: Invalid callback state" });
+            .json({ error: "Unauthorized: Invalid or expired state" });
     }
+    // Consume the nonce immediately — one-time use only
+    await redis.del("oauth_state");
     // get authorization code
     const code = req.query.code as string;
     try {
