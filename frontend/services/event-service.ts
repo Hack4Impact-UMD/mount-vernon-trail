@@ -13,6 +13,45 @@ import {
     orderBy,
 } from "firebase/firestore";
 
+// per even metrics collected during trail event
+export interface EventMetrics {
+    drainageCleaned: number;
+    graffitiTagsRemoved: number;
+    stickersRemoved: number;
+    otherImprovements: number;
+    itemsPainted: number;
+    pressureWashed: number;
+    itemsRepaired: number;
+    safetyImprovements: number;
+    snowRemovalEvents: number;
+    potholesFilled: number;
+    trailEdgedFeet: number;
+    trashBagsCollected: number;
+    trashPoundsCollected: number;
+    treesTrimmed: number;
+    vegetationVolunteers: number;
+}
+
+export function createDefaultMetrics(): EventMetrics {
+    return {
+        drainageCleaned: 0,
+        graffitiTagsRemoved: 0,
+        stickersRemoved: 0,
+        otherImprovements: 0,
+        itemsPainted: 0,
+        pressureWashed: 0,
+        itemsRepaired: 0,
+        safetyImprovements: 0,
+        snowRemovalEvents: 0,
+        potholesFilled: 0,
+        trailEdgedFeet: 0,
+        trashBagsCollected: 0,
+        trashPoundsCollected: 0,
+        treesTrimmed: 0,
+        vegetationVolunteers: 0,
+    };
+}
+
 export interface Event {
     eventId: string;
     title: string;
@@ -29,6 +68,7 @@ export interface Event {
     createdAt: Timestamp;
     trailImprovements: number;
     trashBags: number;
+    metrics?: EventMetrics;
 }
 
 const EVENTS_COLLECTION = "events";
@@ -68,6 +108,7 @@ export async function createEvent(
         createdAt: Timestamp.now(),
         trailImprovements: 0,
         trashBags: 0,
+        metrics: createDefaultMetrics(),
     };
 
     const batch = writeBatch(db);
@@ -153,6 +194,33 @@ export async function getEventByTrelloCardId(trelloCardId: string): Promise<Even
     if (snapshot.empty) return null;
     return snapshot.docs[0].data() as Event;
 }
+
+
+// only changed numeric fields are written via dotted metrics.* paths
+export async function updateEventMetrics(
+    eventId: string,
+    updates: Partial<EventMetrics>,
+): Promise<void> {
+    const db = getFirestore();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error(
+            "User is not authenticated. Please sign in to update metrics.",
+        );
+    }
+    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+
+    const dottedUpdates: Record<string, number> = {};
+    for (const [key, value] of Object.entries(updates)) {
+        if (typeof value === "number" && !Number.isNaN(value)) {
+            dottedUpdates[`metrics.${key}`] = value;
+        }
+    }
+
+    if (Object.keys(dottedUpdates).length === 0) return;
+    await updateDoc(eventRef, dottedUpdates);
+}
+
 
 export async function setEventInactive(eventId: string): Promise<void> {
     const db = getFirestore();
