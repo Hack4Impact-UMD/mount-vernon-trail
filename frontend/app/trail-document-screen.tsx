@@ -23,6 +23,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import TrailMetricsSection from "@/components/ui/trail-metrics-section";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
@@ -276,9 +277,11 @@ export default function TrailDocumentScreen() {
                             textAlignVertical="top"
                         />
 
-                        {/* Statistics Section */}
-                        <Text style={styles.sectionTitle}>Statistics</Text>
-                        <TrailDocStatsCard {...statsData} />
+                        {/* Metrics Section */}
+                        <TrailMetricsSection
+                            eventId={event.eventId}
+                            initialMetrics={event.metrics}
+                        />
 
                         {/* Action Buttons */}
                         {/* <View
