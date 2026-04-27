@@ -12,7 +12,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-
+import { Palette } from "@/constants/theme";
 
 type MetricField = {
     key: keyof EventMetrics;
@@ -37,7 +37,7 @@ const METRICS: MetricCategory[] = [
         title: "Drainage",
         subtitle: "Drains / culverts cleaned",
         icon: "water-outline",
-        accentColor: "#4FA3D1",
+        accentColor: "#0EA5E9",
         fields: [
             { key: "drainageCleaned", label: "Drains / culverts cleaned", unit: "drains" },
         ],
@@ -45,9 +45,9 @@ const METRICS: MetricCategory[] = [
     {
         id: "graffiti",
         title: "Graffiti & Stickers",
-        subtitle: "Graffiti tags / stickers removed",
+        subtitle: "2 metrics",
         icon: "pricetag-outline",
-        accentColor: "#E8A33D",
+        accentColor: "#F59E0B",
         fields: [
             { key: "graffitiTagsRemoved", label: "Graffiti tags removed", unit: "tags" },
             { key: "stickersRemoved", label: "Stickers removed", unit: "stickers" },
@@ -58,7 +58,7 @@ const METRICS: MetricCategory[] = [
         title: "Other Improvements",
         subtitle: "Other trail improvements",
         icon: "sparkles-outline",
-        accentColor: "#9B6DD8",
+        accentColor: "#6B7280",
         fields: [
             { key: "otherImprovements", label: "Other improvements", unit: "items" },
         ],
@@ -68,7 +68,7 @@ const METRICS: MetricCategory[] = [
         title: "Painting",
         subtitle: "Signs / stencils / lines / crosswalks painted",
         icon: "color-palette-outline",
-        accentColor: "#5BB37A",
+        accentColor: "#2D8682",
         fields: [
             { key: "itemsPainted", label: "Items painted", unit: "items" },
         ],
@@ -78,7 +78,7 @@ const METRICS: MetricCategory[] = [
         title: "Pressure Washing",
         subtitle: "Bridges / tunnels pressure washed",
         icon: "rainy-outline",
-        accentColor: "#3FB6C9",
+        accentColor: "#3B82F6",
         fields: [
             { key: "pressureWashed", label: "Bridges / tunnels pressure washed", unit: "structures" },
         ],
@@ -88,7 +88,7 @@ const METRICS: MetricCategory[] = [
         title: "Repair",
         subtitle: "Items repaired",
         icon: "construct-outline",
-        accentColor: "#D67A3D",
+        accentColor: "#693894",
         fields: [
             { key: "itemsRepaired", label: "Items repaired", unit: "items" },
         ],
@@ -96,9 +96,9 @@ const METRICS: MetricCategory[] = [
     {
         id: "safety",
         title: "Safety",
-        subtitle: "Safety improvements & snow removal events",
+        subtitle: "2 metrics",
         icon: "shield-checkmark-outline",
-        accentColor: "#D14F4F",
+        accentColor: "#EF4444",
         fields: [
             { key: "safetyImprovements", label: "Safety improvements", unit: "improvements" },
             { key: "snowRemovalEvents", label: "Snow removal events", unit: "events" },
@@ -109,7 +109,7 @@ const METRICS: MetricCategory[] = [
         title: "Pothole / Asphalt",
         subtitle: "Potholes / asphalt gaps filled",
         icon: "alert-circle-outline",
-        accentColor: "#7A6B5C",
+        accentColor: "#D97706",
         fields: [
             { key: "potholesFilled", label: "Potholes / asphalt gaps filled", unit: "potholes" },
         ],
@@ -119,7 +119,7 @@ const METRICS: MetricCategory[] = [
         title: "Trail Edging",
         subtitle: "Length of trail edged (approx.)",
         icon: "cut-outline",
-        accentColor: "#6B9E4F",
+        accentColor: "#059669",
         fields: [
             { key: "trailEdgedFeet", label: "Length of trail edged", unit: "feet" },
         ],
@@ -127,9 +127,9 @@ const METRICS: MetricCategory[] = [
     {
         id: "trash",
         title: "Trash Cleanup",
-        subtitle: "Bags collected & pounds of trash",
+        subtitle: "2 metrics",
         icon: "trash-outline",
-        accentColor: "#5C8A4F",
+        accentColor: "#3BA34C",
         fields: [
             { key: "trashBagsCollected", label: "Bags collected", unit: "bags" },
             { key: "trashPoundsCollected", label: "Pounds of trash", unit: "lbs" },
@@ -138,9 +138,9 @@ const METRICS: MetricCategory[] = [
     {
         id: "vegetation",
         title: "Vegetation",
-        subtitle: "Trees trimmed & vegetation volunteers",
+        subtitle: "2 metrics",
         icon: "leaf-outline",
-        accentColor: "#4F8A3D",
+        accentColor: "#65A30D",
         fields: [
             { key: "treesTrimmed", label: "Trees trimmed", unit: "trees" },
             { key: "vegetationVolunteers", label: "Vegetation volunteers", unit: "volunteers" },
@@ -191,7 +191,7 @@ export default function TrailMetricsSection({
 
     function categoryFilledTotal(cat: MetricCategory): number {
         return cat.fields.reduce(
-            (sum, f) => sum + (metrics[f.key] > 0 ? 1 : 0),
+            (sum, f) => sum + (metrics[f.key] ?? 0),
             0,
         );
     }
@@ -216,34 +216,46 @@ export default function TrailMetricsSection({
                         style={[
                             styles.card,
                             isExpanded && {
-                                borderLeftColor: cat.accentColor,
-                                borderLeftWidth: 4,
+                                borderColor: cat.accentColor + "18",
+                                borderWidth: 2,
+                                shadowOpacity: 0.12,
+                                shadowRadius: 20,
+                                elevation: 4,
                             },
                         ]}>
                         <TouchableOpacity
                             onPress={() => toggle(cat.id)}
-                            style={styles.cardHeader}
+                            style={[
+                                styles.cardHeader,
+                                isExpanded && {
+                                    backgroundColor: cat.accentColor + "08",
+                                    borderBottomColor: cat.accentColor + "18",
+                                    borderBottomWidth: 2,
+                                },
+                            ]}
                             activeOpacity={0.7}>
                             <View
                                 style={[
                                     styles.iconWrap,
-                                    { backgroundColor: cat.accentColor + "20" },
+                                    { backgroundColor: cat.accentColor + "15" },
                                 ]}>
                                 <Ionicons
                                     name={cat.icon}
-                                    size={18}
+                                    size={20}
                                     color={cat.accentColor}
                                 />
                             </View>
                             <View style={styles.cardTitleWrap}>
                                 <Text style={styles.cardTitle}>{cat.title}</Text>
-                                <Text style={styles.cardSubtitle}>
-                                    {cat.subtitle}
-                                </Text>
+                                { !isExpanded && 
+                                    <Text style={styles.cardSubtitle}>
+                                        {cat.subtitle}
+                                    </Text>
+                                }
                             </View>
                             {filled > 0 && (
-                                <View style={styles.badge}>
-                                    <Text style={styles.badgeText}>
+                                <View style={[ styles.badge, { backgroundColor: cat.accentColor + "15" }]}>
+                                    <Text style={[ styles.badgeText, { color: cat.accentColor }]}>
                                         {filled}
                                     </Text>
                                 </View>
@@ -257,14 +269,16 @@ export default function TrailMetricsSection({
 
                         {isExpanded && (
                             <View style={styles.fieldsWrap}>
-                                {cat.fields.map((field) => (
-                                    <Stepper
-                                        key={field.key as string}
-                                        label={field.label}
-                                        unit={field.unit}
-                                        value={metrics[field.key]}
-                                        onChange={(v) => setField(field.key, v)}
-                                    />
+                                {cat.fields.map((field, index) => (
+                                    <View key={field.key as string}>
+                                        {index > 0 && <View style={styles.divider} />}
+                                        <Stepper
+                                            label={field.label}
+                                            unit={field.unit}
+                                            value={metrics[field.key] ?? 0}
+                                            onChange={(v) => setField(field.key, v)}
+                                        />
+                                    </View>
                                 ))}
                             </View>
                         )}
@@ -283,29 +297,32 @@ interface StepperProps {
 }
 
 function Stepper({ label, unit, value, onChange }: StepperProps) {
+    const isZero = value === 0;
     return (
         <View style={styles.stepperRow}>
             <Text style={styles.stepperLabel}>{label}</Text>
             <View style={styles.stepperControls}>
                 <TouchableOpacity
                     onPress={() => onChange(Math.max(0, value - 1))}
-                    style={styles.stepperBtn}
+                    style={[ styles.stepperBtn, isZero ? styles.stepperBtnDisabled : styles.stepperBtnActive ]}
                     accessibilityLabel={`Decrease ${label}`}>
-                    <Ionicons name="remove" size={18} color="#5B2D8E" />
+                    <Ionicons name="remove" size={18} color={isZero ? "#CCCCCC" : Palette.primaryPurple100}/>
                 </TouchableOpacity>
-                <TextInput
-                    value={String(value)}
-                    onChangeText={(t) => {
-                        const parsed = parseInt(t.replace(/[^0-9]/g, ""), 10);
-                        onChange(Number.isNaN(parsed) ? 0 : parsed);
-                    }}
-                    keyboardType="number-pad"
-                    style={styles.stepperInput}
-                />
-                <Text style={styles.stepperUnit}>{unit}</Text>
+                <View style={styles.valueContainer}>
+                    <TextInput
+                        value={String(value)}
+                        onChangeText={(t) => {
+                            const parsed = parseInt(t.replace(/[^0-9]/g, ""), 10);
+                            onChange(Number.isNaN(parsed) ? 0 : parsed);
+                        }}
+                        keyboardType="number-pad"
+                        style={styles.stepperInput}
+                    />
+                    <Text style={styles.stepperUnit}>{unit}</Text>
+                </View>
                 <TouchableOpacity
                     onPress={() => onChange(value + 1)}
-                    style={[styles.stepperBtn, styles.stepperBtnPlus]}
+                    style={styles.stepperBtn}
                     accessibilityLabel={`Increase ${label}`}>
                     <Ionicons name="add" size={18} color="#fff" />
                 </TouchableOpacity>
@@ -327,7 +344,7 @@ const styles = StyleSheet.create({
     },
     counter: {
         fontSize: 13,
-        color: "#888",
+        color: "#999999",
     },
     card: {
         backgroundColor: "#fff",
@@ -335,7 +352,11 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "#EEE",
         marginBottom: 10,
-        overflow: "hidden",
+        shadowColor: Palette.primaryPurple100,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.07, 
+        shadowRadius: 12,
+        elevation: 3,
     },
     cardHeader: {
         flexDirection: "row",
@@ -344,9 +365,9 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     iconWrap: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
+        width: 38,
+        height: 38,
+        borderRadius: 14,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -355,71 +376,98 @@ const styles = StyleSheet.create({
     },
     cardTitle: {
         fontSize: 15,
-        fontWeight: "600",
-        color: "#222",
+        fontFamily: "Lato_700Bold",
+        color: "#1A1A1A",
     },
     cardSubtitle: {
         fontSize: 12,
-        color: "#888",
+        fontFamily: "Lato_400Regular",
+        color: "#999999",
         marginTop: 2,
     },
     badge: {
-        backgroundColor: "#5B2D8E",
-        borderRadius: 10,
+        minWidth: 28,
+        height: 28,
+        borderRadius: 14,
         paddingHorizontal: 8,
-        paddingVertical: 2,
-        marginRight: 4,
+        alignItems: "center",
+        justifyContent: "center",
     },
     badgeText: {
-        color: "#fff",
-        fontSize: 12,
-        fontWeight: "700",
+        fontSize: 14,
+        fontFamily: "Lato_700Bold",
     },
     fieldsWrap: {
-        paddingHorizontal: 14,
-        paddingBottom: 14,
-        gap: 12,
+        paddingTop: 4,
+        paddingBottom: 4,
     },
     stepperRow: {
-        gap: 6,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 22,
+        paddingVertical: 15,
     },
     stepperLabel: {
         fontSize: 13,
-        color: "#444",
+        color: "#444444",
+        fontFamily: "Lato_400Regular",
+        flex: 1,
+        flexShrink: 1,
+        marginRight: 2,
     },
     stepperControls: {
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
+        flexShrink: 0, 
     },
     stepperBtn: {
         width: 32,
         height: 32,
-        borderRadius: 16,
-        borderWidth: 1.5,
-        borderColor: "#5B2D8E",
+        borderRadius: 22,
         alignItems: "center",
         justifyContent: "center",
-    },
-    stepperBtnPlus: {
-        backgroundColor: "#5B2D8E",
+        backgroundColor: Palette.primaryPurple100,
     },
     stepperInput: {
-        minWidth: 40,
+        minWidth: 10,
         textAlign: "center",
         fontSize: 16,
-        fontWeight: "600",
-        color: "#222",
+        fontFamily: "Lato_700Bold",
+        color: Palette.primaryPurple100,
         paddingVertical: 4,
     },
     stepperUnit: {
         fontSize: 12,
-        color: "#888",
-        flex: 1,
+        fontFamily: "Lato_400Regular",
+        color: "#999999",
+    },
+    valueContainer: {
+        flexDirection: "row",
+        alignItems: "baseline",
+        minWidth: 20,
+        gap: 5,
+        justifyContent: "center",
+    },
+    stepperCount: {
+        fontFamily: "Lato_700Bold",
+        fontSize: 16,
+        color: Palette.primaryPurple100,
     },
     errorText: {
         color: "#D14F4F",
         fontSize: 12,
         marginBottom: 8,
+    },
+    stepperBtnActive: {
+        backgroundColor: "#69389418",
+    },
+    stepperBtnDisabled: {
+        backgroundColor: "#F0F0F0",
+    },
+    divider: {
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: "#F0F0F0",
     },
 });
