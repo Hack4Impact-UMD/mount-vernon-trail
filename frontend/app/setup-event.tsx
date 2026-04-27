@@ -8,7 +8,7 @@ import { getDateString, parseAndValidateDate } from "@/utils/date";
 import { Feather } from "@expo/vector-icons";
 import RNDateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Stack, useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -18,7 +18,7 @@ import {
     StyleSheet,
     Text,
     TextInput,
-    View,
+    View
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -29,6 +29,7 @@ export default function SetupEventScreen() {
 
     const [title, setTitle] = useState("");
     const titleInputRef = useRef<TextInput>(null);
+    const scrollViewRef = useRef<ScrollView>(null);
     const [description, setDescription] = useState("");
     const [dateStr, setDateStr] = useState("");
     const [date, setDate] = useState<Date | null>(null);
@@ -42,6 +43,13 @@ export default function SetupEventScreen() {
     const [creating, setCreating] = useState(false);
     const [canceling, setCanceling] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const wait = setTimeout(() => {
+            scrollViewRef.current?.flashScrollIndicators();
+        }, 500);
+        return () => clearTimeout(wait);
+    }, []);
 
     const handleCancel = () => {
         if (creating || canceling) return;
@@ -151,6 +159,7 @@ export default function SetupEventScreen() {
                 <View style={styles.content}>
                     <Header />
                     <ScrollView 
+                        ref={scrollViewRef}
                         style={styles.scrollContent} 
                         contentContainerStyle={styles.scrollContentContainer}
                         keyboardShouldPersistTaps="handled"
@@ -170,6 +179,7 @@ export default function SetupEventScreen() {
                                     onChangeText={setTitle}
                                     placeholder="New Event"
                                     placeholderTextColor="#aaa"
+                                    maxLength={50}
                                 />
                             </View>
                             {/* Date Input */}
@@ -178,13 +188,15 @@ export default function SetupEventScreen() {
                                 <Text style={styles.dateInput}>{dateStr || "Select date"}</Text>
                             </Pressable>
                             {showDatePicker && (
-                                <RNDateTimePicker 
-                                    mode="date" 
-                                    display="default"
-                                    value={date ?? new Date()}
-                                    onChange={handleDateChange} 
-                                    minimumDate={new Date()}
-                                />
+                                <View style={styles.datePickerContainer}>
+                                    <RNDateTimePicker 
+                                        mode="date" 
+                                        display="default"
+                                        value={date ?? new Date()}
+                                        onChange={handleDateChange} 
+                                        minimumDate={new Date()}
+                                    />
+                                </View>
                             )}
                         </View>
                         {/* Event Leader + Zone Leader Input */}
@@ -309,7 +321,10 @@ const styles = StyleSheet.create({
     headerSection: {
         flexDirection: "row",
         justifyContent: "space-between",
-        alignItems: "flex-end",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 8,
+        paddingTop: 10,
         marginBottom: 24,
         borderBottomWidth: 1,
         borderBottomColor: "#eee",
@@ -317,7 +332,9 @@ const styles = StyleSheet.create({
     },
     titleRow: {
         flexDirection: "row",
-        alignItems: "flex-end",
+        alignItems: "center",
+        flex: 1,
+        maxWidth: 300,
     },
     editPencilContainer: {
         justifyContent: "center",
@@ -329,6 +346,7 @@ const styles = StyleSheet.create({
         marginTop: 0,
     },
     titleInput: {
+        flex: 1,
         fontSize: 22,
         fontWeight: "600",
         color: Palette.primaryPurple70,
@@ -348,6 +366,11 @@ const styles = StyleSheet.create({
         width: 140,
         marginBottom: -8,
     },
+    datePickerContainer: {
+        width: "100%",
+        alignItems: "flex-end",
+        marginTop: 8,
+    },
     dateInput: {
         flex: 1,
         marginLeft: 8,
@@ -365,13 +388,14 @@ const styles = StyleSheet.create({
     },
     textAreaContainer: {
         borderRadius: 15,
-        minHeight: 150,
+        minHeight: 110,
         marginBottom: 20,
-        paddingVertical: 4,
-        paddingLeft: 8,
+        paddingVertical: 0,
+        paddingHorizontal: 0,
     },
     textArea: {
         flex: 1,
+        paddingLeft: 12,
     },
     label: {
         fontSize: 12,
@@ -386,7 +410,8 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: Palette.primaryPurple30,
         borderRadius: 15,
-        paddingHorizontal: 6,
+        paddingHorizontal: 0,
+        paddingVertical: 0,
         backgroundColor: "#FAF8FC",
     },
     input: {
@@ -394,6 +419,9 @@ const styles = StyleSheet.create({
         color: "#555",
         fontSize: 12,
         marginVertical: -4,
+        height: 40,
+        paddingVertical: 12,
+        paddingHorizontal: 10,
     },
     buttonContainer: {
         flexDirection: "row",
