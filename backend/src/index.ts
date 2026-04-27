@@ -47,30 +47,62 @@ const scopes = [
     "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
 ];
 
-// in-memory cache for access token
-// will become null if server spins down
+// Per-process cache — fast path to avoid a Redis round-trip on every request.
+// Falls back to Redis so all replicas share the same token.
 let accessToken: string | null = null;
 let tokenExpiryTime: number = 0;
+// Single-flight: if a refresh is already in progress, callers await the same promise.
+let inflightRefresh: Promise<string> | null = null;
 
-// Returns a valid access token, refreshing via the stored refresh token if needed.
+// Returns a valid access token. Checks in-memory → Redis → OAuth refresh, in that order.
+// Concurrent callers during a refresh share one in-flight Promise to avoid duplicate calls.
 async function getAccessToken(): Promise<string> {
-    // 60s buffer so token isnt handed out that expires mid request
-    if (accessToken && Date.now() < tokenExpiryTime - 60000) {
+    // 1. In-memory fast path (avoids Redis round-trip on every request)
+    if (accessToken && Date.now() < tokenExpiryTime - 60_000) {
         return accessToken;
     }
-    // Fetch refresh token from Redis
-    const refreshToken = await redis.get<string>("refresh_token");
-    if (!refreshToken) {
-        throw new Error("No refresh token, need to sign in");
+    // 2. Deduplicate concurrent refreshes with a single-flight promise
+    if (inflightRefresh) {
+        return inflightRefresh;
     }
-    oauth2Client.setCredentials({ refresh_token: refreshToken });
-    const { token } = await oauth2Client.getAccessToken();
-    if (!token) {
-        throw new Error("Failed to refresh access token");
-    }
-    accessToken = token;
-    tokenExpiryTime = oauth2Client.credentials.expiry_date!;
-    return token;
+    inflightRefresh = (async () => {
+        try {
+            // 3. Redis cache — shared across all replicas
+            const cached = await redis.get<string>("access_token");
+            if (cached) {
+                const ttl = await redis.ttl("access_token");
+                if (ttl > 60) {
+                    accessToken = cached;
+                    tokenExpiryTime = Date.now() + ttl * 1000;
+                    return cached;
+                }
+            }
+            // 4. Token missing or nearly expired — perform OAuth refresh
+            const refreshToken = await redis.get<string>("refresh_token");
+            if (!refreshToken) {
+                throw new Error("No refresh token, need to sign in");
+            }
+            oauth2Client.setCredentials({ refresh_token: refreshToken });
+            const { token } = await oauth2Client.getAccessToken();
+            if (!token) {
+                throw new Error("Failed to refresh access token");
+            }
+            const expiryDate =
+                oauth2Client.credentials.expiry_date ?? Date.now() + 3600_000;
+            // Store in Redis with a TTL 60s shorter than actual expiry
+            const ttlSeconds = Math.max(
+                60,
+                Math.floor((expiryDate - Date.now()) / 1000) - 60,
+            );
+            await redis.set("access_token", token, { ex: ttlSeconds });
+            accessToken = token;
+            tokenExpiryTime = expiryDate;
+            return token;
+        } finally {
+            inflightRefresh = null;
+        }
+    })();
+    return inflightRefresh;
 }
 
 app.get("/", (req: Request, res: Response) => {
@@ -118,10 +150,18 @@ app.get("/auth/callback", async (req: Request, res: Response) => {
         if (tokens.refresh_token) {
             await redis.set("refresh_token", tokens.refresh_token);
         }
-        // check if we got an access token, and if so, store in memory
+        // cache the new access token in Redis and in memory
         if (tokens.access_token) {
+            const expiryDate = tokens.expiry_date ?? Date.now() + 3600_000;
+            const ttlSeconds = Math.max(
+                60,
+                Math.floor((expiryDate - Date.now()) / 1000) - 60,
+            );
+            await redis.set("access_token", tokens.access_token, {
+                ex: ttlSeconds,
+            });
             accessToken = tokens.access_token;
-            tokenExpiryTime = tokens.expiry_date ?? Date.now() + 3600 * 1000;
+            tokenExpiryTime = expiryDate;
         }
         return res
             .status(200)
