@@ -1,15 +1,14 @@
 import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
-import type { Event } from "@/services/event-service";
+import type { Event, EventMetricsWithHours } from "@/services/event-service";
 import {
-    extractStats,
+	extractMetricsWithHours,
     getEventById,
     publishEvent,
     saveDraft,
 } from "@/services/event-service";
 import { moveCardToCompleted } from "@/services/trello-service";
-import type { StatsData } from "@/types/trail-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -31,7 +30,7 @@ const TEAL = "#2D8682";
 type IconLibrary = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 
 interface MetricDef {
-    key: keyof StatsData;
+    key: keyof EventMetricsWithHours;
     label: string;
     sublabel: string;
     icon: IconLibrary;
@@ -47,21 +46,21 @@ const METRIC_DEFS: MetricDef[] = [
         color: PURPLE,
     },
     {
-        key: "drainage",
+        key: "drainageCleaned",
         label: "Drainage",
         sublabel: "# of drains cleaned",
         icon: "water-outline",
         color: TEAL,
     },
     {
-        key: "graffiti",
+        key: "graffitiTagsRemoved",
         label: "Graffiti",
         sublabel: "# of tags removed",
         icon: "spray",
         color: BLUE,
     },
     {
-        key: "stickers",
+        key: "stickersRemoved",
         label: "Stickers",
         sublabel: "# of stickers removed",
         icon: "sticker-remove-outline",
@@ -75,21 +74,21 @@ const METRIC_DEFS: MetricDef[] = [
         color: TEAL,
     },
     {
-        key: "painting",
+        key: "itemsPainted",
         label: "Painting",
         sublabel: "# of signs, stencils,\nstop lines, or crosswalks",
         icon: "palette-outline",
         color: BLUE,
     },
     {
-        key: "pressureWashing",
+        key: "pressureWashed",
         label: "Pressure washing",
         sublabel: "# of bridges/tunnels washed",
         icon: "water-pump",
         color: PURPLE,
     },
     {
-        key: "repairs",
+        key: "itemsRepaired",
         label: "Repairs",
         sublabel: "# of items repaired",
         icon: "wrench-outline",
@@ -102,43 +101,63 @@ const METRIC_DEFS: MetricDef[] = [
         icon: "shield-check-outline",
         color: BLUE,
     },
+	{
+		key: "snowRemovalEvents",
+		label: "Snow removal",
+		sublabel: "# of removal events",
+		icon: "snowflake",
+		color: PURPLE
+	},
     {
-        key: "potholes",
+        key: "potholesFilled",
         label: "Potholes",
         sublabel: "# of asphalt gaps filled",
         icon: "road-variant",
-        color: PURPLE,
+        color: TEAL,
     },
+	{
+		key: "trailEdgedFeet",
+		label: "Trail edging",
+		sublabel: "ft of edging improved",
+		icon: "scissors-cutting",
+		color: BLUE
+	},
     {
-        key: "trash",
-        label: "Trash",
+        key: "trashBagsCollected",
+        label: "Trash bags",
         sublabel: "# of bags collected",
         icon: "trash-can-outline",
+        color: PURPLE,
+    },
+	{
+        key: "trashPoundsCollected",
+        label: "Trash weight",
+        sublabel: "# of lbs collected",
+        icon: "weight",
         color: TEAL,
     },
     {
-        key: "trees",
+        key: "treesTrimmed",
         label: "Trees",
         sublabel: "# of trees trimmed",
         icon: "tree-outline",
         color: BLUE,
     },
     {
-        key: "vegetationImprovements",
+        key: "vegetationVolunteers",
         label: "Vegetation improvements",
         sublabel: "# of veg. improvements",
         icon: "leaf-circle-outline",
         color: PURPLE,
     },
-    {
+	{
         key: "hoursOfService",
         label: "Hours of service",
         sublabel: "hrs",
         icon: "clock-outline",
         color: TEAL,
-    },
+    }
 ];
-
 interface MetricGridCardProps {
     def: MetricDef;
     value: number | string;
@@ -240,11 +259,11 @@ export default function EventSummaryScreen() {
             </View>
         );
 
-    const stats = extractStats(event);
+    const stats = extractMetricsWithHours(event);
 
-    const visibleMetrics = METRIC_DEFS.filter(
+    const visibleMetrics = stats ? METRIC_DEFS.filter(
         (def) => (stats[def.key] as number) !== 0,
-    );
+    ) : [];
 
     const handlePublish = async () => {
         if (saving || savedDraft || savedTrello) return;
@@ -315,7 +334,7 @@ export default function EventSummaryScreen() {
                             <MetricGridCard
                                 key={def.key}
                                 def={def}
-                                value={stats[def.key] as number}
+                                value={stats![def.key] as number}
                                 delay={i * 60}
                             />
                         ))}

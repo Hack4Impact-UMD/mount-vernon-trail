@@ -1,13 +1,12 @@
 import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
-import { TrailDocStatsCard } from "@/components/ui/trail-doc-stats-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event } from "@/services/event-service";
 import { getActiveEvent, getEventById } from "@/services/event-service";
 import { TrelloClient } from "@/services/trello-funcs";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
-import { StatsData, TrailDocumentIssueItem } from "@/types/trail-types";
+import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -23,23 +22,6 @@ import {
 import TrailMetricsSection from "@/components/ui/trail-metrics-section";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
-
-const DEFAULT_STATS_DATA: StatsData = {
-    trash: 0,
-    trailImprovements: 0,
-    drainage: 0,
-    graffiti: 0,
-    stickers: 0,
-    otherImprovements: 0,
-    painting: 0,
-    pressureWashing: 0,
-    repairs: 0,
-    safetyImprovements: 0,
-    potholes: 0,
-    trees: 0,
-    vegetationImprovements: 0,
-    hoursOfService: 0,
-};
 
 export default function TrailDocumentScreen() {
     const router = useRouter();
@@ -66,7 +48,6 @@ export default function TrailDocumentScreen() {
     const [notepad, setNotepad] = useState("");
     const [activeEventId, setActiveEventId] = useState<string | null>(null);
     const [issuesError, setIssuesError] = useState<string | null>(null);
-    const [statsData, setStatsData] = useState<StatsData>(DEFAULT_STATS_DATA);
 
     useFocusEffect(useCallback(() => {
         pressedTrailIssueRef.current = false;
@@ -121,14 +102,8 @@ export default function TrailDocumentScreen() {
                     API_KEY,
                     eventCard,
                 );
-                // TODO fetch stats once that flow is figured out
                 if (!cancelled) {
                     setIssuesData(issues);
-                    setStatsData({
-                        ...DEFAULT_STATS_DATA,
-                        trash: 12,
-                        trailImprovements: 250,
-                    });
                 }
             } catch (err) {
                 console.error("Error loading trail issues:", err);
@@ -309,38 +284,6 @@ export default function TrailDocumentScreen() {
                             eventId={event.eventId}
                             initialMetrics={event.metrics}
                         />
-
-                        {/* temporary button for mock stats for testing */}
-                        <TouchableOpacity
-                            style={{
-                                marginTop: 10,
-                                marginBottom: 8,
-                                flexDirection: "row",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: 6,
-                                paddingVertical: 10,
-                                borderRadius: 10,
-                                borderWidth: 1,
-                                borderColor: "#FBBF24",
-                                backgroundColor: "#FFF3CD",
-                            }}
-                            onPress={() =>
-                                router.push({
-                                    pathname: "/mock-statistics",
-                                    params: { eventId: event.eventId },
-                                })
-                            }>
-                            <Text
-                                style={{
-                                    fontSize: 13,
-                                    fontWeight: "700",
-                                    color: "#92400E",
-                                }}>
-                                Edit Mock Statistics
-                            </Text>
-                        </TouchableOpacity>
-                        {/* delete from here to the previous comment when done */}
 
                         {/* Action Buttons */}
                         {/* <View

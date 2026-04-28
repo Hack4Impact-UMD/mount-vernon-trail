@@ -7,23 +7,6 @@ export type TrailIssue = {
     afterImageUri?: string | null;
 };
 
-export type StatsData = {
-    trailImprovements: number;
-    drainage: number;
-    graffiti: number;
-    stickers: number;
-    otherImprovements: number;
-    painting: number;
-    pressureWashing: number;
-    repairs: number;
-    safetyImprovements: number;
-    potholes: number;
-    trash: number;
-    trees: number;
-    vegetationImprovements: number;
-    hoursOfService: number;
-};
-
 export type TrailDocumentScreenProps = {
     eventCardID: string;
 };
