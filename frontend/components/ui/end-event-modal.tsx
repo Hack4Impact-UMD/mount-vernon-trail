@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
         backgroundColor: Palette.green,
         paddingVertical: 8,
         paddingHorizontal: 16,
-        borderRadius: 8,
+        borderRadius: 9999,
         marginTop: 6,
     },
     confirmBtnDisabled: {

@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react-native";
 import React from "react";
 import {
     ActivityIndicator,
@@ -52,10 +53,15 @@ export default function PublishEventModal({
                             ]}
                             onPress={onConfirm}
                             disabled={loading}>
+								<Text style={styles.confirmText}>CONFIRM</Text>
                             {loading ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text style={styles.confirmText}>CONFIRM</Text>
+                                
+								<ChevronRight
+                                size={16}
+                                color="#FFFFFF"
+                            />
                             )}
                         </Pressable>
                     </View>
@@ -76,14 +82,14 @@ const styles = StyleSheet.create({
     card: {
         width: "100%",
         maxWidth: 360,
-        backgroundColor: "#FFF6E6",
+        backgroundColor: "#D4930D",
         borderRadius: 16,
         padding: 22,
         gap: 12,
     },
     title: {
         fontSize: 16,
-        color: "#111",
+        color: "white",
         fontFamily: "Lato_700Bold",
         fontWeight: "700",
         lineHeight: 22,
@@ -93,7 +99,7 @@ const styles = StyleSheet.create({
     },
     body: {
         fontSize: 14,
-        color: "#444",
+        color: "white",
         fontFamily: "Lato_400Regular",
         lineHeight: 20,
     },
@@ -103,13 +109,13 @@ const styles = StyleSheet.create({
     },
     actions: {
         flexDirection: "row",
-        gap: 10,
+        gap: 20,
         marginTop: 6,
     },
     btn: {
         paddingHorizontal: 18,
         paddingVertical: 8,
-        borderRadius: 8,
+        borderRadius: 9999,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -117,7 +123,9 @@ const styles = StyleSheet.create({
         backgroundColor: "#D43F44",
     },
     confirmBtn: {
+		flexDirection: "row",
         backgroundColor: "#3BA34C",
+		gap: 4
     },
     btnDisabled: {
         opacity: 0.6,

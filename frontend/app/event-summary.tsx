@@ -5,10 +5,8 @@ import type { Event, EventMetricsWithHours } from "@/services/event-service";
 import {
 	extractMetricsWithHours,
     getEventById,
-    publishEvent,
     saveDraft,
 } from "@/services/event-service";
-import { moveCardToCompleted } from "@/services/trello-service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -265,20 +263,6 @@ export default function EventSummaryScreen() {
         (def) => (stats[def.key] as number) !== 0,
     ) : [];
 
-    const handlePublish = async () => {
-        if (saving || savedDraft || savedTrello) return;
-        setSaving(true);
-        try {
-            const key = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
-            await moveCardToCompleted(event.trelloCardId, key);
-            await publishEvent(eventId);
-            setSavedTrello(true);
-        } catch (e) {
-            Alert.alert("Save failed", (e as Error).message);
-            setSaving(false);
-        }
-    };
-
     const handleSaveDraft = async () => {
         if (saving || savedDraft || savedTrello) return;
         setSaving(true);
@@ -389,7 +373,12 @@ export default function EventSummaryScreen() {
                         savedTrello && styles.actionCardSaved,
                         saving && styles.actionCardDisabled,
                     ]}
-                    onPress={handlePublish}
+                    onPress={() => router.replace({
+						pathname: "/edit-draft",
+						params: {
+							eventId
+						}
+					})}
                     disabled={saving || savedDraft || savedTrello}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
@@ -410,14 +399,10 @@ export default function EventSummaryScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.actionCardTitle}>
-                            {savedTrello
-                                ? "Posted to Trello!"
-                                : "Post to Trello"}
+                            Edit event now
                         </Text>
                         <Text style={styles.actionCardSubtitle}>
-                            {savedTrello
-                                ? "Event info has been saved"
-                                : "Complete & upload to Trello"}
+                            Complete & upload to Trello
                         </Text>
                     </View>
                 </Pressable>

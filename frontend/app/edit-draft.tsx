@@ -3,6 +3,7 @@ import HomeHeader from "@/components/ui/header";
 import PublishEventModal from "@/components/ui/publish-event-modal";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
+import TrailMetricsSection from "@/components/ui/trail-metrics-section";
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import { getEventById, publishEvent, saveDraft } from "@/services/event-service";
@@ -102,7 +103,7 @@ export default function EditDraftScreen() {
         setSavingDraft(true);
         try {
             await saveDraft(event.eventId, notepad);
-            router.replace("/(tabs)");
+            router.replace("/drafts");
         } catch (e) {
             Alert.alert("Save failed", (e as Error).message);
             setSavingDraft(false);
@@ -120,7 +121,7 @@ export default function EditDraftScreen() {
             await publishEvent(event.eventId);
             await moveCardToCompleted(event.trelloCardId, API_KEY);
             setPublishModalVisible(false);
-            router.replace("/(tabs)");
+            router.replace("/home-screen");
         } catch (e) {
             Alert.alert("Publish failed", (e as Error).message);
             setPublishing(false);
@@ -167,9 +168,8 @@ export default function EditDraftScreen() {
                             </Text>
                         )}
                     </View>
-                </View>
 
-                <View style={styles.contentContainer}>
+                <View>
                     <Text style={styles.sectionTitle}>Notepad</Text>
                     <TextInput
                         style={styles.notepad}
@@ -180,6 +180,14 @@ export default function EditDraftScreen() {
                         placeholderTextColor="#bbb"
                         textAlignVertical="top"
                     />
+                </View>
+
+				{/* Metrics Section */}
+				<TrailMetricsSection
+					eventId={event.eventId}
+					initialMetrics={event.metrics}
+				/>
+
                 </View>
 
                 <View style={styles.actionRow}>
