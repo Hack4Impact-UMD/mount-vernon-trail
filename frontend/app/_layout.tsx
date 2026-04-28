@@ -88,6 +88,7 @@ export default function RootLayout() {
             "albums",
             "drafts",
             "profile",
+            "before-after-graphic",
             "mock-statistics", //temporary, for testing purposes remove on merge
         ]);
         // if user not authenticated, re-route to /auth if an auth route is being accessed
@@ -159,6 +160,10 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                     name="profile"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="before-after-graphic"
                     options={{ headerShown: false, animation: "none" }}
                 />
                 <Stack.Screen // same with this
