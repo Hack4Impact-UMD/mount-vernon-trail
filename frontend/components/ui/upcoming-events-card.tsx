@@ -14,6 +14,11 @@ export interface UpcomingEventItem {
     description: string;
     date: Date;
     imageUrl: string | null;
+    eventLeader?: string;
+    zoneLeaders?: string;
+    toolHaulers?: string;
+    gloverLover?: string;
+    workScope?: string;
 }
 
 interface UpcomingEventsCardProps {
@@ -26,25 +31,15 @@ interface UpcomingEventsCardProps {
     onPressItem: (event: UpcomingEventItem) => void;
 }
 
-const EVENT_TYPES: {
-    label: string;
-    backgroundColor: string;
-    color: string;
-}[] = [
-    { label: "Invasive Removal", backgroundColor: "#693894", color: "#FFFFFF" },
-    { label: "Litter Cleanup", backgroundColor: "#215EAC", color: "#FFFFFF" },
-    { label: "Erosion Repair", backgroundColor: "#2D8682", color: "#FFFFFF" },
-];
-
 const EVENT_STATUS = {
     label: "Not started",
     backgroundColor: "#D4930D18",
     color: "#D4930D",
 };
 
-// const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder.png");
+const PLACEHOLDER_IMAGE = require("@/assets/images/mvt-beaver-logo.png");
 
-function formatEventDate(date: Date): string {
+export function formatEventDate(date: Date): string {
     return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -96,7 +91,6 @@ export function UpcomingEventsCard({
             {!loading &&
                 !error &&
                 visibleEvents.map((event, index) => {
-                    const typePill = EVENT_TYPES[index % EVENT_TYPES.length];
                     return (
                         <Pressable
                             key={event.id}
@@ -105,12 +99,14 @@ export function UpcomingEventsCard({
                                 styles.card,
                                 pressed && styles.cardPressed,
                             ]}>
-                            {event.imageUrl && (
-                                <Image
-                                    source={{ uri: event.imageUrl }}
-                                    style={styles.thumbnail}
-                                />
-                            )}
+                            <Image
+                                source={
+                                    event.imageUrl
+                                        ? { uri: event.imageUrl }
+                                        : PLACEHOLDER_IMAGE
+                                }
+                                style={styles.thumbnail}
+                            />
                             <View style={styles.cardContent}>
                                 <Text
                                     style={styles.cardTitle}
@@ -121,22 +117,6 @@ export function UpcomingEventsCard({
                                     {formatEventDate(event.date)}
                                 </Text>
                                 <View style={styles.tagsRow}>
-                                    <View
-                                        style={[
-                                            styles.tagPill,
-                                            {
-                                                backgroundColor:
-                                                    typePill.backgroundColor,
-                                            },
-                                        ]}>
-                                        <Text
-                                            style={[
-                                                styles.tagText,
-                                                { color: typePill.color },
-                                            ]}>
-                                            {typePill.label}
-                                        </Text>
-                                    </View>
                                     <View
                                         style={[
                                             styles.tagPill,
@@ -218,7 +198,6 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 8,
-        backgroundColor: "#e0e0e0",
     },
     cardContent: {
         flex: 1,

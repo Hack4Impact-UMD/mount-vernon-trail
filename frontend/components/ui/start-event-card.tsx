@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { Palette } from '@/constants/theme';
 
 type Props = {
@@ -9,8 +10,10 @@ type Props = {
 };
 
 export default function StartEventCard({ onPress }: Props) {
+    const router = useRouter();
+
     return (
-        <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
+        <TouchableOpacity activeOpacity={0.9} onPress={onPress ?? (() => router.push('/setup-event'))}>
             <LinearGradient
                 colors={[Palette.primaryPurple100, Palette.primaryPurple70]}
                 start={{ x: 0, y: 0 }}

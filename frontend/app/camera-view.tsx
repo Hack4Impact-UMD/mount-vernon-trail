@@ -35,19 +35,17 @@ export default function CameraViewScreen() {
     const [flash, setFlash] = useState<'off' | 'on'>('off');
     // when navigated from the trail document screen
     const router = useRouter();
-    const params = useLocalSearchParams<{
-        mode?: 'before' | 'after';
+    const { beforeImageUri, afterImageUri, activeIssueId, eventId, mode } = useLocalSearchParams<{
         beforeImageUri?: string;
         afterImageUri?: string;
-        activeIssueId?: string;
+        activeIssueId?: string; // keep track of issue card user pressed
+        eventId?: string;
+        mode?: 'before' | 'after';
     }>();
-    const mode = params.mode === 'after' ? 'after' : 'before';
-    const beforeImageUri = typeof params.beforeImageUri === 'string' ? params.beforeImageUri : null;
-    // keep track of which issue card the user pressed to get to camera view
-    const activeIssueId = typeof params.activeIssueId === 'string' ? params.activeIssueId : null;
+    const resolveMode = mode === 'after' ? 'after' : 'before';
     // overlay is set to before image, but user can still has option to choose from their gallary
     const [overlayUri, setOverlayUri] = useState<string | null>(
-        mode === 'after' ? beforeImageUri : null
+        resolveMode === 'after' ? (beforeImageUri ?? null) : null
     );
     const [viewState, setViewState] = useState<'camera' | 'confirmation'>('camera'); 
     const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
@@ -125,7 +123,7 @@ export default function CameraViewScreen() {
             // overlay
             if (result.canceled || !result.assets?.[0]?.uri) return;
             const selectedPhoto = result.assets?.[0]?.uri;
-            if (mode === 'before') {
+            if (resolveMode === 'before') {
                 setCapturedPhotoUri(selectedPhoto);
                 setRecentPhoto(selectedPhoto);
                 setViewState('confirmation');
@@ -150,12 +148,13 @@ export default function CameraViewScreen() {
         } catch (error) {
             console.error('Error saving photo:', error);
         }
-        if (mode === 'before') {
+        if (resolveMode === 'before') {
             router.replace({
                 pathname: '/trail-document-screen',
                 params: {
                     activeIssueId,
                     beforeImageUri: capturedPhotoUri,
+                    eventId
                 },
             });
         } else {
@@ -165,6 +164,7 @@ export default function CameraViewScreen() {
                     activeIssueId,
                     beforeImageUri: beforeImageUri ?? "", 
                     afterImageUri: capturedPhotoUri,   
+                    eventId
                 },
             });
         }
@@ -209,7 +209,7 @@ export default function CameraViewScreen() {
                         ref={cameraRef}
                         zoom={zoom}
                     />
-                    {mode === 'after' && overlayUri && (
+                    {resolveMode === 'after' && overlayUri && (
                         <View style={[ StyleSheet.absoluteFillObject, { opacity: overlayOpacity }]} pointerEvents="none">
                             <Image 
                                 source={{ uri: overlayUri }} 
@@ -268,10 +268,10 @@ export default function CameraViewScreen() {
                             >
                             <View style={styles.captureButtonInner} />
                             </TouchableOpacity>
-                            <Text style={styles.captureLabel}>{mode.toUpperCase()}</Text>
+                            <Text style={styles.captureLabel}>{resolveMode.toUpperCase()}</Text>
                         </View>
                         {/* Overlay opacity slider */}
-                            {mode === 'after' && overlayUri && (
+                            {resolveMode === 'after' && overlayUri && (
                                 <View style={[styles.sliderContainer, {bottom: insets.bottom + 40 } ]}>
                                     <Slider
                                         style={styles.slider}

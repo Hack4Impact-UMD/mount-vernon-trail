@@ -19,10 +19,12 @@ export interface Card {
     shortUrl?: string;
     creationDate: Date;
     attachments?: TrelloAttachment[];
+    due?: string | null; // ISO date string from trello
 }
 
 export interface TrelloAttachment {
     url: string;
+	mimeType: string;
 }
 
 export interface EventCard extends Card {

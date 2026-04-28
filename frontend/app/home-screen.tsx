@@ -1,18 +1,23 @@
+import BottomNav from "@/components/ui/bottom-nav";
+import CreateNewEvent from "@/components/ui/create-new-event";
+import Header from "@/components/ui/header";
+import MakeBeforeAfterGraphic from "@/components/ui/make-graphic";
+import TakeAfterPicture from "@/components/ui/take-after-picture";
+import TrailEventCard from "@/components/ui/trail-event-card";
+import TrelloLoginUI from "@/components/ui/trello-login";
 import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
+import { useIsAdmin } from "@/hooks/use-is-admin";
+import { useTrelloAuth } from "@/hooks/use-trello-auth";
+import { getEventByTrelloCardId, startEvent } from "@/services/event-service";
 import { fetchUpcomingEvents } from "@/services/trello-service";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import BottomNav from "../components/ui/bottom-nav";
-import Header from "../components/ui/header";
-import StartEventCard from "../components/ui/start-event-card";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
-// hardcoded for testing, need to swap for real auth later
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
-const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
 
 // THESE ARE PLACEHOLDER EVENTS FOR THE PAST EVENTS FIGMA DESIGN
 const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
@@ -48,38 +53,103 @@ const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
 
 export default function HomeScreen() {
     const router = useRouter();
-    const [active, setActive] = useState<
-        "home" | "new-event" | "history" | "profile"
-    >("home");
-
+    const { isAuthenticated, promptSignIn, loading, initializing, error: trelloError } = useTrelloAuth();
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
+    const [selectedEvent, setSelectedEvent] =
+        useState<UpcomingEventItem | null>(null);
+    const isAdmin = useIsAdmin();
+
+    const handleTrelloSignIn = async () => {
+        const ok = await promptSignIn();
+        if (ok) {
+            router.replace("/home-screen");
+        }
+    }
 
     useEffect(() => {
-        if (!API_KEY || !API_TOKEN) {
-            setEventsError("Missing Trello API credentials");
+        if (!isAuthenticated || !API_KEY) {
             setEventsLoading(false);
             return;
         }
-        fetchUpcomingEvents(API_KEY, API_TOKEN)
+        setEventsLoading(true);
+        fetchUpcomingEvents(API_KEY)
             .then(setEvents)
             .catch((e) => setEventsError(e.message))
             .finally(() => setEventsLoading(false));
-    }, []);
+    }, [isAuthenticated]);
+
+    if (!isAuthenticated) {
+        return (
+            <TrelloLoginUI
+                onPressTrello={handleTrelloSignIn}
+                isLoading={loading || initializing}
+                errorMessage={trelloError?.message ?? null}
+            />
+        )
+    }
+
+    const handlePressEvent = async (event: UpcomingEventItem) => {
+        setSelectedEvent(event);
+        const firebaseEvent = await getEventByTrelloCardId(event.id).catch(() => null);
+        if (!firebaseEvent) return;
+
+        setSelectedEvent((prev) => {
+            if (prev?.id !== event.id) return prev;
+            return {
+                ...prev,
+                eventLeader: firebaseEvent.eventLeader ?? "",
+                zoneLeaders: firebaseEvent.zoneLeaders ?? "",
+                toolHaulers: firebaseEvent.toolHaulers ?? "",
+                gloverLover: firebaseEvent.gloverLover ?? "",
+                workScope: firebaseEvent.description ?? "",
+            };
+        });
+    };
+
+    const handleStartEvent = async (event: UpcomingEventItem) => {
+        try {
+			// set startDate in firebase
+            await startEvent(event.id);
+			// close modal
+            setSelectedEvent(null);
+			// go to in progress screen
+			const firebaseEvent = await getEventByTrelloCardId(event.id).catch(() => null);
+			if (firebaseEvent) {
+				router.push({
+					pathname: "/trail-document-screen",
+					params: { eventId: firebaseEvent.eventId },
+				});
+			} else {
+				Alert.alert("Not available", "This event hasn't been set up in the app yet.");
+			}
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Failed to start event";
+			// close modal
+            setSelectedEvent(null);
+            Alert.alert("Error", message);
+        }
+    };
 
     return (
         <>
             <Stack.Screen options={{ headerShown: false }} />
-
             <View style={styles.screen}>
                 <ScrollView
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}>
-                    <Header userName="Sarah" showGreeting />
+                    <Header showGreeting />
                     <View style={styles.cardWrapper}>
-                        <StartEventCard />
+                        <TakeAfterPicture />
+                        <MakeBeforeAfterGraphic />
+                        {isAdmin && (
+                            <CreateNewEvent onPress={() => router.push("/setup-event")} />
+                        )}
                     </View>
                     <View style={styles.eventsSection}>
                         <UpcomingEventsCard
@@ -88,9 +158,7 @@ export default function HomeScreen() {
                             error={eventsError}
                             maxItems={3}
                             onShowMore={() => {}}
-                            onPressItem={(event) =>
-                                console.log("pressed:", event.name)
-                            }
+                            onPressItem={(event) => handlePressEvent(event)}
                         />
                     </View>
 
@@ -109,12 +177,13 @@ export default function HomeScreen() {
                         />
                     </View>
                 </ScrollView>
-                <BottomNav
-                    active={active}
-                    onTabPress={(tab) => {
-                        setActive(tab);
-                        if (tab === "history") router.push("/drafts");
-                    }}
+                <BottomNav />
+
+                <TrailEventCard
+                    event={selectedEvent}
+                    visible={selectedEvent !== null}
+                    onClose={() => setSelectedEvent(null)}
+                    onStartEvent={handleStartEvent}
                 />
             </View>
         </>
@@ -135,6 +204,7 @@ const styles = StyleSheet.create({
     cardWrapper: {
         marginTop: 10,
         paddingHorizontal: 20,
+        gap: 10,
     },
     eventsSection: {
         marginTop: 35,

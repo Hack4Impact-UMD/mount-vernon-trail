@@ -1,4 +1,5 @@
 import { useGoogleAuth } from "@/hooks/use-google-auth";
+import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { getActiveEvent } from "@/services/event-service";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -13,10 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
     const router = useRouter();
+    const { loading: trelloLoading, handleSignOut: handleTrelloSignOut, isAuthenticated } = useTrelloAuth();
     const { user, loading, error, handleSignOut } = useGoogleAuth();
-    
-    // temporary for testing trail document screen 
-    const eventCardID = "69b9c0d995522b9b514f88fb";
     const [checkingEvent, setCheckingEvent] = useState(true);
     const [eventError, setEventError] = useState<string | null>(null);
 
@@ -34,7 +33,7 @@ export default function HomeScreen() {
             })
             .catch((e) => setEventError((e as Error).message))
             .finally(() => setCheckingEvent(false));
-    }, [user]);
+    }, [user, router]);
 
     if (checkingEvent) {
         return (
@@ -93,6 +92,26 @@ export default function HomeScreen() {
                         })
                     }>
                     <Text style={styles.buttonText}>Event Summary Preview</Text>
+                </Pressable>
+                {isAuthenticated &&
+                    <Pressable
+                        style={[
+                            styles.signOutButton,
+                            trelloLoading && styles.signOutDisabled,
+                        ]}
+                        onPress={handleTrelloSignOut}
+                        disabled={trelloLoading}>
+                        {trelloLoading ? (
+                            <ActivityIndicator color="#fff" />
+                        ) : (
+                            <Text style={styles.signOutText}>Trello Sign Out</Text>
+                        )}
+                    </Pressable>
+                }
+                <Pressable
+                    style={styles.button}
+                    onPress={() => router.push("/albums")}>
+                    <Text style={styles.buttonText}>Albums</Text>
                 </Pressable>
                 <Pressable
                     style={[

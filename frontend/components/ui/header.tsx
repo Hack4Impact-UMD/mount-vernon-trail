@@ -1,11 +1,17 @@
+import { useGoogleAuth } from "@/auth";
 import { Palette } from "@/constants/theme";
-import { Menu } from "lucide-react-native";
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function HomeHeader({ userName, showGreeting = false }: { userName: string; showGreeting?: boolean }) {
+export default function HomeHeader({
+    showGreeting = false,
+}: {
+    showGreeting?: boolean;
+}) {
     const insets = useSafeAreaInsets();
+	const { user } = useGoogleAuth();
+
     return (
         <View>
             <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -17,20 +23,13 @@ export default function HomeHeader({ userName, showGreeting = false }: { userNam
                             style={styles.logo}
                         />
                     </View>
-                    <TouchableOpacity>
-                        <Menu
-                            size={28}
-                            color="white"
-                            strokeWidth={1.5}
-                        />
-                    </TouchableOpacity>
                 </View>
             </View>
             {showGreeting && (
                 <View style={styles.greetingContainer}>
                     <Text style={styles.greeting}>
                         Ready to make an impact,{"\n"}
-                        <Text style={styles.name}>{userName}</Text>?
+                        <Text style={styles.name}>{user?.displayName?.split(" ")[0]}</Text>?
                     </Text>
                 </View>
             )}

@@ -3,20 +3,42 @@ import type { TrailIssueItem } from "@/components/ui/trail-issues-card";
 import type { UpcomingEventItem } from "@/components/ui/upcoming-events-card";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { TrelloClient } from "./trello-funcs";
-import { EventCard } from "./trello-types";
+import { EventCard, TrelloAttachment } from "./trello-types";
 
 const BOARD_NAME = "MVT Mock Board";
 const TRAIL_ISSUES_LIST = "Trail Issues and Problems - Intake";
 const UPCOMING_EVENTS_LIST = "Scheduled Events";
 const COMPLETED_EVENTS_LIST = "Completed Events (From App)";
 
+// parses trello description into structured fields
+function parseEventDescription(desc: string) {
+    const fields: Record<string, string> = {};
+    // split on newlines, each line is a potential field
+    const lines = desc.split("\n");
+
+    for (const line of lines) {
+        // strip markdown headers (###, ##, #) and match "Label: value"
+        const cleaned = line.replace(/^#+\s*/, "").trim();
+        const match = cleaned.match(/^([^:]+):\s*(.*)/);
+        if (match) {
+            const key = match[1].trim().toLowerCase().replace(/\s+/g, "");
+            fields[key] = match[2].trim();
+        }
+    }
+
+    return {
+        eventLeader: fields["eventleader"] ?? "",
+        zoneLeaders: fields["zoneleaders"] ?? "",
+        toolHaulers: fields["toolhaulers"] ?? "",
+        gloverLover: fields["gloverlover"] ?? "",
+        workScope: fields["workscope"] ?? "",
+    };
+}
+
 // fetches trail issues by most recent
 // key and token are passed as parameters so auth can be swapped later
-export async function fetchTrailIssues(
-    key: string,
-    token: string,
-): Promise<TrailIssueItem[]> {
-    const trello = new TrelloClient(key, token);
+export async function fetchTrailIssues(key: string): Promise<TrailIssueItem[]> {
+    const trello = new TrelloClient(key);
     // find target board and list
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
@@ -47,10 +69,9 @@ export async function fetchTrailIssues(
 // key and token are passed as parameters so auth can be swapped later
 export async function fetchDocumentTrailIssues(
     key: string,
-    token: string,
     eventCard: EventCard,
 ): Promise<TrailDocumentIssueItem[]> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const attachmentIDs = await trello.getEventCardAttachmentIDs(eventCard);
     return await Promise.all(
         attachmentIDs.map(async (id) => {
@@ -76,9 +97,8 @@ export async function fetchDocumentTrailIssues(
 // fetches upcoming event cards within the next 30 days
 export async function fetchUpcomingEvents(
     key: string,
-    token: string,
 ): Promise<UpcomingEventItem[]> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     // find target board and list
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
@@ -89,22 +109,30 @@ export async function fetchUpcomingEvents(
     if (!list) throw new Error(`List "${UPCOMING_EVENTS_LIST}" not found`);
 
     const cards = await trello.getEventCardsFiltered(list.id, 30, true, true);
-
     return Promise.all(
         cards.map(async (card) => {
-            const imageUrl =
-                card.attachments && card.attachments.length > 0
-                    ? await trello.loadTrelloImage(card.attachments[0].url)
-                    : null;
+            const imgAttachmentUrl = getFirstImageAttachment(card.attachments);
+			const imageUrl = imgAttachmentUrl ? await trello.loadTrelloImage(imgAttachmentUrl) : null;
+            const parsed = parseEventDescription(card.desc ?? "");
             return {
                 id: card.id,
                 name: card.name,
                 description: card.desc ?? "",
                 date: card.eventDate,
                 imageUrl,
+                ...parsed
             };
         }),
     );
+}
+
+// finds the first image (not trello card or other) attached to a card to display with it
+function getFirstImageAttachment(attachments: TrelloAttachment[] | undefined): string | null {
+	if (!attachments || attachments.length === 0) return null;
+
+	const pattern = /image/;
+	const img = attachments.find((attachment) => pattern.exec(attachment.mimeType));
+	return img?.url ?? null;
 }
 
 // creates a new event card in the Scheduled Events list with the card name prefixed with date
@@ -113,9 +141,8 @@ export async function createEventCard(
     dateStr: string,
     description: string,
     key: string,
-    token: string,
 ): Promise<{ cardId: string; cardUrl: string }> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
     if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
@@ -137,9 +164,8 @@ export async function createEventCard(
 export async function fetchCardUrl(
     cardId: string,
     key: string,
-    token: string,
 ): Promise<string> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const card = await trello.getCard(cardId);
     if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
     return card.shortUrl;
@@ -149,9 +175,8 @@ export async function fetchCardUrl(
 export async function moveCardToCompleted(
     cardId: string,
     key: string,
-    token: string,
 ): Promise<void> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
     if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
@@ -168,9 +193,8 @@ export async function addAlbumLinkToCard(
     cardID: string,
     albumUrl: string,
     key: string,
-    token: string,
 ): Promise<void> {
-    const trello = new TrelloClient(key, token);
+    const trello = new TrelloClient(key);
     const card = await trello.getCard(cardID);
     const currentDescription = card.desc ?? "";
 

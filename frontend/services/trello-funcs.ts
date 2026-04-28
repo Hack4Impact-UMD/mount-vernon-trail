@@ -1,6 +1,8 @@
 import { parseAndValidateDate } from "@/utils/date";
-import type { AxiosInstance } from "axios";
+import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
+import { getTrelloToken } from "../auth/trello-token-storage";
+import { TrelloAuthError } from "./trello-auth-error";
 import type {
     Board,
     Card,
@@ -20,21 +22,78 @@ function getErrorMessage(error: unknown): string {
     return String(error) || "Unknown error";
 }
 
+function isTrelloHost(url: string): boolean {
+    try {
+        const { hostname } = new URL(url);
+        return (
+            hostname === "trello.com" ||
+            hostname.endsWith(".trello.com") ||
+            hostname.endsWith(".trellousercontent.com") ||
+            hostname === "trello-attachments.s3.amazonaws.com"
+        );
+    } catch {
+        return false;
+    }
+}
+
+function handleHttpError(status: number): void {
+    if (status === 401) {
+        throw new TrelloAuthError("TOKEN_EXPIRED");
+    }
+    if (status === 403) {
+        throw new TrelloAuthError("PERMISSION_DENIED");
+    }
+}
 export class TrelloClient {
     private readonly client: AxiosInstance;
     private readonly key: string;
-    private readonly token: string;
 
-    constructor(key: string, token: string) {
+    constructor(key: string) {
         this.key = key;
-        this.token = token;
         this.client = axios.create({
             baseURL: "https://api.trello.com/1",
-            params: {
-                key: this.key,
-                token: this.token,
-            },
         });
+
+        // attach api key and token to every request
+        this.client.interceptors.request.use(
+            async (config: InternalAxiosRequestConfig) => {
+                try {
+                    const token = await getTrelloToken();
+                    if (!token) {
+                        throw new TrelloAuthError("AUTH_FAILED");
+                    }
+                    config.params = {
+                        ...config.params,
+                        key: this.key,
+                        token,
+                    };
+                    return config;
+                } catch (error: any) {
+                    if (error instanceof TrelloAuthError) {
+                        throw error;
+                    }
+                    throw new TrelloAuthError("AUTH_FAILED");
+                }
+            },
+        );
+        // map http auth failures to typed TrelloAuthError
+        this.client.interceptors.response.use(
+            (response) => response,
+            (error: unknown) => {
+                if (axios.isAxiosError(error)) {
+                    if (error.response?.status) {
+                        handleHttpError(error.response.status);
+                        // non-auth status, re-throw original
+                        throw error;
+                    }
+                    if (!error.response) {
+                        throw new TrelloAuthError("NETWORK_ERROR");
+                    }
+                    throw error;
+                }
+                throw error;
+            },
+        );
     }
 
     async getBoards(): Promise<Board[]> {
@@ -43,6 +102,7 @@ export class TrelloClient {
                 await this.client.get<Board[]>("/members/me/boards");
             return response.data;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error("error finding boards:", getErrorMessage(error));
             throw error;
         }
@@ -55,6 +115,8 @@ export class TrelloClient {
             );
             return response.data;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+
             console.error(`error getting lists:`, getErrorMessage(error));
             throw error;
         }
@@ -74,6 +136,7 @@ export class TrelloClient {
             });
             return response.data;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error("unable to create card:", getErrorMessage(error));
             throw error;
         }
@@ -104,6 +167,7 @@ export class TrelloClient {
             }
             return cards;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error("unable to get cards:", getErrorMessage(error));
             throw error;
         }
@@ -151,8 +215,8 @@ export class TrelloClient {
             const futureDate = new Date(
                 today.getTime() + days * daysMilliseconds,
             );
+            // convert to event cards
             const result: EventCard[] = cards
-                // convert to event cards
                 .map((card) => TrelloClient.cardToEventCard(card, removeDate))
                 .filter(
                     (card): card is EventCard =>
@@ -164,6 +228,8 @@ export class TrelloClient {
                 .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
             return result;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+
             console.error("unable to get cards:", getErrorMessage(error));
             throw error;
         }
@@ -174,6 +240,7 @@ export class TrelloClient {
             const response = await this.client.get<Card>(`/cards/${cardID}`);
             return response.data;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error(
                 `unable to get card ${cardID}:`,
                 getErrorMessage(error),
@@ -186,6 +253,7 @@ export class TrelloClient {
         try {
             await this.client.put(`/cards/${cardID}`, { idList: listID });
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error(
                 `unable to move card ${cardID}:`,
                 getErrorMessage(error),
@@ -204,6 +272,7 @@ export class TrelloClient {
             });
             return response.data;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error(
                 `unable to update card ${cardID}:`,
                 getErrorMessage(error),
@@ -229,6 +298,7 @@ export class TrelloClient {
 
             return response.data;
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
             console.error(
                 `unable to update card ${cardID}:`,
                 getErrorMessage(error),
@@ -242,9 +312,19 @@ export class TrelloClient {
     private static extractCardIDFromAttachment(
         attachment: TrelloAttachment,
     ): string | null {
-        const regex = /https:\/\/trello\.com\/c\/(.+?)\//;
-        const match = regex.exec(attachment.url);
-        return match ? match[1] : null;
+        try {
+            const url = new URL(attachment.url);
+            if (url.hostname !== "trello.com") {
+                return null;
+            }
+            // check for /c/{cardID} pattern and extract id if it exists
+            const regex = /^\/c\/([a-zA-Z0-9]+)/;
+            const match = regex.exec(url.pathname);
+            return match ? match[1] : null;
+        } catch {
+            // invalid url
+            return null;
+        }
     }
 
     // gets (issue) card IDs that are attachments to an event card
@@ -302,13 +382,25 @@ export class TrelloClient {
 
     async loadTrelloImage(imageUrl: string): Promise<string | null> {
         try {
+            const headers: Record<string, string> = {};
+
+            if (isTrelloHost(imageUrl)) {
+                const token = await getTrelloToken();
+                if (!token) {
+                    throw new TrelloAuthError("AUTH_FAILED");
+                }
+                headers.Authorization = `OAuth oauth_consumer_key="${this.key}", oauth_token="${token}"`;
+            }
+
             const response = await fetch(imageUrl, {
                 method: "GET",
-                headers: {
-                    Authorization: `OAuth oauth_consumer_key="${this.key}", oauth_token="${this.token}"`,
-                },
+                headers,
             });
             if (!response.ok) {
+                if (response.status === 401)
+                    throw new TrelloAuthError("TOKEN_EXPIRED");
+                if (response.status === 403)
+                    throw new TrelloAuthError("PERMISSION_DENIED");
                 throw new Error(`Failed to fetch image: ${response.status}`);
             }
             const blob = await response.blob();
@@ -324,6 +416,8 @@ export class TrelloClient {
                 reader.readAsDataURL(blob);
             });
         } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+
             console.error("Error loading image:", error);
             return null;
         }

@@ -81,22 +81,26 @@ export default function RootLayout() {
             "home-screen",
             "trail-document-screen",
             "camera-view",
+            "trail-issue-screen",
             "setup-event",
             "active-event",
             "event-summary",
             "edit-draft",
-            "drafts"
+            "drafts",
+            "albums",
+            "profile",
+            "mock-statistics",
         ]);
-        // if user not authenticated, re-route to /auth if an auth route is being accessed 
+        // if user not authenticated, re-route to /auth if an auth route is being accessed
         if (!user) {
             if (!nonAuthRoutes.has(route)) {
                 router.replace("/auth");
             }
             return;
         }
-        // if user is authenticated, re-route to "home" if non-auth route is being accessed  
+        // if user is authenticated, re-route to "home" if non-auth route is being accessed
         if (!authRoutes.has(route)) {
-            router.replace("/(tabs)");
+            router.replace("/home-screen");
         }
     }, [user, fontsLoaded, segments, router]);
 
@@ -131,6 +135,10 @@ export default function RootLayout() {
                     options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                    name="trail-issue-screen"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
                     name="modal"
                     options={{ presentation: "modal", title: "Modal" }}
                 />
@@ -143,7 +151,23 @@ export default function RootLayout() {
                     options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                    name="home-screen"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
                     name="drafts"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="albums"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="profile"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="mock-statistics"
                     options={{ headerShown: false }}
                 />
             </Stack>
