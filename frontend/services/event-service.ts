@@ -28,13 +28,25 @@ export interface Event {
     savedAsDraftAt?: Timestamp;
     endDate: Timestamp | null;
     createdAt: Timestamp;
-    trailImprovements: number;
-    trashBags: number;
     eventLeader: string;
     zoneLeaders: string;
     toolHaulers: string;
     gloverLover: string;
     notes: string;
+    trailImprovements: number;
+    drainage?: number;
+	graffiti?: number;
+	stickers?: number;
+	otherImprovements?: number;
+	painting?: number;
+	pressureWashing?: number;
+	repairs?: number;
+	safetyImprovements?: number;
+	potholes?: number;
+	trash?: number;
+	trees?: number;
+	vegetationImprovements?: number;
+
 }
 
 const EVENTS_COLLECTION = "events";
@@ -79,7 +91,6 @@ export async function createEvent(
         endDate: null,
         createdAt: Timestamp.now(),
         trailImprovements: 0,
-        trashBags: 0,
         eventLeader,
         zoneLeaders,
         toolHaulers,
@@ -229,22 +240,21 @@ export async function updateEventStats(
     });
 }
 
-export function extractStats(event: Event): StatsData {
-    const e = event as unknown as Record<string, unknown>;
+export function extractStats(event: Event): StatsData {;
     return {
-        trailImprovements: (e["trailImprovements"] as number) ?? 0,
-        drainage: (e["drainage"] as number) ?? 0,
-        graffiti: (e["graffiti"] as number) ?? 0,
-        stickers: (e["stickers"] as number) ?? 0,
-        otherImprovements: (e["otherImprovements"] as number) ?? 0,
-        painting: (e["painting"] as number) ?? 0,
-        pressureWashing: (e["pressureWashing"] as number) ?? 0,
-        repairs: (e["repairs"] as number) ?? 0,
-        safetyImprovements: (e["safetyImprovements"] as number) ?? 0,
-        potholes: (e["potholes"] as number) ?? 0,
-        trash: (e["trash"] as number) ?? 0,
-        trees: (e["trees"] as number) ?? 0,
-        vegetationImprovements: (e["vegetationImprovements"] as number) ?? 0,
+        trailImprovements: event.trailImprovements,
+        drainage: event.drainage ?? 0,
+        graffiti: event.graffiti ?? 0,
+        stickers: event.stickers ?? 0,
+        otherImprovements: event.otherImprovements ?? 0,
+        painting: event.painting ?? 0,
+        pressureWashing: event.pressureWashing ?? 0,
+        repairs: event.repairs ?? 0,
+        safetyImprovements: event.safetyImprovements ?? 0,
+        potholes: event.potholes ?? 0,
+        trash: event.trash ?? 0,
+        trees: event.trees ?? 0,
+        vegetationImprovements: event.vegetationImprovements ?? 0,
         hoursOfService: (() => {
             if (!event.startDate) return 0;
             const end = event.endDate ? event.endDate.toMillis() : Date.now();
