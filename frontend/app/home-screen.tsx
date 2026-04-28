@@ -3,7 +3,7 @@ import {
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
 import { fetchUpcomingEvents } from "@/services/trello-service";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import BottomNav from "../components/ui/bottom-nav";
@@ -47,6 +47,7 @@ const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
 ];
 
 export default function HomeScreen() {
+    const router = useRouter();
     const [active, setActive] = useState<
         "home" | "new-event" | "history" | "profile"
     >("home");
@@ -110,7 +111,10 @@ export default function HomeScreen() {
                 </ScrollView>
                 <BottomNav
                     active={active}
-                    onTabPress={(tab) => setActive(tab)}
+                    onTabPress={(tab) => {
+                        setActive(tab);
+                        if (tab === "history") router.push("/drafts");
+                    }}
                 />
             </View>
         </>

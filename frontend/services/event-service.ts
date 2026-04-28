@@ -5,6 +5,7 @@ import {
     getDoc,
     getDocs,
     getFirestore,
+    orderBy,
     query,
     Timestamp,
     updateDoc,
@@ -21,9 +22,14 @@ export interface Event {
     albumId: string;
     albumUrl: string;
     isActive: boolean;
+    isDraft: boolean;
     startDate?: Timestamp;
     endDate: Timestamp | null;
     createdAt: Timestamp;
+    savedAsDraftAt?: Timestamp;
+    publishedAt?: Timestamp;
+    notepad?: string;
+    metrics?: Record<string, number>;
     trailImprovements: number;
     trashBags: number;
 }
@@ -68,9 +74,12 @@ export async function createEvent(
         albumId,
         albumUrl,
         isActive: true,
+        isDraft: false,
         startDate: Timestamp.now(),
         endDate: null,
         createdAt: Timestamp.now(),
+        notepad: "",
+        metrics: {},
         trailImprovements: 0,
         trashBags: 0,
     };
@@ -119,4 +128,53 @@ export async function setEventInactive(eventId: string): Promise<void> {
         isActive: false,
         endDate: Timestamp.now(),
     });
+}
+
+type DraftPayload = {
+    metrics?: Record<string, number>;
+    notepad?: string;
+};
+
+// Mark an ended event as a draft and (optionally) persist its metrics/notepad.
+export async function saveDraft(
+    eventId: string,
+    payload: DraftPayload = {},
+): Promise<void> {
+    const db = getFirestore();
+    const update: Record<string, unknown> = {
+        isDraft: true,
+        isActive: false,
+        savedAsDraftAt: Timestamp.now(),
+    };
+    if (payload.metrics !== undefined) update.metrics = payload.metrics;
+    if (payload.notepad !== undefined) update.notepad = payload.notepad;
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), update);
+}
+
+// Persist the final state of an event and mark it published (call after Trello publish succeeds).
+export async function publishEvent(
+    eventId: string,
+    payload: DraftPayload = {},
+): Promise<void> {
+    const db = getFirestore();
+    const update: Record<string, unknown> = {
+        isDraft: false,
+        isActive: false,
+        publishedAt: Timestamp.now(),
+    };
+    if (payload.metrics !== undefined) update.metrics = payload.metrics;
+    if (payload.notepad !== undefined) update.notepad = payload.notepad;
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), update);
+}
+
+// Fetch all drafts, newest first.
+export async function getDraftEvents(): Promise<Event[]> {
+    const db = getFirestore();
+    const q = query(
+        collection(db, EVENTS_COLLECTION),
+        where("isDraft", "==", true),
+        orderBy("savedAsDraftAt", "desc"),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => d.data() as Event);
 }

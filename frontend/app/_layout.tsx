@@ -76,14 +76,16 @@ export default function RootLayout() {
 
         const nonAuthRoutes = new Set(["auth"]);
         const authRoutes = new Set([
-            "(tabs)", 
-            "trello", 
+            "(tabs)",
+            "trello",
             "home-screen",
-            "trail-document-screen", 
+            "trail-document-screen",
             "camera-view",
             "setup-event",
             "active-event",
-            "event-summary"
+            "event-summary",
+            "edit-draft",
+            "drafts"
         ]);
         // if user not authenticated, re-route to /auth if an auth route is being accessed 
         if (!user) {
@@ -134,6 +136,14 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                     name="event-summary"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="edit-draft"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="drafts"
                     options={{ headerShown: false }}
                 />
             </Stack>

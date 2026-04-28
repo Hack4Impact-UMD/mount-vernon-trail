@@ -1,10 +1,14 @@
 import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
+import {
+    METRICS_CONFIG,
+    MetricCategoryConfig,
+    MetricField,
+} from "@/config/metricsConfig";
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
-import { getEventById } from "@/services/event-service";
-import { moveCardToCompleted } from "@/services/trello-service";
+import { getEventById, saveDraft } from "@/services/event-service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -18,26 +22,26 @@ import {
     Text,
     View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const GREEN = "#3BA34C";
-const BLUE = "#215EAC";
 const TEAL = "#2D8682";
-interface MetricCardProps {
+
+type MetricRowProps = {
+    icon: React.ReactNode;
+    accentColor: string;
     label: string;
     sublabel: string;
     value: number | string;
-    accentColor: string;
     delay: number;
-}
+};
 
-function MetricCard({
+function MetricRow({
+    icon,
+    accentColor,
     label,
     sublabel,
     value,
-    accentColor,
     delay,
-}: MetricCardProps) {
+}: MetricRowProps) {
     const opacity = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(20)).current;
 
@@ -56,17 +60,18 @@ function MetricCard({
                 useNativeDriver: true,
             }),
         ]).start();
-    }, []);
+    }, [opacity, translateY, delay]);
 
     return (
         <Animated.View
-            style={[
-                styles.metricCard,
-                { opacity, transform: [{ translateY }] },
-            ]}>
+            style={[styles.metricCard, { opacity, transform: [{ translateY }] }]}>
             <View
-                style={[styles.metricAccent, { backgroundColor: accentColor }]}
-            />
+                style={[
+                    styles.metricIconBubble,
+                    { backgroundColor: accentColor.concat("15") },
+                ]}>
+                {icon}
+            </View>
             <View style={styles.metricBody}>
                 <Text style={styles.metricLabel}>{label}</Text>
                 <Text style={styles.metricSublabel}>{sublabel}</Text>
@@ -78,15 +83,19 @@ function MetricCard({
     );
 }
 
+type FieldRow = {
+    category: MetricCategoryConfig;
+    field: MetricField;
+};
+
+const FIELD_ROWS: FieldRow[] = METRICS_CONFIG.flatMap((category) =>
+    category.fields.map((field) => ({ category, field })),
+);
+
 export default function EventSummaryScreen() {
     const router = useRouter();
-    const insets = useSafeAreaInsets();
     const { eventId } = useLocalSearchParams<{ eventId: string }>();
-    const [activeTab, setActiveTab] = useState<
-        "home" | "new-event" | "history" | "profile"
-    >("home");
     const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
     const [event, setEvent] = useState<Event>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
@@ -107,35 +116,58 @@ export default function EventSummaryScreen() {
     }, [eventId]);
 
     if (loading) return <ActivityIndicator style={styles.loader} />;
-    if (error || !event) return (
-        <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error ?? "Event not found."}</Text>
-        </View>
-    );
+    if (error || !event)
+        return (
+            <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>
+                    {error ?? "Event not found."}
+                </Text>
+            </View>
+        );
 
-    const handleSave = async () => {
-        if (saving || saved) return;
+    const handleSaveDraft = async () => {
+        if (saving) return;
         setSaving(true);
         try {
-            const key = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
-            const token = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN ?? "";
-            await moveCardToCompleted(event.trelloCardId, key, token);
-            setSaved(true);
+            await saveDraft(event.eventId);
+            router.replace("/(tabs)");
         } catch (e) {
             Alert.alert("Save failed", (e as Error).message);
-        } finally {
             setSaving(false);
         }
     };
+
+    const handleEditNow = async () => {
+        if (saving) return;
+        setSaving(true);
+        try {
+            // Mark as draft so it shows up in the drafts list if the user
+            // bails before posting to Trello.
+            await saveDraft(event.eventId);
+            router.replace({
+                pathname: "/edit-draft",
+                params: { eventId: event.eventId },
+            });
+        } catch (e) {
+            Alert.alert("Could not open editor", (e as Error).message);
+            setSaving(false);
+        }
+    };
+
+    const metrics = event.metrics ?? {};
+    const hoursOfService = (() => {
+        if (!event.startDate) return "0";
+        const end = event.endDate ? event.endDate.toMillis() : Date.now();
+        return (
+            Math.max(0, end - event.startDate.toMillis()) / 3600000
+        ).toFixed(1);
+    })();
 
     return (
         <View style={styles.screen}>
             <View>
                 <HomeHeader userName="Sarah" />
-                <TrailEventHeader
-                    event={event}
-                    variant="summary"
-                />
+                <TrailEventHeader event={event} variant="summary" />
             </View>
 
             <ScrollView
@@ -155,35 +187,31 @@ export default function EventSummaryScreen() {
 
                 <View style={styles.divider} />
 
-                <MetricCard
-                    label="Trail Improvements"
-                    sublabel="in review"
-                    value={event.trailImprovements}
-                    accentColor={GREEN}
-                    delay={60}
-                />
-                <MetricCard
-                    label="Trash collection"
-                    sublabel="# of bags"
-                    value={event.trashBags}
-                    accentColor={BLUE}
-                    delay={160}
-                />
-                <MetricCard
+                {FIELD_ROWS.map(({ category, field }, i) => (
+                    <MetricRow
+                        key={field.id}
+                        icon={category.icon}
+                        accentColor={category.color}
+                        label={field.label}
+                        sublabel={field.unit}
+                        value={metrics[field.id] ?? 0}
+                        delay={Math.min(i * 40, 400)}
+                    />
+                ))}
+
+                <MetricRow
+                    icon={
+                        <MaterialCommunityIcons
+                            name="clock-outline"
+                            size={20}
+                            color={TEAL}
+                        />
+                    }
+                    accentColor={TEAL}
                     label="Hours of service"
                     sublabel="hrs"
-                    value={(() => {
-                        if (!event.startDate) return 0;
-                        const end = event.endDate
-                            ? event.endDate.toMillis()
-                            : Date.now();
-                        return (
-                            Math.max(0, end - event.startDate.toMillis()) /
-                            3600000
-                        ).toFixed(1);
-                    })()}
-                    accentColor={TEAL}
-                    delay={260}
+                    value={hoursOfService}
+                    delay={Math.min(FIELD_ROWS.length * 40, 400)}
                 />
 
                 <View style={styles.divider} />
@@ -195,21 +223,14 @@ export default function EventSummaryScreen() {
                 <Pressable
                     style={[
                         styles.actionCard,
-                        saved && styles.actionCardSaved,
                         saving && styles.actionCardDisabled,
                     ]}
-                    onPress={handleSave}
-                    disabled={saving || saved}>
+                    onPress={handleSaveDraft}
+                    disabled={saving}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
                             <ActivityIndicator
                                 color={Palette.primaryPurple100}
-                            />
-                        ) : saved ? (
-                            <MaterialCommunityIcons
-                                name="check"
-                                size={24}
-                                color={GREEN}
                             />
                         ) : (
                             <MaterialCommunityIcons
@@ -220,20 +241,20 @@ export default function EventSummaryScreen() {
                         )}
                     </View>
                     <View>
-                        <Text style={styles.actionCardTitle}>
-                            {saved ? "Saved to Trello!" : "Save as draft"}
-                        </Text>
+                        <Text style={styles.actionCardTitle}>Save as draft</Text>
                         <Text style={styles.actionCardSubtitle}>
-                            {saved
-                                ? "Summary uploaded to Trello card"
-                                : "Continue editing later"}
+                            Continue editing later
                         </Text>
                     </View>
                 </Pressable>
 
                 <Pressable
-                    style={styles.actionCard}
-                    onPress={() => router.back()}>
+                    style={[
+                        styles.actionCard,
+                        saving && styles.actionCardDisabled,
+                    ]}
+                    onPress={handleEditNow}
+                    disabled={saving}>
                     <View style={styles.actionIconWrap}>
                         <MaterialCommunityIcons
                             name="pencil-outline"
@@ -253,10 +274,10 @@ export default function EventSummaryScreen() {
             </ScrollView>
 
             <BottomNav
-                active={activeTab}
+                active="home"
                 onTabPress={(tab) => {
-                    setActiveTab(tab);
                     if (tab === "home") router.replace("/(tabs)");
+                    else if (tab === "history") router.replace("/drafts");
                 }}
             />
         </View>
@@ -268,65 +289,12 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#ffffff",
     },
-    headerBar: {
-        backgroundColor: Palette.primaryPurple100,
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingHorizontal: 20,
-        paddingBottom: 20,
-    },
-    logo: {
-        width: 51,
-        height: 51,
-    },
     scroll: { flex: 1 },
     scrollContent: {
         paddingHorizontal: 20,
         paddingTop: 20,
         paddingBottom: 40,
-        gap: 14,
-    },
-    eventInfoRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-    },
-    eventInfoLeft: {
-        flex: 1,
-        gap: 4,
-    },
-    eventTitle: {
-        fontSize: 22,
-        fontWeight: "700",
-        color: "#111",
-        fontFamily: "Lato_700Bold",
-    },
-    eventDuration: {
-        fontSize: 13,
-        color: "#888",
-        fontFamily: "Lato_400Regular",
-    },
-    eventInfoRight: {
         gap: 10,
-        alignItems: "flex-start",
-    },
-    actionBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-    },
-    actionBtnCircle: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    actionBtnText: {
-        fontSize: 14,
-        color: "#111",
-        fontFamily: "Lato_400Regular",
     },
     divider: {
         height: 1,
@@ -349,39 +317,44 @@ const styles = StyleSheet.create({
         alignItems: "center",
         backgroundColor: "#fff",
         borderRadius: 14,
-        overflow: "hidden",
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        gap: 12,
         shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
         shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        elevation: 1,
+        borderWidth: 1,
+        borderColor: "#F0F0F5",
     },
-    metricAccent: {
-        width: 6,
-        alignSelf: "stretch",
+    metricIconBubble: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: "center",
     },
     metricBody: {
         flex: 1,
-        paddingVertical: 18,
-        paddingLeft: 16,
     },
     metricLabel: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: "600",
-        color: "#555",
+        color: "#222",
         fontFamily: "Lato_700Bold",
     },
     metricSublabel: {
-        fontSize: 12,
+        fontSize: 11,
         color: "#888",
         marginTop: 2,
         fontFamily: "Lato_400Regular",
     },
     metricValue: {
-        fontSize: 48,
+        fontSize: 28,
         fontWeight: "800",
-        paddingRight: 20,
-        letterSpacing: -1,
+        paddingRight: 8,
+        letterSpacing: -0.5,
     },
     actionHeading: {
         fontSize: 15,
@@ -389,6 +362,7 @@ const styles = StyleSheet.create({
         color: "#333",
         textAlign: "center",
         fontFamily: "Lato_700Bold",
+        marginTop: 8,
     },
     actionCard: {
         flexDirection: "row",
@@ -403,23 +377,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         elevation: 1,
     },
-    actionCardSaved: {
-        borderWidth: 1.5,
-        borderColor: GREEN,
-    },
     actionCardDisabled: { opacity: 0.6 },
-    loader: { flex: 1 },
-    errorContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 24,
-    },
-    errorText: {
-        fontSize: 15,
-        color: "#888",
-        textAlign: "center",
-    },
     actionIconWrap: {
         width: 52,
         height: 52,
@@ -439,5 +397,17 @@ const styles = StyleSheet.create({
         color: "#888",
         marginTop: 2,
         fontFamily: "Lato_400Regular",
+    },
+    loader: { flex: 1 },
+    errorContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 24,
+    },
+    errorText: {
+        fontSize: 15,
+        color: "#888",
+        textAlign: "center",
     },
 });
