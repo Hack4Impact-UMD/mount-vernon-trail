@@ -14,6 +14,45 @@ import {
     writeBatch,
 } from "firebase/firestore";
 
+// per even metrics collected during trail event
+export interface EventMetrics {
+    drainageCleaned: number;
+    graffitiTagsRemoved: number;
+    stickersRemoved: number;
+    otherImprovements: number;
+    itemsPainted: number;
+    pressureWashed: number;
+    itemsRepaired: number;
+    safetyImprovements: number;
+    snowRemovalEvents: number;
+    potholesFilled: number;
+    trailEdgedFeet: number;
+    trashBagsCollected: number;
+    trashPoundsCollected: number;
+    treesTrimmed: number;
+    vegetationVolunteers: number;
+}
+
+export function createDefaultMetrics(): EventMetrics {
+    return {
+        drainageCleaned: 0,
+        graffitiTagsRemoved: 0,
+        stickersRemoved: 0,
+        otherImprovements: 0,
+        itemsPainted: 0,
+        pressureWashed: 0,
+        itemsRepaired: 0,
+        safetyImprovements: 0,
+        snowRemovalEvents: 0,
+        potholesFilled: 0,
+        trailEdgedFeet: 0,
+        trashBagsCollected: 0,
+        trashPoundsCollected: 0,
+        treesTrimmed: 0,
+        vegetationVolunteers: 0,
+    };
+}
+
 export interface Event {
     eventId: string;
     title: string;
@@ -34,19 +73,7 @@ export interface Event {
     gloverLover: string;
     notes: string;
     trailImprovements: number;
-    drainage?: number;
-	graffiti?: number;
-	stickers?: number;
-	otherImprovements?: number;
-	painting?: number;
-	pressureWashing?: number;
-	repairs?: number;
-	safetyImprovements?: number;
-	potholes?: number;
-	trash?: number;
-	trees?: number;
-	vegetationImprovements?: number;
-
+    metrics?: EventMetrics;
 }
 
 const EVENTS_COLLECTION = "events";
@@ -96,6 +123,7 @@ export async function createEvent(
         toolHaulers,
         gloverLover,
         notes,
+        metrics: createDefaultMetrics(),
     };
 
     const batch = writeBatch(db);
@@ -184,6 +212,33 @@ export async function getEventByTrelloCardId(
     return snapshot.docs[0].data() as Event;
 }
 
+
+// only changed numeric fields are written via dotted metrics.* paths
+export async function updateEventMetrics(
+    eventId: string,
+    updates: Partial<EventMetrics>,
+): Promise<void> {
+    const db = getFirestore();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error(
+            "User is not authenticated. Please sign in to update metrics.",
+        );
+    }
+    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+
+    const dottedUpdates: Record<string, number> = {};
+    for (const [key, value] of Object.entries(updates)) {
+        if (typeof value === "number" && !Number.isNaN(value)) {
+            dottedUpdates[`metrics.${key}`] = value;
+        }
+    }
+
+    if (Object.keys(dottedUpdates).length === 0) return;
+    await updateDoc(eventRef, dottedUpdates);
+}
+
+
 export async function setEventInactive(eventId: string): Promise<void> {
     const db = getFirestore();
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
@@ -238,31 +293,4 @@ export async function updateEventStats(
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         ...stats,
     });
-}
-
-export function extractStats(event: Event): StatsData {;
-    return {
-        trailImprovements: event.trailImprovements,
-        drainage: event.drainage ?? 0,
-        graffiti: event.graffiti ?? 0,
-        stickers: event.stickers ?? 0,
-        otherImprovements: event.otherImprovements ?? 0,
-        painting: event.painting ?? 0,
-        pressureWashing: event.pressureWashing ?? 0,
-        repairs: event.repairs ?? 0,
-        safetyImprovements: event.safetyImprovements ?? 0,
-        potholes: event.potholes ?? 0,
-        trash: event.trash ?? 0,
-        trees: event.trees ?? 0,
-        vegetationImprovements: event.vegetationImprovements ?? 0,
-        hoursOfService: (() => {
-            if (!event.startDate) return 0;
-            const end = event.endDate ? event.endDate.toMillis() : Date.now();
-            return parseFloat(
-                (
-                    Math.max(0, end - event.startDate.toMillis()) / 3_600_000
-                ).toFixed(1),
-            );
-        })(),
-    };
 }
