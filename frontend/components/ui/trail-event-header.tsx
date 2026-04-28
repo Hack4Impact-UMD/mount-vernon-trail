@@ -15,6 +15,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import EndEventModal from "./end-event-modal";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
 
@@ -39,6 +40,7 @@ export default function TrailEventHeader({
     const insets = useSafeAreaInsets();
     const [elapsed, setElapsed] = useState(0);
     const [stopping, setStopping] = useState(false);
+    const [endModalVisible, setEndModalVisible] = useState(false);
 
     const staticDuration = (() => {
         if (!event.startDate) return 0;
@@ -66,28 +68,20 @@ export default function TrailEventHeader({
     }, [event.startDate, variant]);
 
     const handleStop = () => {
-        Alert.alert(
-            "Stop Event",
-            `Are you sure you want to stop "${event.title}"?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Stop Event",
-                    style: "destructive",
-                    onPress: async () => {
-                        setStopping(true);
-                        try {
-                            await setEventInactive(event.eventId);
-                            onStop?.();
-                        } catch (e) {
-                            Alert.alert("Error", (e as Error).message);
-                        } finally {
-                            setStopping(false);
-                        }
-                    },
-                },
-            ],
-        );
+        setEndModalVisible(true);
+    };
+
+    const handleConfirmEnd = async () => {
+        setStopping(true);
+        try {
+            await setEventInactive(event.eventId);
+            setEndModalVisible(false);
+            onStop?.();
+        } catch (e) {
+            Alert.alert("Error", (e as Error).message);
+        } finally {
+            setStopping(false);
+        }
     };
 
     const handleShareEvent = async () => {
@@ -157,110 +151,128 @@ export default function TrailEventHeader({
 
     if (variant === "document") {
         return (
-            <View style={docStyles.container}>
-                <View style={docStyles.left}>
-                    <View style={docStyles.badgeRow}>
-                        <View style={docStyles.badge}>
-                            <Text style={docStyles.badgeText}>In Progress</Text>
+            <>
+                <View style={docStyles.container}>
+                    <View style={docStyles.left}>
+                        <View style={docStyles.badgeRow}>
+                            <View style={docStyles.badge}>
+                                <Text style={docStyles.badgeText}>In Progress</Text>
+                            </View>
+                            <Text style={docStyles.duration}>
+                                {formatDuration(elapsed)}
+                            </Text>
                         </View>
-                        <Text style={docStyles.duration}>
-                            {formatDuration(elapsed)}
-                        </Text>
+                        <View style={docStyles.titleRow}>
+                            <Pressable
+                                style={[
+                                    docStyles.stopCircle,
+                                    stopping && docStyles.stopCircleDisabled,
+                                ]}
+                                onPress={handleStop}
+                                disabled={stopping}>
+                                <Square
+                                    size={14}
+                                    color="#fff"
+                                    fill="#fff"
+                                />
+                            </Pressable>
+                            <Text style={docStyles.eventName}>{event.title}</Text>
+                        </View>
                     </View>
-                    <View style={docStyles.titleRow}>
-                        <Pressable
-                            style={[
-                                docStyles.stopCircle,
-                                stopping && docStyles.stopCircleDisabled,
-                            ]}
-                            onPress={handleStop}
-                            disabled={stopping}>
-                            <Square
-                                size={14}
-                                color="#fff"
-                                fill="#fff"
-                            />
-                        </Pressable>
-                        <Text style={docStyles.eventName}>{event.title}</Text>
-                    </View>
-                </View>
 
-                <View style={docStyles.right}>
-                    {event.albumUrl ? (
+                    <View style={docStyles.right}>
+                        {event.albumUrl ? (
+                            <Pressable
+                                style={docStyles.actionRow}
+                                onPress={() => Linking.openURL(event.albumUrl)}>
+                                <View
+                                    style={[
+                                        docStyles.iconCircle,
+                                        { backgroundColor: Palette.teal },
+                                    ]}>
+                                    <MaterialIcons
+                                        name="image"
+                                        size={18}
+                                        color="#fff"
+                                    />
+                                </View>
+                                <Text style={docStyles.actionLabel}>
+                                    View album
+                                </Text>
+                            </Pressable>
+                        ) : null}
                         <Pressable
                             style={docStyles.actionRow}
-                            onPress={() => Linking.openURL(event.albumUrl)}>
+                            onPress={handleShareEvent}>
                             <View
                                 style={[
                                     docStyles.iconCircle,
-                                    { backgroundColor: Palette.teal },
+                                    { backgroundColor: Palette.blue },
                                 ]}>
                                 <MaterialIcons
-                                    name="image"
+                                    name="send"
                                     size={18}
                                     color="#fff"
                                 />
                             </View>
-                            <Text style={docStyles.actionLabel}>
-                                View album
-                            </Text>
+                            <Text style={docStyles.actionLabel}>Share event</Text>
                         </Pressable>
-                    ) : null}
-                    <Pressable
-                        style={docStyles.actionRow}
-                        onPress={handleShareEvent}>
-                        <View
-                            style={[
-                                docStyles.iconCircle,
-                                { backgroundColor: Palette.blue },
-                            ]}>
-                            <MaterialIcons
-                                name="send"
-                                size={18}
-                                color="#fff"
-                            />
-                        </View>
-                        <Text style={docStyles.actionLabel}>Share event</Text>
-                    </Pressable>
+                    </View>
                 </View>
-            </View>
+                <EndEventModal
+                    visible={endModalVisible}
+                    eventTitle={event.title}
+                    onCancel={() => setEndModalVisible(false)}
+                    onConfirm={handleConfirmEnd}
+                    loading={stopping}
+                />
+            </>
         );
     }
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-            <View style={styles.topRow}>
-                <View style={styles.badge}>
-                    <Text style={styles.badgeText}>LIVE EVENT</Text>
-                </View>
-                <Pressable
-                    style={[
-                        styles.stopButton,
-                        stopping && styles.stopButtonDisabled,
-                    ]}
-                    onPress={handleStop}
-                    disabled={stopping}>
-                    <Text style={styles.stopButtonText}>
-                        {stopping ? "Stopping..." : "Stop Event"}
-                    </Text>
-                </Pressable>
-            </View>
-            <Text style={styles.eventName}>{event.title}</Text>
-            {event.startDate && (
-                <Text style={styles.duration}>
-                    Duration: {formatDuration(elapsed)}
-                </Text>
-            )}
-            <View style={styles.buttonRow}>
-                {event.albumUrl ? (
+        <>
+            <View style={[styles.container, { paddingTop: insets.top }]}>
+                <View style={styles.topRow}>
+                    <View style={styles.badge}>
+                        <Text style={styles.badgeText}>LIVE EVENT</Text>
+                    </View>
                     <Pressable
-                        style={styles.actionButton}
-                        onPress={() => Linking.openURL(event.albumUrl)}>
-                        <Text style={styles.actionButtonText}>View Album</Text>
+                        style={[
+                            styles.stopButton,
+                            stopping && styles.stopButtonDisabled,
+                        ]}
+                        onPress={handleStop}
+                        disabled={stopping}>
+                        <Text style={styles.stopButtonText}>
+                            {stopping ? "Stopping..." : "Stop Event"}
+                        </Text>
                     </Pressable>
-                ) : null}
+                </View>
+                <Text style={styles.eventName}>{event.title}</Text>
+                {event.startDate && (
+                    <Text style={styles.duration}>
+                        Duration: {formatDuration(elapsed)}
+                    </Text>
+                )}
+                <View style={styles.buttonRow}>
+                    {event.albumUrl ? (
+                        <Pressable
+                            style={styles.actionButton}
+                            onPress={() => Linking.openURL(event.albumUrl)}>
+                            <Text style={styles.actionButtonText}>View Album</Text>
+                        </Pressable>
+                    ) : null}
+                </View>
             </View>
-        </View>
+            <EndEventModal
+                visible={endModalVisible}
+                eventTitle={event.title}
+                onCancel={() => setEndModalVisible(false)}
+                onConfirm={handleConfirmEnd}
+                loading={stopping}
+            />
+        </>
     );
 }
 

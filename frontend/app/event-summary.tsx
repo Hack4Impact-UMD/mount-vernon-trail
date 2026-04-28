@@ -5,10 +5,8 @@ import type { Event, EventMetricsWithHours } from "@/services/event-service";
 import {
 	extractMetricsWithHours,
     getEventById,
-    publishEvent,
     saveDraft,
 } from "@/services/event-service";
-import { moveCardToCompleted } from "@/services/trello-service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -162,7 +160,7 @@ interface MetricGridCardProps {
     def: MetricDef;
     value: number | string;
     delay: number;
-}
+};
 
 function MetricGridCard({ def, value, delay }: MetricGridCardProps) {
     const opacity = useRef(new Animated.Value(0)).current;
@@ -183,7 +181,7 @@ function MetricGridCard({ def, value, delay }: MetricGridCardProps) {
                 useNativeDriver: true,
             }),
         ]).start();
-    }, []);
+    }, [opacity, translateY, delay]);
 
     return (
         <Animated.View
@@ -264,21 +262,6 @@ export default function EventSummaryScreen() {
     const visibleMetrics = stats ? METRIC_DEFS.filter(
         (def) => (stats[def.key] as number) !== 0,
     ) : [];
-
-    const handlePublish = async () => {
-        if (saving || savedDraft || savedTrello) return;
-        setSaving(true);
-        try {
-            const key = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
-            await moveCardToCompleted(event.trelloCardId, key);
-            await publishEvent(eventId);
-            setSavedTrello(true);
-        } catch (e) {
-            Alert.alert("Save failed", (e as Error).message);
-        } finally {
-            setSaving(false);
-        }
-    };
 
     const handleSaveDraft = async () => {
         if (saving || savedDraft || savedTrello) return;
@@ -390,7 +373,12 @@ export default function EventSummaryScreen() {
                         savedTrello && styles.actionCardSaved,
                         saving && styles.actionCardDisabled,
                     ]}
-                    onPress={handlePublish}
+                    onPress={() => router.replace({
+						pathname: "/edit-draft",
+						params: {
+							eventId
+						}
+					})}
                     disabled={saving || savedDraft || savedTrello}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
@@ -411,14 +399,10 @@ export default function EventSummaryScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.actionCardTitle}>
-                            {savedTrello
-                                ? "Posted to Trello!"
-                                : "Post to Trello"}
+                            Edit event now
                         </Text>
                         <Text style={styles.actionCardSubtitle}>
-                            {savedTrello
-                                ? "Event info has been saved"
-                                : "Complete & upload to Trello"}
+                            Complete & upload to Trello
                         </Text>
                     </View>
                 </Pressable>
@@ -493,10 +477,12 @@ const styles = StyleSheet.create({
         padding: 14,
         gap: 6,
         shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
         shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        elevation: 1,
+        borderWidth: 1,
+        borderColor: "#F0F0F5",
     },
     gridCardHeader: {
         flexDirection: "row",
@@ -548,6 +534,7 @@ const styles = StyleSheet.create({
         color: "#333",
         textAlign: "center",
         fontFamily: "Lato_700Bold",
+        marginTop: 8,
     },
     actionCard: {
         flexDirection: "row",

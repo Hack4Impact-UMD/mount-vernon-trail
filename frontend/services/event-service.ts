@@ -93,6 +93,8 @@ export interface Event {
     toolHaulers: string;
     gloverLover: string;
     notes: string;
+    notepad?: string;
+    publishedAt?: Timestamp;
     metrics?: EventMetrics;
 }
 
