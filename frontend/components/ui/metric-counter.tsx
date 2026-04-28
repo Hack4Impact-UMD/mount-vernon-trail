@@ -27,6 +27,7 @@ export function MetricCounter({
             <View style={styles.controls}>
                 <TouchableOpacity
                     onPress={() => onChange(Math.max(0, value - 1))}
+                    disabled={isZero}
                     style={[
                         styles.btn,
                         isZero ? styles.btnDisabled : styles.btnActive,

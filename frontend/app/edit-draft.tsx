@@ -117,8 +117,8 @@ export default function EditDraftScreen() {
         }
         setPublishing(true);
         try {
-            await moveCardToCompleted(event.trelloCardId, API_KEY);
             await publishEvent(event.eventId);
+            await moveCardToCompleted(event.trelloCardId, API_KEY);
             setPublishModalVisible(false);
             router.replace("/(tabs)");
         } catch (e) {

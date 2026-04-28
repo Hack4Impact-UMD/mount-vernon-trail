@@ -41,7 +41,10 @@ export default function DraftsScreen() {
                     if (!cancelled) setDrafts(d);
                 })
                 .catch((e) => {
-                    if (!cancelled) setError((e as Error).message);
+                    if (!cancelled) {
+                        setDrafts([]);
+                        setError((e as Error).message);
+                    }
                 })
                 .finally(() => {
                     if (!cancelled) setLoading(false);
@@ -72,7 +75,7 @@ export default function DraftsScreen() {
                     </Text>
                 )}
 
-                {drafts.map((draft) => (
+                {!error && drafts.map((draft) => (
                     <Pressable
                         key={draft.eventId}
                         style={styles.row}
