@@ -1,10 +1,8 @@
 import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
-import { MetricCategory } from "@/components/ui/metric-category";
 import PublishEventModal from "@/components/ui/publish-event-modal";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
-import { METRICS_CONFIG, TOTAL_METRIC_FIELDS } from "@/config/metricsConfig";
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import { getEventById, publishEvent, saveDraft } from "@/services/event-service";
@@ -16,7 +14,7 @@ import {
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -40,7 +38,6 @@ export default function EditDraftScreen() {
     const [error, setError] = useState<string>();
     const [issues, setIssues] = useState<TrailDocumentIssueItem[]>([]);
     const [issuesError, setIssuesError] = useState<string | null>(null);
-    const [metrics, setMetrics] = useState<Record<string, number>>({});
     const [notepad, setNotepad] = useState("");
     const [savingDraft, setSavingDraft] = useState(false);
     const [publishing, setPublishing] = useState(false);
@@ -59,7 +56,6 @@ export default function EditDraftScreen() {
                     return;
                 }
                 setEvent(e);
-                setMetrics(e.metrics ?? {});
                 setNotepad(e.notepad ?? "");
             })
             .catch((e) => setError((e as Error).message))
@@ -76,14 +72,14 @@ export default function EditDraftScreen() {
             }
             if (!event) return;
             try {
-                const trello = new TrelloClient(API_KEY, API_TOKEN);
+                if (!API_KEY) return;
+                const trello = new TrelloClient(API_KEY);
                 const eventCard = await trello.getEventCardByID(
                     event.trelloCardId,
                     true,
                 );
                 const fetched = await fetchDocumentTrailIssues(
                     API_KEY,
-                    API_TOKEN,
                     eventCard,
                 );
                 if (!cancelled) setIssues(fetched);
@@ -101,20 +97,11 @@ export default function EditDraftScreen() {
         };
     }, [event]);
 
-    const filledCount = useMemo(
-        () => Object.values(metrics).filter((v) => v > 0).length,
-        [metrics],
-    );
-
-    const updateMetric = (fieldId: string, val: number) => {
-        setMetrics((prev) => ({ ...prev, [fieldId]: val }));
-    };
-
     const handleSaveDraft = async () => {
         if (!event || savingDraft || publishing) return;
         setSavingDraft(true);
         try {
-            await saveDraft(event.eventId, { metrics, notepad });
+            await saveDraft(event.eventId, notepad);
             router.replace("/(tabs)");
         } catch (e) {
             Alert.alert("Save failed", (e as Error).message);
@@ -130,8 +117,8 @@ export default function EditDraftScreen() {
         }
         setPublishing(true);
         try {
-            await moveCardToCompleted(event.trelloCardId, API_KEY, API_TOKEN);
-            await publishEvent(event.eventId, { metrics, notepad });
+            await moveCardToCompleted(event.trelloCardId, API_KEY);
+            await publishEvent(event.eventId);
             setPublishModalVisible(false);
             router.replace("/(tabs)");
         } catch (e) {
@@ -156,7 +143,7 @@ export default function EditDraftScreen() {
                 style={styles.container}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}>
-                <HomeHeader userName="" />
+                <HomeHeader />
                 <TrailEventHeader event={event} variant="summary" />
 
                 <View style={styles.contentContainer}>
@@ -180,24 +167,6 @@ export default function EditDraftScreen() {
                             </Text>
                         )}
                     </View>
-
-                    <View style={styles.statsHeaderRow}>
-                        <Text style={styles.sectionTitle}>Statistics</Text>
-                        <Text style={styles.statsCounter}>
-                            {filledCount} of {TOTAL_METRIC_FIELDS} filled
-                        </Text>
-                    </View>
-                </View>
-
-                <View style={styles.metricsContainer}>
-                    {METRICS_CONFIG.map((category) => (
-                        <MetricCategory
-                            key={category.id}
-                            category={category}
-                            values={metrics}
-                            onChange={updateMetric}
-                        />
-                    ))}
                 </View>
 
                 <View style={styles.contentContainer}>
@@ -255,13 +224,7 @@ export default function EditDraftScreen() {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-            <BottomNav
-                active="home"
-                onTabPress={(tab) => {
-                    if (tab === "home") router.replace("/(tabs)");
-                    else if (tab === "history") router.replace("/drafts");
-                }}
-            />
+            <BottomNav />
             <PublishEventModal
                 visible={publishModalVisible}
                 onCancel={() => setPublishModalVisible(false)}
@@ -289,20 +252,6 @@ const styles = StyleSheet.create({
     },
     listContainer: {
         marginBottom: 8,
-    },
-    statsHeaderRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "flex-end",
-    },
-    statsCounter: {
-        fontSize: 13,
-        color: "#888",
-        fontFamily: "Lato_400Regular",
-        marginBottom: 14,
-    },
-    metricsContainer: {
-        marginBottom: 12,
     },
     notepad: {
         borderWidth: 1.5,

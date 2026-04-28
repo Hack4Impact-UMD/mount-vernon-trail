@@ -54,7 +54,7 @@ export default function DraftsScreen() {
 
     return (
         <View style={styles.screen}>
-            <HomeHeader userName="" />
+            <HomeHeader />
             <ScrollView
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
@@ -107,13 +107,7 @@ export default function DraftsScreen() {
                     </Pressable>
                 ))}
             </ScrollView>
-            <BottomNav
-                active="history"
-                onTabPress={(tab) => {
-                    if (tab === "home") router.replace("/(tabs)");
-                    else if (tab === "history") return;
-                }}
-            />
+            <BottomNav />
         </View>
     );
 }
