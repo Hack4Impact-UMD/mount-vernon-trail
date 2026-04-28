@@ -28,7 +28,6 @@ import {
 } from "react-native";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
-const API_TOKEN = process.env.EXPO_PUBLIC_TRELLO_API_TOKEN;
 
 export default function EditDraftScreen() {
     const router = useRouter();
@@ -67,7 +66,7 @@ export default function EditDraftScreen() {
         if (!event) return;
         let cancelled = false;
         async function loadIssues() {
-            if (!API_KEY || !API_TOKEN) {
+            if (!API_KEY) {
                 setIssuesError("Missing Trello API credentials");
                 return;
             }
@@ -112,7 +111,7 @@ export default function EditDraftScreen() {
 
     const handleConfirmPublish = async () => {
         if (!event || publishing) return;
-        if (!API_KEY || !API_TOKEN) {
+        if (!API_KEY) {
             Alert.alert("Missing Trello credentials");
             return;
         }
