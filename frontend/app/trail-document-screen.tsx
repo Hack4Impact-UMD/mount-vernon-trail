@@ -1,19 +1,15 @@
 import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
-import { TrailDocStatsCard } from "@/components/ui/trail-doc-stats-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event } from "@/services/event-service";
-import {
-    getActiveEvent,
-    getEventById,
-} from "@/services/event-service";
+import { getActiveEvent, getEventById } from "@/services/event-service";
 import { TrelloClient } from "@/services/trello-funcs";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     ScrollView,
@@ -33,6 +29,7 @@ export default function TrailDocumentScreen() {
     const [event, setEvent] = useState<Event>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
+    const pressedTrailIssueRef = useRef<boolean>(false);
     // Trail issue, state, and camera state
     const { beforeImageUri, afterImageUri, activeIssueId, eventId } =
         useLocalSearchParams<{
@@ -51,10 +48,11 @@ export default function TrailDocumentScreen() {
     const [notepad, setNotepad] = useState("");
     const [activeEventId, setActiveEventId] = useState<string | null>(null);
     const [issuesError, setIssuesError] = useState<string | null>(null);
-    const [statsData, setStatsData] = useState({
-        trashCollection: 0,
-        restorationEffort: 0,
-    });
+
+    useFocusEffect(useCallback(() => {
+        pressedTrailIssueRef.current = false;
+        return undefined;
+    }, []));
 
     useEffect(() => {
         async function loadActiveEvent() {
@@ -104,13 +102,8 @@ export default function TrailDocumentScreen() {
                     API_KEY,
                     eventCard,
                 );
-                // TODO fetch stats once that flow is figured out
                 if (!cancelled) {
                     setIssuesData(issues);
-                    setStatsData({
-                        trashCollection: 12,
-                        restorationEffort: 250,
-                    });
                 }
             } catch (err) {
                 console.error("Error loading trail issues:", err);
@@ -239,19 +232,28 @@ export default function TrailDocumentScreen() {
                                     name={issue.name}
                                     date={issue.creationDate}
                                     imageUrl={issue.imageUrl}
-                                    onPress={() =>
+                                    onPress={() => {
+                                        if (pressedTrailIssueRef.current) {
+                                            // dont route again
+                                            return;
+                                        }
+                                        pressedTrailIssueRef.current = true;
                                         router.push({
                                             pathname: "/trail-issue-screen",
                                             params: {
                                                 issueId: issue.id,
                                                 issueName: issue.name,
-												imageUrl: issue.imageUrl,
+                                                imageUrl: issue.imageUrl,
                                                 eventId: event.eventId,
-												beforeImageUri: issueImages[issue.id]?.before,
-												afterImageUri: issueImages[issue.id]?.after
+                                                beforeImageUri:
+                                                    issueImages[issue.id]
+                                                        ?.before,
+                                                afterImageUri:
+                                                    issueImages[issue.id]
+                                                        ?.after,
                                             },
                                         })
-                                    }
+                                    }}
                                 />
                             ))}
                         </View>

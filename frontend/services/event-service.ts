@@ -1,20 +1,21 @@
 import { auth } from "@/config/firebase";
 import {
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    getFirestore,
-    query,
-    Timestamp,
-    updateDoc,
-    where,
-    writeBatch,
-    orderBy,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	getFirestore,
+	orderBy,
+	query,
+	Timestamp,
+	updateDoc,
+	where,
+	writeBatch,
 } from "firebase/firestore";
 
-// per even metrics collected during trail event
+// per event metrics collected during trail event
 export interface EventMetrics {
+    trailImprovements: number;
     drainageCleaned: number;
     graffitiTagsRemoved: number;
     stickersRemoved: number;
@@ -32,8 +33,29 @@ export interface EventMetrics {
     vegetationVolunteers: number;
 }
 
+export interface EventMetricsWithHours {
+    trailImprovements: number;
+    drainageCleaned: number;
+    graffitiTagsRemoved: number;
+    stickersRemoved: number;
+    otherImprovements: number;
+    itemsPainted: number;
+    pressureWashed: number;
+    itemsRepaired: number;
+    safetyImprovements: number;
+    snowRemovalEvents: number;
+    potholesFilled: number;
+    trailEdgedFeet: number;
+    trashBagsCollected: number;
+    trashPoundsCollected: number;
+    treesTrimmed: number;
+    vegetationVolunteers: number;
+    hoursOfService: number;
+}
+
 export function createDefaultMetrics(): EventMetrics {
     return {
+        trailImprovements: 0,
         drainageCleaned: 0,
         graffitiTagsRemoved: 0,
         stickersRemoved: 0,
@@ -66,8 +88,11 @@ export interface Event {
     savedAsDraftAt?: Timestamp;
     endDate: Timestamp | null;
     createdAt: Timestamp;
-    trailImprovements: number;
-    trashBags: number;
+    eventLeader: string;
+    zoneLeaders: string;
+    toolHaulers: string;
+    gloverLover: string;
+    notes: string;
     metrics?: EventMetrics;
 }
 
@@ -82,6 +107,12 @@ export async function createEvent(
     trelloCardId: string,
     albumId: string,
     albumUrl: string,
+    eventLeader: string,
+    zoneLeaders: string,
+    toolHaulers: string,
+    gloverLover: string,
+    notes: string,
+    isDraft: boolean,
 ): Promise<string> {
     const db = getFirestore();
     const currentUser = auth.currentUser;
@@ -102,12 +133,15 @@ export async function createEvent(
         albumId,
         albumUrl,
         isActive: true,
-        isDraft: false,
-		startDate: null,
+        isDraft,
+        startDate: null,
         endDate: null,
         createdAt: Timestamp.now(),
-        trailImprovements: 0,
-        trashBags: 0,
+        eventLeader,
+        zoneLeaders,
+        toolHaulers,
+        gloverLover,
+        notes,
         metrics: createDefaultMetrics(),
     };
 
@@ -184,7 +218,9 @@ export async function getEventById(eventId: string): Promise<Event | null> {
     return snapshot.data() as Event;
 }
 
-export async function getEventByTrelloCardId(trelloCardId: string): Promise<Event | null> {
+export async function getEventByTrelloCardId(
+    trelloCardId: string,
+): Promise<Event | null> {
     const db = getFirestore();
     const q = query(
         collection(db, EVENTS_COLLECTION),
@@ -194,7 +230,6 @@ export async function getEventByTrelloCardId(trelloCardId: string): Promise<Even
     if (snapshot.empty) return null;
     return snapshot.docs[0].data() as Event;
 }
-
 
 // only changed numeric fields are written via dotted metrics.* paths
 export async function updateEventMetrics(
@@ -221,7 +256,6 @@ export async function updateEventMetrics(
     await updateDoc(eventRef, dottedUpdates);
 }
 
-
 export async function setEventInactive(eventId: string): Promise<void> {
     const db = getFirestore();
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
@@ -231,7 +265,10 @@ export async function setEventInactive(eventId: string): Promise<void> {
 }
 
 // Save a completed event as a draft instead of immediately publishing
-export async function saveDraft(eventId: string, notepad?: string): Promise<void> {
+export async function saveDraft(
+    eventId: string,
+    notepad?: string,
+): Promise<void> {
     const db = getFirestore();
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         isDraft: true,
@@ -264,3 +301,18 @@ export async function getDraftEvents(): Promise<Event[]> {
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d) => d.data() as Event);
 }
+
+export function extractMetricsWithHours(event: Event): EventMetricsWithHours {
+    return {
+        ...(event.metrics ?? createDefaultMetrics()),
+        hoursOfService: (() => {
+            if (!event.startDate) return 0;
+            const end = event.endDate ? event.endDate.toMillis() : Date.now();
+            return parseFloat(
+                (
+                    Math.max(0, end - event.startDate.toMillis()) / 3_600_000
+                ).toFixed(1),
+            );
+        })(),
+    }
+};

@@ -1,21 +1,21 @@
+import BottomNav from "@/components/ui/bottom-nav";
+import CreateNewEvent from "@/components/ui/create-new-event";
+import Header from "@/components/ui/header";
+import MakeBeforeAfterGraphic from "@/components/ui/make-graphic";
+import TakeAfterPicture from "@/components/ui/take-after-picture";
+import TrailEventCard from "@/components/ui/trail-event-card";
 import TrelloLoginUI from "@/components/ui/trello-login";
 import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
-import { getEventByTrelloCardId , startEvent } from "@/services/event-service";
-import TrailEventCard from "@/components/ui/trail-event-card";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
+import { getEventByTrelloCardId, startEvent } from "@/services/event-service";
 import { fetchUpcomingEvents } from "@/services/trello-service";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
-import BottomNav from "@/components/ui/bottom-nav";
-import Header from "@/components/ui/header";
-import TakeAfterPicture from "@/components/ui/take-after-picture";
-import MakeBeforeAfterGraphic from "@/components/ui/make-graphic";
-import CreateNewEvent from "@/components/ui/create-new-event";
-import { useIsAdmin } from "@/hooks/use-is-admin";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
@@ -90,6 +90,24 @@ export default function HomeScreen() {
         )
     }
 
+    const handlePressEvent = async (event: UpcomingEventItem) => {
+        setSelectedEvent(event);
+        const firebaseEvent = await getEventByTrelloCardId(event.id).catch(() => null);
+        if (!firebaseEvent) return;
+
+        setSelectedEvent((prev) => {
+            if (prev?.id !== event.id) return prev;
+            return {
+                ...prev,
+                eventLeader: firebaseEvent.eventLeader ?? "",
+                zoneLeaders: firebaseEvent.zoneLeaders ?? "",
+                toolHaulers: firebaseEvent.toolHaulers ?? "",
+                gloverLover: firebaseEvent.gloverLover ?? "",
+                workScope: firebaseEvent.description ?? "",
+            };
+        });
+    };
+
     const handleStartEvent = async (event: UpcomingEventItem) => {
         try {
 			// set startDate in firebase
@@ -140,7 +158,7 @@ export default function HomeScreen() {
                             error={eventsError}
                             maxItems={3}
                             onShowMore={() => {}}
-                            onPressItem={(event) => setSelectedEvent(event)}
+                            onPressItem={(event) => handlePressEvent(event)}
                         />
                     </View>
 

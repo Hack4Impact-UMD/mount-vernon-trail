@@ -88,6 +88,7 @@ export default function RootLayout() {
             "albums",
             "drafts",
             "profile",
+            "mock-statistics", //temporary, for testing purposes remove on merge
         ]);
         // if user not authenticated, re-route to /auth if an auth route is being accessed
         if (!user) {
@@ -159,6 +160,10 @@ export default function RootLayout() {
                 <Stack.Screen
                     name="profile"
                     options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen // same with this
+                    name="mock-statistics" // temp
+                    options={{ headerShown: false }} // temp
                 />
             </Stack>
             <StatusBar style="auto" />
