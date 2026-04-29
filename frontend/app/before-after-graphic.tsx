@@ -49,6 +49,10 @@ export default function BeforeAfterGraphicScreen() {
             else setAfterUri(uri);
         } catch (e) {
             console.error("Error picking image:", e);
+            Alert.alert(
+                "Unable to open photo library",
+                "Please check photo permissions and try again.",
+            );
         }
     };
 
