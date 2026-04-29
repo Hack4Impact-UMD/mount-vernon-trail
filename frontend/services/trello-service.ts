@@ -277,7 +277,10 @@ export async function addNotesToCard(
     let replacedDescription: string;
     if (trimmedNotes === "") {
         replacedDescription = currentDescription;
-    } else if (notesPattern.test(currentDescription)) {
+    } else if (
+        currentDescription.includes("📷 Album Link:") &&
+        notesPattern.test(currentDescription)
+    ) {
         // replace existing notes to make operation idempotent
         // note: this makes the assumption that notes are followed by the album link
         replacedDescription = currentDescription.replace(
@@ -285,7 +288,7 @@ export async function addNotesToCard(
             newNotesText,
         );
     } else {
-        // append new notes if none exists
+        // append new notes if none exists or if notes exist but there is no album link (position is unknown so just append to end)
         replacedDescription = currentDescription + newNotesText;
     }
     await trello.replaceCardDescription(cardID, replacedDescription);
