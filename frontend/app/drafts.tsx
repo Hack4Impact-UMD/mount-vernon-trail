@@ -1,337 +1,180 @@
 import BottomNav from "@/components/ui/bottom-nav";
-import Header from "@/components/ui/header";
+import HomeHeader from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
-import { useIsAdmin } from "@/hooks/use-is-admin";
-import { Event, getDraftEvents } from "@/services/event-service";
-import { MaterialIcons } from "@expo/vector-icons";
-import { Stack } from "expo-router";
-import { Timestamp } from "firebase/firestore";
-import React, { useCallback, useEffect, useState } from "react";
+import type { Event } from "@/services/event-service";
+import { getDraftEvents } from "@/services/event-service";
+import { Feather } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
     ActivityIndicator,
-    Image,
     Pressable,
-    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
-    View
+    View,
 } from "react-native";
 
-const PLACEHOLDER_COVER_IMAGE = require("../assets/images/draft-placeholder.png");
-
-function formatDate(value?: Timestamp): string {
-    if (!value) return "";
-    const d = value.toDate();
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleDateString("en-US", {
+function formatSavedAt(event: Event): string {
+    const ts = event.savedAsDraftAt ?? event.endDate ?? null;
+    if (!ts) return "";
+    return ts.toDate().toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
     });
 }
 
-function DraftCard({ event } : Readonly<{ event: Event }>) {
+export default function DraftsScreen() {
+    const router = useRouter();
+    const [drafts, setDrafts] = useState<Event[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useFocusEffect(
+        useCallback(() => {
+            let cancelled = false;
+            setLoading(true);
+            setError(null);
+            getDraftEvents()
+                .then((d) => {
+                    if (!cancelled) setDrafts(d);
+                })
+                .catch((e) => {
+                    if (!cancelled) {
+                        setDrafts([]);
+                        setError((e as Error).message);
+                    }
+                })
+                .finally(() => {
+                    if (!cancelled) setLoading(false);
+                });
+            return () => {
+                cancelled = true;
+            };
+        }, []),
+    );
+
     return (
-        <View style={styles.cardShadow}>
-            <View style={styles.card}>
-                <View style={styles.coverWrap}>
-                    <Image
-                        source={PLACEHOLDER_COVER_IMAGE}
-                        style={styles.coverImage}
-                        resizeMode="cover"
-                    />
-                </View>
-                <View style={styles.cardFooter}>
-                    <View style={styles.cardFooterLeft}>
-                        <Text
-                            style={styles.draftTitle}
-                            numberOfLines={1}>
-                            {event.title}
-                        </Text>
-                        <View style={styles.dateRow}>
-                            <MaterialIcons
-                                name="calendar-today"
-                                size={14}
-                                color="#6D6E71"
+        <View style={styles.screen}>
+            <HomeHeader />
+            <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}>
+                <Text style={styles.title}>Drafts</Text>
+
+                {loading && <ActivityIndicator style={styles.loader} />}
+
+                {error && <Text style={styles.errorText}>{error}</Text>}
+
+                {!loading && !error && drafts.length === 0 && (
+                    <Text style={styles.emptyText}>
+                        No drafts yet. Drafts will appear here after you end an
+                        event without publishing.
+                    </Text>
+                )}
+
+                {!error && drafts.map((draft) => (
+                    <Pressable
+                        key={draft.eventId}
+                        style={styles.row}
+                        onPress={() =>
+                            router.push({
+                                pathname: "/edit-draft",
+                                params: { eventId: draft.eventId },
+                            })
+                        }>
+                        <View style={styles.rowIcon}>
+                            <Feather
+                                name="file-text"
+                                size={20}
+                                color={Palette.primaryPurple100}
                             />
-                            <Text style={styles.draftDate}>
-                                {event.startDate ? formatDate(event.startDate) : ""}
+                        </View>
+                        <View style={styles.rowBody}>
+                            <Text
+                                style={styles.rowTitle}
+                                numberOfLines={1}>
+                                {draft.title}
+                            </Text>
+                            <Text style={styles.rowSubtitle}>
+                                Saved {formatSavedAt(draft)}
                             </Text>
                         </View>
-                    </View>
-                </View>
-            </View>
+                        <Feather
+                            name="chevron-right"
+                            size={20}
+                            color="#A9A9A9"
+                        />
+                    </Pressable>
+                ))}
+            </ScrollView>
+            <BottomNav />
         </View>
     );
 }
 
-export default function DraftsScreen() {
-    const isAdmin = useIsAdmin();
-    const [draftEvents, setDraftEvents] = useState<Event[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const loadDraftEvents = useCallback(async () => {
-        setError(null);
-        try {
-            const data = await getDraftEvents();
-            setDraftEvents(data);
-        } catch (e) {
-            console.log((e as Error).message);
-            setError((e as Error).message);
-        }
-    }, []);
-
-    useEffect(() => {
-        // check if admin status undetermined
-        if (isAdmin === null) return; 
-        if (!isAdmin) {
-            setLoading(false);
-            return;
-        }
-        // start loading drafts
-        setLoading(true);
-        loadDraftEvents().finally(() => setLoading(false));
-    }, [loadDraftEvents, isAdmin]);
-
-    const handleRefresh = useCallback(async () => {
-        if (!isAdmin) return;
-        setRefreshing(true);
-        await loadDraftEvents();
-        setRefreshing(false);
-    }, [loadDraftEvents, isAdmin]);
-
-    const renderContent = () => {
-        if (loading) {
-            return (
-                <View style={styles.centered}>
-                    <ActivityIndicator
-                        size="large"
-                        color={Palette.primaryPurple100}
-                    />
-                </View>
-            );
-        }
-        if (!isAdmin) {
-            return (
-                <View style={styles.centered}>
-                    <MaterialIcons
-                        name="lock-outline"
-                        size={48}
-                        color="#ccc"
-                    />
-                    <Text style={styles.emptyText}>
-                        Drafts are only accessible to the admin account.
-                    </Text>
-                </View>
-            );
-        }
-        if (error) {
-            return (
-                <View style={styles.centered}>
-                    <MaterialIcons
-                        name="error-outline"
-                        size={48}
-                        color="#ccc"
-                    />
-                    <Text style={styles.errorText}>{error}</Text>
-                    <Pressable
-                        style={styles.retryButton}
-                        onPress={handleRefresh}>
-                        <Text style={styles.retryText}>Retry</Text>
-                    </Pressable>
-                </View>
-            );
-        }
-        if (draftEvents.length === 0) {
-            return (
-                <View style={styles.centered}>
-                    <MaterialIcons
-                        name="photo-library"
-                        size={48}
-                        color="#ccc"
-                    />
-                    <Text style={styles.emptyText}>No drafts yet.</Text>
-                </View>
-            );
-        }
-        return (
-            <>
-                {draftEvents.map((event) => (
-                    <DraftCard
-                        key={event.eventId}
-                        event={event}
-                    />
-                ))}
-            </>
-        );
-    };
-
-    return (
-        <>
-            <Stack.Screen options={{ headerShown: false }} />
-            <View style={styles.screen}>
-                <Header />
-                <ScrollView
-                    style={styles.scroll}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={handleRefresh}
-                            tintColor={Palette.primaryPurple100}
-                        />
-                    }>
-                    <View style={styles.headingRow}>
-                        <Text style={styles.heading}>Drafts</Text>
-                        {isAdmin && !loading && !error && draftEvents.length > 0 && (
-                            <Text style={styles.draftCount}>
-                                {draftEvents.length} draft
-                                {draftEvents.length === 1 ? "" : "s"}
-                            </Text>
-                        )}
-                    </View>
-                    {renderContent()}
-                </ScrollView>
-                <BottomNav />
-            </View>
-        </>
-    );
-}
-
 const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor: "#fff",
-    },
-    scroll: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: 20,
-        paddingBottom: 40,
-        gap: 16,
-    },
-    headingRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "baseline",
-        marginBottom: 4,
-    },
-    heading: {
-        fontSize: 28,
-        fontWeight: "800",
-        color: "#111",
-        fontFamily: "Lato_700Bold",
-    },
-    card: {
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        paddingBottom: 15,
-        overflow: "hidden",
-    },
-    cardShadow: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-        elevation: 3,
-        borderRadius: 16,
-    },
-    coverImage: {
-        width: "100%",
-        height: 160,
-        backgroundColor: Palette.teal,
-        elevation: 2,
-    },
-    coverWrap: {
-        position: "relative",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.18,
-        shadowRadius: 6,
-    },
-    starBadge: {
-        position: "absolute",
-        top: 12,
-        right: 12,
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    starBadgeFavorited: {
-        backgroundColor: "#FFD700",
-    },
-    starBadgeUnfavorited: {
-        backgroundColor: "#AAAAAA",
-    },
-    cardFooter: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 14,
-    },
-    cardFooterLeft: {
-        flex: 1,
-        gap: 4,
-    },
-    draftTitle: {
-        fontSize: 16,
+    screen: { flex: 1, backgroundColor: "#fff" },
+    scroll: { flex: 1 },
+    scrollContent: { padding: 20, gap: 12 },
+    title: {
+        fontSize: 24,
         fontWeight: "700",
         color: "#111",
         fontFamily: "Lato_700Bold",
+        marginBottom: 8,
     },
-    draftDate: {
-        fontSize: 12,
-        color: "#6D6E71",
-        fontFamily: "Lato_400Regular",
-    },
-    draftCount: {
-        fontSize: 14,
-        color: "#888",
-        fontFamily: "Lato_400Regular",
-    },
-    dateRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 5,
-        marginTop: 5,
-    },
-    centered: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        paddingVertical: 60,
-        gap: 12,
-    },
+    loader: { marginTop: 40 },
     emptyText: {
         fontSize: 14,
         color: "#888",
         textAlign: "center",
-        maxWidth: 240,
-        fontFamily: "Lato_400Regular",
+        marginTop: 40,
+        paddingHorizontal: 24,
+        lineHeight: 20,
     },
     errorText: {
-        fontSize: 13,
         color: "#c0392b",
+        fontSize: 14,
         textAlign: "center",
-        maxWidth: 260,
-        fontFamily: "Lato_400Regular",
+        marginTop: 12,
     },
-    retryButton: {
-        marginTop: 8,
-        paddingHorizontal: 20,
-        paddingVertical: 8,
-        backgroundColor: Palette.primaryPurple100,
-        borderRadius: 8,
+    row: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#fff",
+        borderRadius: 14,
+        padding: 14,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: "#F0F0F5",
+        shadowColor: "#000",
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 1 },
+        elevation: 1,
     },
-    retryText: {
-        color: "#fff",
-        fontWeight: "600",
+    rowIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#69389418",
+    },
+    rowBody: { flex: 1 },
+    rowTitle: {
+        fontSize: 15,
+        fontWeight: "700",
+        color: "#111",
         fontFamily: "Lato_700Bold",
+    },
+    rowSubtitle: {
+        fontSize: 12,
+        color: "#888",
+        marginTop: 2,
+        fontFamily: "Lato_400Regular",
     },
 });

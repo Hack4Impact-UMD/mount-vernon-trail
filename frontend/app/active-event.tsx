@@ -1,3 +1,4 @@
+import EndEventModal from "@/components/ui/end-event-modal";
 import type { Event } from "@/services/event-service";
 import { getActiveEvent, setEventInactive } from "@/services/event-service";
 import { useNavigation } from "@react-navigation/native";
@@ -20,6 +21,7 @@ export default function ActiveEventScreen() {
     const [loading, setLoading] = useState(true);
     const [ending, setEnding] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
+    const [modalVisible, setModalVisible] = useState(false);
 
     useEffect(() => {
         getActiveEvent()
@@ -28,29 +30,20 @@ export default function ActiveEventScreen() {
             .finally(() => setLoading(false));
     }, []);
 
-    const handleEndEvent = () => {
+    const handleConfirmEnd = async () => {
         if (!event) return;
-        Alert.alert(
-            "End Event",
-            `Are you sure you want to end "${event.title}"?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "End Event",
-                    style: "destructive",
-                    onPress: async () => {
-                        setEnding(true);
-                        try {
-                            await setEventInactive(event.eventId);
-                            router.replace("/(tabs)");
-                        } catch (e) {
-                            Alert.alert("Error", (e as Error).message);
-                            setEnding(false);
-                        }
-                    },
-                },
-            ],
-        );
+        setEnding(true);
+        try {
+            await setEventInactive(event.eventId);
+            setModalVisible(false);
+            router.replace({
+                pathname: "/event-summary",
+                params: { eventId: event.eventId },
+            });
+        } catch (e) {
+            Alert.alert("Error", (e as Error).message);
+            setEnding(false);
+        }
     };
 
     if (loading) {
@@ -101,7 +94,7 @@ export default function ActiveEventScreen() {
                         styles.endButton,
                         ending && styles.endButtonDisabled,
                     ]}
-                    onPress={handleEndEvent}
+                    onPress={() => setModalVisible(true)}
                     disabled={ending}>
                     {ending ? (
                         <ActivityIndicator color="#fff" />
@@ -110,6 +103,13 @@ export default function ActiveEventScreen() {
                     )}
                 </Pressable>
             </View>
+            <EndEventModal
+                visible={modalVisible}
+                eventTitle={event.title}
+                onCancel={() => setModalVisible(false)}
+                onConfirm={handleConfirmEnd}
+                loading={ending}
+            />
         </SafeAreaView>
     );
 }
@@ -153,19 +153,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: "#555",
         textAlign: "center",
-    },
-    placeholder: {
-        marginTop: 24,
-        width: "100%",
-        height: 200,
-        backgroundColor: "#f0f0f0",
-        borderRadius: 12,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    placeholderText: {
-        fontSize: 16,
-        color: "#888",
     },
     endButton: {
         marginTop: "auto",

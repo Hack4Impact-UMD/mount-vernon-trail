@@ -184,7 +184,6 @@ export default function HomeScreen() {
                     visible={selectedEvent !== null}
                     onClose={() => setSelectedEvent(null)}
                     onStartEvent={handleStartEvent}
-
                 />
             </View>
         </>
