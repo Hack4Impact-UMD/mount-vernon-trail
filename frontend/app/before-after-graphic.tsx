@@ -2,10 +2,12 @@ import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
 import * as ImagePicker from "expo-image-picker";
-import { Stack, useRouter } from "expo-router";
+import * as MediaLibrary from "expo-media-library";
+import { useRouter } from "expo-router";
 import { Check, Download, House, Plus, X } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+    Alert,
     Image,
     ScrollView,
     StyleSheet,
@@ -13,6 +15,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { captureRef } from "react-native-view-shot";
 
 type Step = "select" | "preview" | "success";
 
@@ -21,6 +24,13 @@ export default function BeforeAfterGraphicScreen() {
     const [beforeUri, setBeforeUri] = useState<string | null>(null);
     const [afterUri, setAfterUri] = useState<string | null>(null);
     const [step, setStep] = useState<Step>("select");
+    const [saving, setSaving] = useState(false);
+    const [, requestMediaPermission] = MediaLibrary.usePermissions({
+        writeOnly: true,
+        granularPermissions: ["photo"],
+    });
+    const previewRef = useRef<View>(null);
+    const scrollRef = useRef<ScrollView>(null);
 
     useEffect(() => {
         if (step === "select" && beforeUri && afterUri) setStep("preview");
@@ -54,15 +64,38 @@ export default function BeforeAfterGraphicScreen() {
         setStep("select");
     };
 
-    const handleSave = () => {
-        setStep("success");
+    const handleSave = async () => {
+        if (saving || !previewRef.current) return;
+        setSaving(true);
+        try {
+            const perm = await requestMediaPermission();
+            if (!perm.granted) {
+                Alert.alert(
+                    "Permission required",
+                    "Please allow access to your photos to save the comparison image.",
+                );
+                return;
+            }
+            const uri = await captureRef(previewRef, {
+                format: "jpg",
+                quality: 0.95,
+            });
+            await MediaLibrary.createAssetAsync(uri);
+            scrollRef.current?.scrollTo({ y: 0, animated: false });
+            setStep("success");
+        } catch (e) {
+            console.error("Error saving image:", e);
+            Alert.alert("Error", "Failed to save the comparison image.");
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
         <>
-            <Stack.Screen options={{ headerShown: false }} />
             <View style={styles.screen}>
                 <ScrollView
+                    ref={scrollRef}
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}>
@@ -91,12 +124,16 @@ export default function BeforeAfterGraphicScreen() {
                                     uri={beforeUri}
                                     onPress={() => pickImage("before")}
                                     onClear={() => clearSlot("before")}
+                                    borderColor="#693894"
+                                    boxHeight={step === "preview" ? 225 : 395}
                                 />
                                 <PhotoSlot
                                     label="AFTER"
                                     uri={afterUri}
                                     onPress={() => pickImage("after")}
                                     onClear={() => clearSlot("after")}
+                                    borderColor="#2D8682"
+                                    boxHeight={step === "preview" ? 225 : 395}
                                 />
                             </View>
 
@@ -129,21 +166,29 @@ export default function BeforeAfterGraphicScreen() {
                                     <Text style={styles.previewHeading}>
                                         PREVIEW
                                     </Text>
-                                    <View style={styles.composite}>
+                                    <View
+                                        ref={previewRef}
+                                        collapsable={false}
+                                        style={styles.composite}>
                                         <CompositeHalf
                                             uri={beforeUri}
                                             label="BEFORE"
                                         />
+                                        <View style={styles.compositeDivider} />
                                         <CompositeHalf
                                             uri={afterUri}
                                             label="AFTER"
                                         />
                                     </View>
                                     <TouchableOpacity
-                                        style={styles.saveCard}
+                                        style={[
+                                            actionStyles.card,
+                                            { marginTop: 22 },
+                                        ]}
                                         activeOpacity={0.85}
-                                        onPress={handleSave}>
-                                        <View style={styles.saveIcon}>
+                                        onPress={handleSave}
+                                        disabled={saving}>
+                                        <View style={actionStyles.iconCircle}>
                                             <Download
                                                 size={22}
                                                 color={Palette.primaryBlack70}
@@ -151,10 +196,10 @@ export default function BeforeAfterGraphicScreen() {
                                             />
                                         </View>
                                         <View>
-                                            <Text style={styles.saveTitle}>
+                                            <Text style={actionStyles.title}>
                                                 Save to Camera Roll
                                             </Text>
-                                            <Text style={styles.saveSubtitle}>
+                                            <Text style={actionStyles.subtitle}>
                                                 Download comparison image
                                             </Text>
                                         </View>
@@ -175,17 +220,25 @@ function PhotoSlot({
     uri,
     onPress,
     onClear,
+    borderColor,
+    boxHeight = 466,
 }: {
     label: string;
     uri: string | null;
     onPress: () => void;
     onClear: () => void;
+    borderColor: string;
+    boxHeight?: number;
 }) {
     return (
         <View style={slotStyles.column}>
             <Text style={slotStyles.label}>{label}</Text>
             {uri ? (
-                <View style={slotStyles.filledBox}>
+                <View
+                    style={[
+                        slotStyles.filledBox,
+                        { borderColor, height: boxHeight },
+                    ]}>
                     <Image
                         source={{ uri }}
                         style={slotStyles.image}
@@ -200,7 +253,7 @@ function PhotoSlot({
                         hitSlop={8}>
                         <X
                             size={16}
-                            color="#000"
+                            color="#6D6E71"
                             strokeWidth={2.5}
                         />
                     </TouchableOpacity>
@@ -230,8 +283,8 @@ function CompositeHalf({ uri, label }: { uri: string; label: string }) {
                 style={compositeStyles.image}
                 resizeMode="cover"
             />
-            <View style={compositeStyles.tag}>
-                <Text style={compositeStyles.tagText}>{label}</Text>
+            <View style={slotStyles.tag}>
+                <Text style={slotStyles.tagText}>{label}</Text>
             </View>
         </View>
     );
@@ -253,8 +306,8 @@ function SuccessView({
             <View style={successStyles.checkCircle}>
                 <View style={successStyles.checkInner}>
                     <Check
-                        size={32}
-                        color={Palette.teal}
+                        size={24}
+                        color="#FFFFFF"
                         strokeWidth={3}
                     />
                 </View>
@@ -268,6 +321,7 @@ function SuccessView({
                     uri={beforeUri}
                     label="BEFORE"
                 />
+                <View style={styles.compositeDivider} />
                 <CompositeHalf
                     uri={afterUri}
                     label="AFTER"
@@ -343,7 +397,9 @@ const styles = StyleSheet.create({
     },
     title: {
         fontFamily: "Lato_700Bold",
-        fontSize: 24,
+        fontSize: 20,
+        lineHeight: 35,
+        letterSpacing: 0.38,
         color: Palette.primaryPurple70,
         textAlign: "center",
     },
@@ -368,10 +424,12 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     hintTitle: {
-        fontFamily: "Lato_700Bold",
-        fontSize: 16,
-        color: Palette.primaryPurple70,
-        marginBottom: 4,
+        fontWeight: "700",
+        fontSize: 14,
+        lineHeight: 20,
+        letterSpacing: -0.15,
+        color: "#693894",
+        textAlign: "center",
     },
     hintText: {
         fontFamily: "Lato_400Regular",
@@ -397,39 +455,10 @@ const styles = StyleSheet.create({
         borderColor: Palette.primaryPurple70,
         backgroundColor: "#000",
     },
-    saveCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 14,
-        backgroundColor: "#ffffff",
-        borderRadius: 16,
-        paddingVertical: 16,
-        paddingHorizontal: 18,
-        marginTop: 22,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    saveIcon: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: "#F0F0F0",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    saveTitle: {
-        fontFamily: "Lato_700Bold",
-        fontSize: 16,
-        color: "#000000",
-    },
-    saveSubtitle: {
-        fontFamily: "Lato_400Regular",
-        fontSize: 13,
-        color: Palette.primaryBlack70,
-        marginTop: 2,
+    compositeDivider: {
+        width: 3,
+        height: "100%",
+        backgroundColor: "#FFFFFF",
     },
 });
 
@@ -443,30 +472,28 @@ const slotStyles = StyleSheet.create({
         color: Palette.primaryBlack70,
         textAlign: "center",
         letterSpacing: 1,
-        marginBottom: 8,
+        marginBottom: 10,
     },
     emptyBox: {
-        height: 360,
-        borderRadius: 16,
-        borderWidth: 2,
+        height: 395,
+        borderRadius: 14,
+        borderWidth: 1.5,
         borderColor: Palette.primaryBlack30,
         borderStyle: "dashed",
         backgroundColor: "#F5F5F5",
         alignItems: "center",
         justifyContent: "center",
+        gap: 12,
     },
     placeholderText: {
         fontFamily: "Lato_700Bold",
         fontSize: 14,
         color: Palette.primaryBlack70,
-        marginTop: 10,
     },
     filledBox: {
-        height: 360,
-        borderRadius: 16,
+        borderRadius: 10,
         overflow: "hidden",
-        borderWidth: 2,
-        borderColor: Palette.primaryPurple70,
+        borderWidth: 1.5,
     },
     image: {
         width: "100%",
@@ -474,12 +501,14 @@ const slotStyles = StyleSheet.create({
     },
     tag: {
         position: "absolute",
-        top: 10,
-        left: 10,
-        backgroundColor: "#1F1F1F",
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 6,
+        top: 9.49,
+        left: 9.49,
+        width: 56.85,
+        height: 22.98,
+        backgroundColor: "#000000B2",
+        borderRadius: 4,
+        alignItems: "center",
+        justifyContent: "center",
     },
     tagText: {
         color: "#FFFFFF",
@@ -514,42 +543,29 @@ const compositeStyles = StyleSheet.create({
         width: "100%",
         height: "100%",
     },
-    tag: {
-        position: "absolute",
-        top: 10,
-        left: 10,
-        backgroundColor: "#1F1F1F",
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 6,
-    },
-    tagText: {
-        color: "#FFFFFF",
-        fontFamily: "Lato_700Bold",
-        fontSize: 11,
-        letterSpacing: 0.5,
-    },
 });
 
 const successStyles = StyleSheet.create({
     container: {
         paddingHorizontal: 20,
-        paddingTop: 32,
+        paddingTop: 20,
         alignItems: "center",
     },
     checkCircle: {
-        width: 88,
-        height: 88,
-        borderRadius: 44,
+        width: 75,
+        height: 70,
+        borderRadius: 9999,
         backgroundColor: Palette.teal,
         alignItems: "center",
         justifyContent: "center",
     },
     checkInner: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: "#FFFFFF",
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        borderWidth: 4,
+        borderColor: "#FFFFFF",
+        backgroundColor: "transparent",
         alignItems: "center",
         justifyContent: "center",
     },
@@ -584,18 +600,20 @@ const actionStyles = StyleSheet.create({
     card: {
         flexDirection: "row",
         alignItems: "center",
+        alignSelf: "stretch",
         gap: 14,
+        paddingHorizontal: 42,
         backgroundColor: "#ffffff",
-        borderRadius: 16,
-        paddingVertical: 16,
-        paddingHorizontal: 18,
-        marginTop: 14,
-        width: "100%",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
+        borderRadius: 14,
+        borderWidth: 0.75,
+        borderColor: "#E5E5E5",
+        height: 81,
+        marginTop: 20,
+        shadowColor: "#000000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
     },
     iconCircle: {
         width: 44,
