@@ -146,7 +146,7 @@ export default function HomeScreen() {
                     <Header showGreeting />
                     <View style={styles.cardWrapper}>
                         <TakeAfterPicture />
-                        <MakeBeforeAfterGraphic />
+                        <MakeBeforeAfterGraphic onPress={() => router.push("/before-after-graphic")} />
                         {isAdmin && (
                             <CreateNewEvent onPress={() => router.push("/setup-event")} />
                         )}
