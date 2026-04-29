@@ -234,10 +234,13 @@ export async function addNotesToCard(
     const currentDescription = card.desc ?? "";
 
     const notesPattern = /\n\n📝 Notes:.*?(?=\n\n📷 Album Link:|$)/s;
-    const newNotesText = `\n\n📝 Notes:\n${notes}`;
+    const trimmedNotes = notes.trim();
+    const newNotesText = `\n\n📝 Notes:\n${trimmedNotes}`;
 
     let replacedDescription: string;
-    if (notesPattern.test(currentDescription)) {
+    if (trimmedNotes === "") {
+        replacedDescription = currentDescription;
+    } else if (notesPattern.test(currentDescription)) {
         // replace existing notes to make operation idempotent
         // note: this makes the assumption that notes are followed by the album link
         replacedDescription = currentDescription.replace(

@@ -280,6 +280,17 @@ export async function saveDraft(
     });
 }
 
+// Update only the notes field for an event
+export async function updateEventNotes(
+    eventId: string,
+    notes: string,
+): Promise<void> {
+    const db = getFirestore();
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
+        notes,
+    });
+}
+
 // Mark a draft as published (call this after the Trello publish succeeds)
 export async function publishEvent(eventId: string): Promise<void> {
     const db = getFirestore();

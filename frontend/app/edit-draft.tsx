@@ -118,9 +118,9 @@ export default function EditDraftScreen() {
         }
         setPublishing(true);
         try {
-            await publishEvent(event.eventId);
             await addNotesToCard(event.trelloCardId, notes, API_KEY);
             await moveCardToCompleted(event.trelloCardId, API_KEY);
+            await publishEvent(event.eventId);
             setPublishModalVisible(false);
             router.replace("/home-screen");
         } catch (e) {
