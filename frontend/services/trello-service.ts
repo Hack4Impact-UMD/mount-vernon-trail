@@ -214,8 +214,20 @@ export async function moveCardAttachmentsToCompleted(
     const attachments = await trello.getEventCardAttachmentIDs(eventCard);
 
     // move each attachment (issue card) to completed issues list
-    for (const attachmentId of attachments) {
-        await trello.moveCardToList(attachmentId, list.id);
+    const results = await Promise.allSettled(
+        attachments.map((attachmentId) =>
+            trello.moveCardToList(attachmentId, list.id),
+        ),
+    );
+    const failedAttachments = results
+        .map((result, index) =>
+            result.status === "rejected" ? attachments[index] : null,
+        )
+        .filter((id) => id !== null);
+    if (failedAttachments.length > 0) {
+        throw new Error(
+            `Failed to move ${failedAttachments.length} attachment${failedAttachments.length === 1 ? "" : "s"}: ${failedAttachments.join(", ")}`,
+        );
     }
 }
 
