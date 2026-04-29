@@ -9,6 +9,7 @@ const BOARD_NAME = "MVT Mock Board";
 const TRAIL_ISSUES_LIST = "Trail Issues and Problems - Intake";
 const UPCOMING_EVENTS_LIST = "Scheduled Events";
 const COMPLETED_EVENTS_LIST = "Completed Events (From App)";
+const COMPLETED_ISSUES_LIST = "Completed Issues";
 
 // parses trello description into structured fields
 function parseEventDescription(desc: string) {
@@ -112,7 +113,9 @@ export async function fetchUpcomingEvents(
     return Promise.all(
         cards.map(async (card) => {
             const imgAttachmentUrl = getFirstImageAttachment(card.attachments);
-			const imageUrl = imgAttachmentUrl ? await trello.loadTrelloImage(imgAttachmentUrl) : null;
+            const imageUrl = imgAttachmentUrl
+                ? await trello.loadTrelloImage(imgAttachmentUrl)
+                : null;
             const parsed = parseEventDescription(card.desc ?? "");
             return {
                 id: card.id,
@@ -120,19 +123,23 @@ export async function fetchUpcomingEvents(
                 description: card.desc ?? "",
                 date: card.eventDate,
                 imageUrl,
-                ...parsed
+                ...parsed,
             };
         }),
     );
 }
 
 // finds the first image (not trello card or other) attached to a card to display with it
-function getFirstImageAttachment(attachments: TrelloAttachment[] | undefined): string | null {
-	if (!attachments || attachments.length === 0) return null;
+function getFirstImageAttachment(
+    attachments: TrelloAttachment[] | undefined,
+): string | null {
+    if (!attachments || attachments.length === 0) return null;
 
-	const pattern = /image/;
-	const img = attachments.find((attachment) => pattern.exec(attachment.mimeType));
-	return img?.url ?? null;
+    const pattern = /image/;
+    const img = attachments.find((attachment) =>
+        pattern.exec(attachment.mimeType),
+    );
+    return img?.url ?? null;
 }
 
 // creates a new event card in the Scheduled Events list with the card name prefixed with date
@@ -186,6 +193,30 @@ export async function moveCardToCompleted(
     if (!list) throw new Error(`List "${COMPLETED_EVENTS_LIST}" not found`);
 
     await trello.moveCardToList(cardId, list.id);
+}
+
+// moves all attachments from a card to completed issues list
+export async function moveCardAttachmentsToCompleted(
+    cardId: string,
+    key: string,
+): Promise<void> {
+    const trello = new TrelloClient(key);
+    const boards = await trello.getBoards();
+    const board = boards.find((b) => b.name === BOARD_NAME);
+    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+
+    const lists = await trello.getLists(board.id);
+    const list = lists.find((l) => l.name === COMPLETED_ISSUES_LIST);
+    if (!list) throw new Error(`List "${COMPLETED_ISSUES_LIST}" not found`);
+
+    // get all attachments on the card
+    const eventCard = await trello.getEventCardByID(cardId, true);
+    const attachments = await trello.getEventCardAttachmentIDs(eventCard);
+
+    // move each attachment (issue card) to completed issues list
+    for (const attachmentId of attachments) {
+        await trello.moveCardToList(attachmentId, list.id);
+    }
 }
 
 // adds album link to a trello event card description
