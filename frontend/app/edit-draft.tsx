@@ -11,7 +11,8 @@ import { TrelloClient } from "@/services/trello-funcs";
 import {
     addNotesToCard,
     fetchDocumentTrailIssues,
-    moveCardToCompleted,
+    moveCardAttachmentsToCompleted,
+    moveCardToCompleted
 } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
@@ -121,6 +122,7 @@ export default function EditDraftScreen() {
             await addNotesToCard(event.trelloCardId, notes, API_KEY);
             await moveCardToCompleted(event.trelloCardId, API_KEY);
             await publishEvent(event.eventId);
+            await moveCardAttachmentsToCompleted(event.trelloCardId, API_KEY);
             setPublishModalVisible(false);
             router.replace("/home-screen");
         } catch (e) {
