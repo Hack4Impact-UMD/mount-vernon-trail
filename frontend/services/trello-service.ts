@@ -112,7 +112,9 @@ export async function fetchUpcomingEvents(
     return Promise.all(
         cards.map(async (card) => {
             const imgAttachmentUrl = getFirstImageAttachment(card.attachments);
-			const imageUrl = imgAttachmentUrl ? await trello.loadTrelloImage(imgAttachmentUrl) : null;
+            const imageUrl = imgAttachmentUrl
+                ? await trello.loadTrelloImage(imgAttachmentUrl)
+                : null;
             const parsed = parseEventDescription(card.desc ?? "");
             return {
                 id: card.id,
@@ -120,19 +122,23 @@ export async function fetchUpcomingEvents(
                 description: card.desc ?? "",
                 date: card.eventDate,
                 imageUrl,
-                ...parsed
+                ...parsed,
             };
         }),
     );
 }
 
 // finds the first image (not trello card or other) attached to a card to display with it
-function getFirstImageAttachment(attachments: TrelloAttachment[] | undefined): string | null {
-	if (!attachments || attachments.length === 0) return null;
+function getFirstImageAttachment(
+    attachments: TrelloAttachment[] | undefined,
+): string | null {
+    if (!attachments || attachments.length === 0) return null;
 
-	const pattern = /image/;
-	const img = attachments.find((attachment) => pattern.exec(attachment.mimeType));
-	return img?.url ?? null;
+    const pattern = /image/;
+    const img = attachments.find((attachment) =>
+        pattern.exec(attachment.mimeType),
+    );
+    return img?.url ?? null;
 }
 
 // creates a new event card in the Scheduled Events list with the card name prefixed with date
@@ -214,5 +220,33 @@ export async function addAlbumLinkToCard(
         replacedDescription = currentDescription + newLinkText;
     }
 
+    await trello.replaceCardDescription(cardID, replacedDescription);
+}
+
+// adds notes to a trello event card description
+export async function addNotesToCard(
+    cardID: string,
+    notes: string,
+    key: string,
+): Promise<void> {
+    const trello = new TrelloClient(key);
+    const card = await trello.getCard(cardID);
+    const currentDescription = card.desc ?? "";
+
+    const notesPattern = /\n\n📝 Notes:.*?(?=\n\n📷 Album Link:|$)/s;
+    const newNotesText = `\n\n📝 Notes:\n${notes}`;
+
+    let replacedDescription: string;
+    if (notesPattern.test(currentDescription)) {
+        // replace existing notes to make operation idempotent
+        // note: this makes the assumption that notes are followed by the album link
+        replacedDescription = currentDescription.replace(
+            notesPattern,
+            newNotesText,
+        );
+    } else {
+        // append new notes if none exists
+        replacedDescription = currentDescription + newNotesText;
+    }
     await trello.replaceCardDescription(cardID, replacedDescription);
 }

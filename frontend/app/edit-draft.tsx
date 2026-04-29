@@ -9,6 +9,7 @@ import type { Event } from "@/services/event-service";
 import { getEventById, publishEvent, saveDraft } from "@/services/event-service";
 import { TrelloClient } from "@/services/trello-funcs";
 import {
+    addNotesToCard,
     fetchDocumentTrailIssues,
     moveCardToCompleted,
 } from "@/services/trello-service";
@@ -38,7 +39,7 @@ export default function EditDraftScreen() {
     const [error, setError] = useState<string>();
     const [issues, setIssues] = useState<TrailDocumentIssueItem[]>([]);
     const [issuesError, setIssuesError] = useState<string | null>(null);
-    const [notepad, setNotepad] = useState("");
+    const [notes, setNotes] = useState("");
     const [savingDraft, setSavingDraft] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [publishModalVisible, setPublishModalVisible] = useState(false);
@@ -56,7 +57,7 @@ export default function EditDraftScreen() {
                     return;
                 }
                 setEvent(e);
-                setNotepad(e.notepad ?? "");
+                setNotes(e.notes ?? "");
             })
             .catch((e) => setError((e as Error).message))
             .finally(() => setLoading(false));
@@ -101,7 +102,7 @@ export default function EditDraftScreen() {
         if (!event || savingDraft || publishing) return;
         setSavingDraft(true);
         try {
-            await saveDraft(event.eventId, notepad);
+            await saveDraft(event.eventId, notes);
             router.replace("/drafts");
         } catch (e) {
             Alert.alert("Save failed", (e as Error).message);
@@ -118,6 +119,7 @@ export default function EditDraftScreen() {
         setPublishing(true);
         try {
             await publishEvent(event.eventId);
+            await addNotesToCard(event.trelloCardId, notes, API_KEY);
             await moveCardToCompleted(event.trelloCardId, API_KEY);
             setPublishModalVisible(false);
             router.replace("/home-screen");
@@ -172,8 +174,8 @@ export default function EditDraftScreen() {
                     <Text style={styles.sectionTitle}>Notepad</Text>
                     <TextInput
                         style={styles.notepad}
-                        value={notepad}
-                        onChangeText={setNotepad}
+                        value={notes}
+                        onChangeText={setNotes}
                         multiline
                         placeholder="Add notes about this event"
                         placeholderTextColor="#bbb"

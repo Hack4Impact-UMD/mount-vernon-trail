@@ -1,6 +1,6 @@
 import EndEventModal from "@/components/ui/end-event-modal";
 import type { Event } from "@/services/event-service";
-import { getActiveEvent, setEventInactive } from "@/services/event-service";
+import { getActiveEvent, saveDraft, setEventInactive } from "@/services/event-service";
 import { useNavigation } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -30,10 +30,13 @@ export default function ActiveEventScreen() {
             .finally(() => setLoading(false));
     }, []);
 
-    const handleConfirmEnd = async () => {
+    const handleConfirmEnd = async (notes?: string) => {
         if (!event) return;
         setEnding(true);
         try {
+            if (notes && notes.trim() !== "") {
+                await saveDraft(event.eventId, notes);
+            }
             await setEventInactive(event.eventId);
             setModalVisible(false);
             router.replace({
