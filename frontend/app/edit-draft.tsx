@@ -10,7 +10,8 @@ import { getEventById, publishEvent, saveDraft } from "@/services/event-service"
 import { TrelloClient } from "@/services/trello-funcs";
 import {
     fetchDocumentTrailIssues,
-    moveCardToCompleted,
+    moveCardAttachmentsToCompleted,
+    moveCardToCompleted
 } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
@@ -119,6 +120,7 @@ export default function EditDraftScreen() {
         try {
             await publishEvent(event.eventId);
             await moveCardToCompleted(event.trelloCardId, API_KEY);
+            await moveCardAttachmentsToCompleted(event.trelloCardId, API_KEY);
             setPublishModalVisible(false);
             router.replace("/home-screen");
         } catch (e) {
