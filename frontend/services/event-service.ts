@@ -1,17 +1,78 @@
 import { auth } from "@/config/firebase";
 import {
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    getFirestore,
-    query,
-    Timestamp,
-    updateDoc,
-    where,
-    writeBatch,
-    orderBy,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	getFirestore,
+	orderBy,
+	query,
+	Timestamp,
+	updateDoc,
+	where,
+	writeBatch,
 } from "firebase/firestore";
+
+// per event metrics collected during trail event
+export interface EventMetrics {
+    trailImprovements: number;
+    drainageCleaned: number;
+    graffitiTagsRemoved: number;
+    stickersRemoved: number;
+    otherImprovements: number;
+    itemsPainted: number;
+    pressureWashed: number;
+    itemsRepaired: number;
+    safetyImprovements: number;
+    snowRemovalEvents: number;
+    potholesFilled: number;
+    trailEdgedFeet: number;
+    trashBagsCollected: number;
+    trashPoundsCollected: number;
+    treesTrimmed: number;
+    vegetationVolunteers: number;
+}
+
+export interface EventMetricsWithHours {
+    trailImprovements: number;
+    drainageCleaned: number;
+    graffitiTagsRemoved: number;
+    stickersRemoved: number;
+    otherImprovements: number;
+    itemsPainted: number;
+    pressureWashed: number;
+    itemsRepaired: number;
+    safetyImprovements: number;
+    snowRemovalEvents: number;
+    potholesFilled: number;
+    trailEdgedFeet: number;
+    trashBagsCollected: number;
+    trashPoundsCollected: number;
+    treesTrimmed: number;
+    vegetationVolunteers: number;
+    hoursOfService: number;
+}
+
+export function createDefaultMetrics(): EventMetrics {
+    return {
+        trailImprovements: 0,
+        drainageCleaned: 0,
+        graffitiTagsRemoved: 0,
+        stickersRemoved: 0,
+        otherImprovements: 0,
+        itemsPainted: 0,
+        pressureWashed: 0,
+        itemsRepaired: 0,
+        safetyImprovements: 0,
+        snowRemovalEvents: 0,
+        potholesFilled: 0,
+        trailEdgedFeet: 0,
+        trashBagsCollected: 0,
+        trashPoundsCollected: 0,
+        treesTrimmed: 0,
+        vegetationVolunteers: 0,
+    };
+}
 
 export interface Event {
     eventId: string;
@@ -27,8 +88,14 @@ export interface Event {
     savedAsDraftAt?: Timestamp;
     endDate: Timestamp | null;
     createdAt: Timestamp;
-    trailImprovements: number;
-    trashBags: number;
+    eventLeader: string;
+    zoneLeaders: string;
+    toolHaulers: string;
+    gloverLover: string;
+    notes: string;
+    notepad?: string;
+    publishedAt?: Timestamp;
+    metrics?: EventMetrics;
 }
 
 const EVENTS_COLLECTION = "events";
@@ -42,6 +109,12 @@ export async function createEvent(
     trelloCardId: string,
     albumId: string,
     albumUrl: string,
+    eventLeader: string,
+    zoneLeaders: string,
+    toolHaulers: string,
+    gloverLover: string,
+    notes: string,
+    isDraft: boolean,
 ): Promise<string> {
     const db = getFirestore();
     const currentUser = auth.currentUser;
@@ -62,12 +135,16 @@ export async function createEvent(
         albumId,
         albumUrl,
         isActive: true,
-        isDraft: false,
-		startDate: null,
+        isDraft,
+        startDate: null,
         endDate: null,
         createdAt: Timestamp.now(),
-        trailImprovements: 0,
-        trashBags: 0,
+        eventLeader,
+        zoneLeaders,
+        toolHaulers,
+        gloverLover,
+        notes,
+        metrics: createDefaultMetrics(),
     };
 
     const batch = writeBatch(db);
@@ -143,7 +220,9 @@ export async function getEventById(eventId: string): Promise<Event | null> {
     return snapshot.data() as Event;
 }
 
-export async function getEventByTrelloCardId(trelloCardId: string): Promise<Event | null> {
+export async function getEventByTrelloCardId(
+    trelloCardId: string,
+): Promise<Event | null> {
     const db = getFirestore();
     const q = query(
         collection(db, EVENTS_COLLECTION),
@@ -152,6 +231,31 @@ export async function getEventByTrelloCardId(trelloCardId: string): Promise<Even
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     return snapshot.docs[0].data() as Event;
+}
+
+// only changed numeric fields are written via dotted metrics.* paths
+export async function updateEventMetrics(
+    eventId: string,
+    updates: Partial<EventMetrics>,
+): Promise<void> {
+    const db = getFirestore();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error(
+            "User is not authenticated. Please sign in to update metrics.",
+        );
+    }
+    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+
+    const dottedUpdates: Record<string, number> = {};
+    for (const [key, value] of Object.entries(updates)) {
+        if (typeof value === "number" && !Number.isNaN(value)) {
+            dottedUpdates[`metrics.${key}`] = value;
+        }
+    }
+
+    if (Object.keys(dottedUpdates).length === 0) return;
+    await updateDoc(eventRef, dottedUpdates);
 }
 
 export async function setEventInactive(eventId: string): Promise<void> {
@@ -163,7 +267,10 @@ export async function setEventInactive(eventId: string): Promise<void> {
 }
 
 // Save a completed event as a draft instead of immediately publishing
-export async function saveDraft(eventId: string, notepad?: string): Promise<void> {
+export async function saveDraft(
+    eventId: string,
+    notepad?: string,
+): Promise<void> {
     const db = getFirestore();
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         isDraft: true,
@@ -196,3 +303,18 @@ export async function getDraftEvents(): Promise<Event[]> {
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d) => d.data() as Event);
 }
+
+export function extractMetricsWithHours(event: Event): EventMetricsWithHours {
+    return {
+        ...(event.metrics ?? createDefaultMetrics()),
+        hoursOfService: (() => {
+            if (!event.startDate) return 0;
+            const end = event.endDate ? event.endDate.toMillis() : Date.now();
+            return parseFloat(
+                (
+                    Math.max(0, end - event.startDate.toMillis()) / 3_600_000
+                ).toFixed(1),
+            );
+        })(),
+    }
+};

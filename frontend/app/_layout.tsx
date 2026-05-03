@@ -85,9 +85,12 @@ export default function RootLayout() {
             "setup-event",
             "active-event",
             "event-summary",
-            "albums",
+            "edit-draft",
             "drafts",
+            "albums",
             "profile",
+			"before-after-graphic",
+            "mock-statistics",
         ]);
         // if user not authenticated, re-route to /auth if an auth route is being accessed
         if (!user) {
@@ -145,6 +148,10 @@ export default function RootLayout() {
                     options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                    name="edit-draft"
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
                     name="home-screen"
                     options={{ headerShown: false, animation: "none" }}
                 />
@@ -159,6 +166,14 @@ export default function RootLayout() {
                 <Stack.Screen
                     name="profile"
                     options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="before-after-graphic"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="mock-statistics"
+                    options={{ headerShown: false }}
                 />
             </Stack>
             <StatusBar style="auto" />
