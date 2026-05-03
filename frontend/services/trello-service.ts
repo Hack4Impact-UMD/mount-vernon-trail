@@ -95,8 +95,9 @@ export async function fetchDocumentTrailIssues(
 }
 
 // fetches upcoming event cards within the next 30 days
-export async function fetchUpcomingEvents(
+export async function fetchEventCards(
     key: string,
+    filter: "upcoming" | "past",
 ): Promise<UpcomingEventItem[]> {
     const trello = new TrelloClient(key);
     // find target board and list
@@ -105,10 +106,11 @@ export async function fetchUpcomingEvents(
     if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
 
     const lists = await trello.getLists(board.id);
-    const list = lists.find((l) => l.name === UPCOMING_EVENTS_LIST);
-    if (!list) throw new Error(`List "${UPCOMING_EVENTS_LIST}" not found`);
+    const listName = filter === "past" ? COMPLETED_EVENTS_LIST : UPCOMING_EVENTS_LIST;
+    const list = lists.find((l) => l.name === listName);
+    if (!list) throw new Error(`List "${listName}" not found`);
 
-    const cards = await trello.getEventCardsFiltered(list.id, "upcoming", 30, true, true);
+    const cards = await trello.getEventCardsFiltered(list.id, filter, 30, true, true);
     return Promise.all(
         cards.map(async (card) => {
             const imgAttachmentUrl = getFirstImageAttachment(card.attachments);
@@ -133,38 +135,6 @@ function getFirstImageAttachment(attachments: TrelloAttachment[] | undefined): s
 	const pattern = /image/;
 	const img = attachments.find((attachment) => pattern.exec(attachment.mimeType));
 	return img?.url ?? null;
-}
-
-// fetches past events from the Completed Events list
-export async function fetchPastEvents(
-    key:string,
-): Promise<UpcomingEventItem[]> {
-    const trello = new TrelloClient(key);
-    // find target board and list
-    const boards = await trello.getBoards();
-    const board = boards.find((b) => b.name === BOARD_NAME);
-    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
-
-    const lists = await trello.getLists(board.id);
-    const list = lists.find((l) => l.name === COMPLETED_EVENTS_LIST);
-    if (!list) throw new Error(`List "${COMPLETED_EVENTS_LIST}" not found`);
-
-    const cards = await trello.getEventCardsFiltered(list.id, "past", 30, true, true);
-    return Promise.all(
-        cards.map(async (card) => {
-            const imgAttachmentUrl = getFirstImageAttachment(card.attachments);
-			const imageUrl = imgAttachmentUrl ? await trello.loadTrelloImage(imgAttachmentUrl) : null;
-            const parsed = parseEventDescription(card.desc ?? "");
-            return {
-                id: card.id,
-                name: card.name,
-                description: card.desc ?? "",
-                date: card.eventDate,
-                imageUrl,
-                ...parsed,
-            };
-        }),
-    );
 }
 
 // creates a new event card in the Scheduled Events list with the card name prefixed with date

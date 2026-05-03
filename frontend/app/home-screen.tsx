@@ -7,7 +7,7 @@ import { PastEventsCard } from "@/components/ui/past-events-card";
 import { getEventByTrelloCardId , startEvent } from "@/services/event-service";
 import TrailEventCard from "@/components/ui/trail-event-card";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
-import { fetchUpcomingEvents, fetchPastEvents } from "@/services/trello-service";
+import { fetchEventCards } from "@/services/trello-service";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
@@ -46,11 +46,11 @@ export default function HomeScreen() {
             return;
         }
         setEventsLoading(true);
-        fetchUpcomingEvents(API_KEY)
+        fetchEventCards(API_KEY, "upcoming")
             .then(setEvents)
             .catch((e) => setEventsError(e.message))
             .finally(() => setEventsLoading(false));
-        fetchPastEvents(API_KEY)
+        fetchEventCards(API_KEY, "past")
             .then(setPastEvents)
             .catch((e) => setPastEventsError(e.message))
             .finally(() => setPastEventsLoading(false));
