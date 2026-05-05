@@ -262,6 +262,22 @@ export async function createIssueCard(
     await trello.addAttachmentToCard(eventTrelloCardId, card.shortUrl);
 }
 
+// updates the notes and metrics on an existing issue card
+export async function updateIssueCard(
+    issueCardId: string,
+    notes: string,
+    metrics: string,
+    key: string,
+): Promise<void> {
+    const trello = new TrelloClient(key);
+    const descParts = [
+        notes.trim() ? `Notes:\n${notes.trim()}` : "",
+        metrics.trim() ? `Metrics:\n${metrics.trim()}` : "",
+    ].filter(Boolean);
+    const description = descParts.join("\n\n");
+    await trello.replaceCardDescription(issueCardId, description);
+}
+
 // adds album link to a trello event card description
 export async function addAlbumLinkToCard(
     cardID: string,

@@ -15,7 +15,7 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import HomeHeader from "@/components/ui/header";
 import { getEventById } from "@/services/event-service";
-import { createIssueCard } from "@/services/trello-service";
+import { createIssueCard, updateIssueCard } from "@/services/trello-service";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type PhotoSlot = "before" | "after";
@@ -56,11 +56,16 @@ export default function TrailIssueDetailScreen() {
     }, [eventId, isNew]);
 
     const handleSave = async () => {
-        if (!issueName || !trelloCardId) return;
         const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
         setSaving(true);
         try {
-            await createIssueCard(issueName, notes, metrics, trelloCardId, API_KEY);
+            if (isNew === "true") {
+                if (!issueName || !trelloCardId) return;
+                await createIssueCard(issueName, notes, metrics, trelloCardId, API_KEY);
+            } else {
+                if (!issueId) return;
+                await updateIssueCard(issueId, notes, metrics, API_KEY);
+            }
             router.back();
         } catch (e) {
             Alert.alert("Failed to save issue", (e as Error).message);
@@ -184,7 +189,7 @@ export default function TrailIssueDetailScreen() {
                         textAlignVertical="top"
                     />
 
-                    {isNew === "true" && (
+                    {(isNew === "true" || issueId) && (
                         <TouchableOpacity
                             style={[styles.saveButton, saving && styles.saveButtonDisabled]}
                             onPress={handleSave}

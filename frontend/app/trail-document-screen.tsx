@@ -48,9 +48,11 @@ export default function TrailDocumentScreen() {
     const [notepad, setNotepad] = useState("");
     const [activeEventId, setActiveEventId] = useState<string | null>(null);
     const [issuesError, setIssuesError] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     useFocusEffect(useCallback(() => {
         pressedTrailIssueRef.current = false;
+        setRefreshKey((k) => k + 1);
         return undefined;
     }, []));
 
@@ -118,7 +120,7 @@ export default function TrailDocumentScreen() {
         return () => {
             cancelled = true;
         };
-    }, [event]);
+    }, [event, refreshKey]);
 
     // when the user returns from camera-view, store the captured image under the correct issue
     useEffect(() => {
@@ -244,6 +246,7 @@ export default function TrailDocumentScreen() {
                                                 issueId: issue.id,
                                                 issueName: issue.name,
                                                 imageUrl: issue.imageUrl,
+                                                description: issue.description,
                                                 eventId: event.eventId,
                                                 beforeImageUri:
                                                     issueImages[issue.id]
