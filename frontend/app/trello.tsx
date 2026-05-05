@@ -1,6 +1,6 @@
 import { TrailIssuesCard, type TrailIssueItem } from "@/components/ui/trail-issues-card";
 import { UpcomingEventsCard, type UpcomingEventItem } from "@/components/ui/upcoming-events-card";
-import { fetchTrailIssues, fetchUpcomingEvents } from "@/services/trello-service";
+import { fetchTrailIssues, fetchEventCards } from "@/services/trello-service";
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text } from "react-native";
 
@@ -30,7 +30,7 @@ export default function TrelloTestScreen() {
             .then(setIssues)
             .catch((e) => setIssuesError(e.message))
             .finally(() => setIssuesLoading(false));
-        fetchUpcomingEvents(API_KEY)
+        fetchEventCards(API_KEY, "upcoming")
             .then(setEvents)
             .catch((e) => setEventsError(e.message))
             .finally(() => setEventsLoading(false));
