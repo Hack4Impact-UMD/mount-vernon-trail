@@ -199,6 +199,7 @@ export class TrelloClient {
     // includes option to remove date from card name (for display only)
     async getEventCardsFiltered(
         listID: string,
+        timeline: "upcoming" | "past" = "upcoming",
         days: number = 30,
         getAttachments: boolean = false,
         removeDate: boolean = false,
@@ -212,8 +213,8 @@ export class TrelloClient {
                 now.getDate(),
             );
             const daysMilliseconds = 24 * 60 * 60 * 1000;
-            const futureDate = new Date(
-                today.getTime() + days * daysMilliseconds,
+            const timelineDate = new Date(
+                today.getTime() + (timeline === "upcoming"? 1 : -1) * days * daysMilliseconds,
             );
             // convert to event cards
             const result: EventCard[] = cards
@@ -221,11 +222,16 @@ export class TrelloClient {
                 .filter(
                     (card): card is EventCard =>
                         card !== null &&
-                        card.eventDate >= today &&
-                        card.eventDate <= futureDate,
+                        (timeline === "upcoming"
+                            ? card.eventDate >= today && card.eventDate <= timelineDate
+                           : card.eventDate < today && card.eventDate >= timelineDate),
                 )
-                // sort by date ascending
-                .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
+                // sort by date ascending or descending
+                .sort((a, b) => 
+                    timeline === "upcoming"
+                    ? a.eventDate.getTime() - b.eventDate.getTime()
+                    : b.eventDate.getTime() - a.eventDate.getTime(),
+                );
             return result;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;

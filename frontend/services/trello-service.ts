@@ -96,8 +96,9 @@ export async function fetchDocumentTrailIssues(
 }
 
 // fetches upcoming event cards within the next 30 days
-export async function fetchUpcomingEvents(
+export async function fetchEventCards(
     key: string,
+    filter: "upcoming" | "past",
 ): Promise<UpcomingEventItem[]> {
     const trello = new TrelloClient(key);
     // find target board and list
@@ -106,10 +107,11 @@ export async function fetchUpcomingEvents(
     if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
 
     const lists = await trello.getLists(board.id);
-    const list = lists.find((l) => l.name === UPCOMING_EVENTS_LIST);
-    if (!list) throw new Error(`List "${UPCOMING_EVENTS_LIST}" not found`);
+    const listName = filter === "past" ? COMPLETED_EVENTS_LIST : UPCOMING_EVENTS_LIST;
+    const list = lists.find((l) => l.name === listName);
+    if (!list) throw new Error(`List "${listName}" not found`);
 
-    const cards = await trello.getEventCardsFiltered(list.id, 30, true, true);
+    const cards = await trello.getEventCardsFiltered(list.id, filter, 30, true, true);
     return Promise.all(
         cards.map(async (card) => {
             const imgAttachmentUrl = getFirstImageAttachment(card.attachments);
