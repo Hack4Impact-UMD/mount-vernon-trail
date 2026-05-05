@@ -255,6 +255,16 @@ export class TrelloClient {
         }
     }
 
+    async addAttachmentToCard(cardID: string, url: string): Promise<void> {
+        try {
+            await this.client.post(`/cards/${cardID}/attachments`, { url });
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(`unable to add attachment to card ${cardID}:`, getErrorMessage(error));
+            throw error;
+        }
+    }
+
     async moveCardToList(cardID: string, listID: string): Promise<void> {
         try {
             await this.client.put(`/cards/${cardID}`, { idList: listID });

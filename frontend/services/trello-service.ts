@@ -233,6 +233,35 @@ export async function moveCardAttachmentsToCompleted(
     }
 }
 
+// creates a new issue card in the Trail Issues list and attaches it to the event card
+export async function createIssueCard(
+    name: string,
+    notes: string,
+    metrics: string,
+    eventTrelloCardId: string,
+    key: string,
+): Promise<void> {
+    const trello = new TrelloClient(key);
+    const boards = await trello.getBoards();
+    const board = boards.find((b) => b.name === BOARD_NAME);
+    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+
+    const lists = await trello.getLists(board.id);
+    const list = lists.find((l) => l.name === TRAIL_ISSUES_LIST);
+    if (!list) throw new Error(`List "${TRAIL_ISSUES_LIST}" not found`);
+
+    const descParts = [
+        notes.trim() ? `Notes:\n${notes.trim()}` : "",
+        metrics.trim() ? `Metrics:\n${metrics.trim()}` : "",
+    ].filter(Boolean);
+    const description = descParts.join("\n\n");
+
+    const card = await trello.createCard(list.id, name, description);
+    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+
+    await trello.addAttachmentToCard(eventTrelloCardId, card.shortUrl);
+}
+
 // adds album link to a trello event card description
 export async function addAlbumLinkToCard(
     cardID: string,

@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+    ActivityIndicator,
+    Alert,
     Image,
     ScrollView,
     StyleSheet,
@@ -12,23 +14,60 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import HomeHeader from "@/components/ui/header";
+import { getEventById } from "@/services/event-service";
+import { createIssueCard } from "@/services/trello-service";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type PhotoSlot = "before" | "after";
 
 export default function TrailIssueDetailScreen() {
     const router = useRouter();
-    const { issueId, issueName, imageUrl, eventId, beforeImageUri, afterImageUri } = useLocalSearchParams<{
+    const { issueId, issueName, imageUrl, description, eventId, isNew, beforeImageUri, afterImageUri } = useLocalSearchParams<{
 		issueId?: string;
         issueName?: string;
 		imageUrl?: string;
+        description?: string;
 		eventId?: string;
         isNew?: string;
 		beforeImageUri?: string;
 		afterImageUri?: string;
     }>();
-    const [notes, setNotes] = useState("");
-    const [metrics, setMetrics] = useState("");
+
+    function parseDescription(desc: string) {
+        const notesMatch = /Notes:\n([\s\S]*?)(?:\n\nMetrics:|$)/.exec(desc);
+        const metricsMatch = /Metrics:\n([\s\S]*)$/.exec(desc);
+        return {
+            notes: notesMatch?.[1]?.trim() ?? "",
+            metrics: metricsMatch?.[1]?.trim() ?? "",
+        };
+    }
+
+    const parsed = description ? parseDescription(description) : { notes: "", metrics: "" };
+    const [notes, setNotes] = useState(parsed.notes);
+    const [metrics, setMetrics] = useState(parsed.metrics);
+    const [trelloCardId, setTrelloCardId] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (!eventId || isNew !== "true") return;
+        getEventById(eventId)
+            .then((ev) => { if (ev) setTrelloCardId(ev.trelloCardId); })
+            .catch((e) => console.error("Failed to load event:", e));
+    }, [eventId, isNew]);
+
+    const handleSave = async () => {
+        if (!issueName || !trelloCardId) return;
+        const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
+        setSaving(true);
+        try {
+            await createIssueCard(issueName, notes, metrics, trelloCardId, API_KEY);
+            router.back();
+        } catch (e) {
+            Alert.alert("Failed to save issue", (e as Error).message);
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const status = "In Progress"; // hardcoded for now
     const photos = { before: beforeImageUri, after: afterImageUri };
@@ -144,6 +183,19 @@ export default function TrailIssueDetailScreen() {
                         multiline
                         textAlignVertical="top"
                     />
+
+                    {isNew === "true" && (
+                        <TouchableOpacity
+                            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                            onPress={handleSave}
+                            disabled={saving}>
+                            {saving ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.saveButtonText}>Save Issue</Text>
+                            )}
+                        </TouchableOpacity>
+                    )}
                 </View>
             </ScrollView>
         </View>
@@ -264,5 +316,20 @@ const styles = StyleSheet.create({
         minHeight: 100,
         lineHeight: 22,
         marginBottom: 24,
+    },
+    saveButton: {
+        backgroundColor: PURPLE,
+        borderRadius: 14,
+        paddingVertical: 16,
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    saveButtonDisabled: {
+        opacity: 0.6,
+    },
+    saveButtonText: {
+        color: "#fff",
+        fontWeight: "700",
+        fontSize: 16,
     },
 });
