@@ -259,7 +259,17 @@ export async function createIssueCard(
     const card = await trello.createCard(list.id, name, description);
     if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
 
-    await trello.addAttachmentToCard(eventTrelloCardId, card.shortUrl);
+    try {
+        await trello.addAttachmentToCard(eventTrelloCardId, card.shortUrl);
+    } catch (attachErr) {
+        // compensate: delete the orphaned card so a retry won't create duplicates
+        try {
+            await trello.deleteCard(card.id);
+        } catch (deleteErr) {
+            console.error("Failed to clean up orphaned issue card:", card.id, deleteErr);
+        }
+        throw attachErr;
+    }
 }
 
 // updates the notes and metrics on an existing issue card

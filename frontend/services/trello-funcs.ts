@@ -255,6 +255,16 @@ export class TrelloClient {
         }
     }
 
+    async deleteCard(cardID: string): Promise<void> {
+        try {
+            await this.client.delete(`/cards/${cardID}`);
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(`unable to delete card ${cardID}:`, getErrorMessage(error));
+            throw error;
+        }
+    }
+
     async addAttachmentToCard(cardID: string, url: string): Promise<void> {
         try {
             await this.client.post(`/cards/${cardID}/attachments`, { url });
