@@ -1,7 +1,13 @@
+import HomeHeader from "@/components/ui/header";
+import { getEventById } from "@/services/event-service";
+import { createIssueCard, updateIssueCard } from "@/services/trello-service";
+import { Feather } from "@expo/vector-icons";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    Dimensions,
     Image,
     ScrollView,
     StyleSheet,
@@ -9,28 +15,31 @@ import {
     TextInput,
     TouchableOpacity,
     View,
-    Dimensions,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams, Stack } from "expo-router";
-import HomeHeader from "@/components/ui/header";
-import { getEventById } from "@/services/event-service";
-import { createIssueCard, updateIssueCard } from "@/services/trello-service";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type PhotoSlot = "before" | "after";
 
 export default function TrailIssueDetailScreen() {
     const router = useRouter();
-    const { issueId, issueName, imageUrl, description, eventId, isNew, beforeImageUri, afterImageUri } = useLocalSearchParams<{
-		issueId?: string;
+    const {
+        issueId,
+        issueName,
+        imageUrl,
+        description,
+        eventId,
+        isNew,
+        beforeImageUri,
+        afterImageUri,
+    } = useLocalSearchParams<{
+        issueId?: string;
         issueName?: string;
-		imageUrl?: string;
+        imageUrl?: string;
         description?: string;
-		eventId?: string;
+        eventId?: string;
         isNew?: string;
-		beforeImageUri?: string;
-		afterImageUri?: string;
+        beforeImageUri?: string;
+        afterImageUri?: string;
     }>();
 
     function parseDescription(desc: string) {
@@ -42,7 +51,9 @@ export default function TrailIssueDetailScreen() {
         };
     }
 
-    const parsed = description ? parseDescription(description) : { notes: "", metrics: "" };
+    const parsed = description
+        ? parseDescription(description)
+        : { notes: "", metrics: "" };
     const [notes, setNotes] = useState(parsed.notes);
     const [metrics, setMetrics] = useState(parsed.metrics);
     const [trelloCardId, setTrelloCardId] = useState<string | null>(null);
@@ -51,19 +62,36 @@ export default function TrailIssueDetailScreen() {
     useEffect(() => {
         if (!eventId || isNew !== "true") return;
         getEventById(eventId)
-            .then((ev) => { if (ev) setTrelloCardId(ev.trelloCardId); })
+            .then((ev) => {
+                if (ev) setTrelloCardId(ev.trelloCardId);
+            })
             .catch((e) => console.error("Failed to load event:", e));
     }, [eventId, isNew]);
+
+    const saveReady =
+        isNew === "true" ? !!(issueName && trelloCardId) : !!issueId;
 
     const handleSave = async () => {
         const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
         setSaving(true);
         try {
             if (isNew === "true") {
-                if (!issueName || !trelloCardId) return;
-                await createIssueCard(issueName, notes, metrics, trelloCardId, API_KEY);
+                if (!issueName || !trelloCardId) {
+                    Alert.alert("Not ready", "Event data is still loading");
+                    return;
+                }
+                await createIssueCard(
+                    issueName,
+                    notes,
+                    metrics,
+                    trelloCardId,
+                    API_KEY,
+                );
             } else {
-                if (!issueId) return;
+                if (!issueId) {
+                    Alert.alert("Not ready", "Issue ID is missing");
+                    return;
+                }
                 await updateIssueCard(issueId, notes, metrics, API_KEY);
             }
             router.back();
@@ -81,10 +109,10 @@ export default function TrailIssueDetailScreen() {
         router.push({
             pathname: "/camera-view",
             params: {
-				activeIssueId: issueId,
+                activeIssueId: issueId,
                 mode: slot,
                 beforeImageUri: beforeImageUri ?? "",
-				eventId: eventId
+                eventId: eventId,
             },
         });
     };
@@ -95,8 +123,7 @@ export default function TrailIssueDetailScreen() {
             onPress={() => handlePhotoPress(slot)}
             activeOpacity={0.75}
             accessibilityLabel={`${label} photo`}
-            accessibilityRole="button"
-        >
+            accessibilityRole="button">
             {photos[slot] ? (
                 <Image
                     source={{ uri: photos[slot] as string }}
@@ -120,10 +147,10 @@ export default function TrailIssueDetailScreen() {
             <Stack.Screen options={{ headerShown: false }} />
             <ScrollView
                 style={styles.scroll}
-				contentContainerStyle={{ paddingBottom: 40 }}
+                contentContainerStyle={{ paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}>
-				{/* App Header */}
-				<HomeHeader />
+                {/* App Header */}
+                <HomeHeader />
                 {/* Cover Image */}
                 <View style={styles.coverContainer}>
                     {imageUrl ? (
@@ -142,9 +169,12 @@ export default function TrailIssueDetailScreen() {
                         onPress={() => router.back()}
                         activeOpacity={0.8}
                         accessibilityLabel="Go back"
-                        accessibilityRole="button"
-                    >
-                        <Feather name="chevron-left" size={22} color="#ffffff" />
+                        accessibilityRole="button">
+                        <Feather
+                            name="chevron-left"
+                            size={22}
+                            color="#ffffff"
+                        />
                     </TouchableOpacity>
                 </View>
 
@@ -161,8 +191,14 @@ export default function TrailIssueDetailScreen() {
                     {/* PHOTOS */}
                     <Text style={styles.sectionLabel}>PHOTOS</Text>
                     <View style={styles.photoRow}>
-                        <PhotoCard slot="before" label="Before" />
-                        <PhotoCard slot="after" label="After" />
+                        <PhotoCard
+                            slot="before"
+                            label="Before"
+                        />
+                        <PhotoCard
+                            slot="after"
+                            label="After"
+                        />
                     </View>
 
                     {/* NOTEPAD */}
@@ -191,13 +227,18 @@ export default function TrailIssueDetailScreen() {
 
                     {(isNew === "true" || issueId) && (
                         <TouchableOpacity
-                            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                            style={[
+                                styles.saveButton,
+                                (!saveReady || saving) && styles.saveButtonDisabled,
+                            ]}
                             onPress={handleSave}
-                            disabled={saving}>
+                            disabled={!saveReady || saving}>
                             {saving ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text style={styles.saveButtonText}>Save Issue</Text>
+                                <Text style={styles.saveButtonText}>
+                                    Save Issue
+                                </Text>
                             )}
                         </TouchableOpacity>
                     )}
