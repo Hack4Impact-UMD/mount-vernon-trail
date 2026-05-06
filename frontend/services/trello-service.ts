@@ -240,7 +240,7 @@ export async function createIssueCard(
     metrics: string,
     eventTrelloCardId: string,
     key: string,
-): Promise<void> {
+): Promise<string> {
     const trello = new TrelloClient(key);
     const boards = await trello.getBoards();
     const board = boards.find((b) => b.name === BOARD_NAME);
@@ -270,6 +270,7 @@ export async function createIssueCard(
         }
         throw attachErr;
     }
+    return card.id;
 }
 
 // updates the notes and metrics on an existing issue card

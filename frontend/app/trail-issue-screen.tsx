@@ -60,6 +60,7 @@ export default function TrailIssueDetailScreen() {
     const [notes, setNotes] = useState(initialNotes);
     const [metrics, setMetrics] = useState(initialMetrics);
     const [trelloCardId, setTrelloCardId] = useState<string | null>(null);
+    const [savedCardId, setSavedCardId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -84,27 +85,29 @@ export default function TrailIssueDetailScreen() {
         }
         setSaving(true);
         try {
-            if (isNew === "true") {
+            if (isNew === "true" && !savedCardId) {
                 if (!name.trim() || !trelloCardId) {
                     Alert.alert("Not ready", "Event data is still loading");
                     return;
                 }
-                await createIssueCard(
+                const newCardId = await createIssueCard(
                     name.trim(),
                     notes,
                     metrics,
                     trelloCardId,
                     API_KEY,
                 );
+                setSavedCardId(newCardId);
             } else {
-                if (!issueId) {
+                const targetId = savedCardId ?? issueId;
+                if (!targetId) {
                     Alert.alert("Not ready", "Issue ID is missing");
                     return;
                 }
                 const notesChanged =
                     notes !== initialNotes || metrics !== initialMetrics;
                 await updateIssueCard(
-                    issueId,
+                    targetId,
                     name,
                     API_KEY,
                     notesChanged ? notes : undefined,
@@ -122,11 +125,39 @@ export default function TrailIssueDetailScreen() {
     const status = "In Progress"; // hardcoded for now
     const photos = { before: beforeImageUri, after: afterImageUri };
 
-    const handlePhotoPress = (slot: PhotoSlot) => {
+    const handlePhotoPress = async (slot: PhotoSlot) => {
+        let activeId = savedCardId ?? issueId;
+
+        if (isNew === "true" && !savedCardId) {
+            const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
+            if (!API_KEY) {
+                Alert.alert("Configuration error", "Trello API key is missing.");
+                return;
+            }
+            if (!name.trim() || !trelloCardId) {
+                Alert.alert("Not ready", "Event data is still loading. Please try again.");
+                return;
+            }
+            try {
+                const newCardId = await createIssueCard(
+                    name.trim(),
+                    notes,
+                    metrics,
+                    trelloCardId,
+                    API_KEY,
+                );
+                setSavedCardId(newCardId);
+                activeId = newCardId;
+            } catch (e) {
+                Alert.alert("Failed to save issue", (e as Error).message);
+                return;
+            }
+        }
+
         router.push({
             pathname: "/camera-view",
             params: {
-                activeIssueId: issueId,
+                activeIssueId: activeId,
                 mode: slot,
                 beforeImageUri: beforeImageUri ?? "",
                 eventId: eventId,
