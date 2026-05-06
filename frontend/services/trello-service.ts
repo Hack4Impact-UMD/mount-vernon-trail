@@ -275,6 +275,7 @@ export async function createIssueCard(
 // updates the notes and metrics on an existing issue card
 export async function updateIssueCard(
     issueCardId: string,
+    name: string,
     notes: string,
     metrics: string,
     key: string,
@@ -285,7 +286,7 @@ export async function updateIssueCard(
         metrics.trim() ? `Metrics:\n${metrics.trim()}` : "",
     ].filter(Boolean);
     const description = descParts.join("\n\n");
-    await trello.replaceCardDescription(issueCardId, description);
+    await trello.updateCard(issueCardId, { name: name.trim(), desc: description });
 }
 
 // adds album link to a trello event card description

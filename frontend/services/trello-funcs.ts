@@ -307,6 +307,26 @@ export class TrelloClient {
         }
     }
 
+    async updateCard(
+        cardID: string,
+        fields: { name?: string; desc?: string },
+    ): Promise<Card> {
+        try {
+            const response = await this.client.put<Card>(
+                `/cards/${cardID}`,
+                fields,
+            );
+            return response.data;
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(
+                `unable to update card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
     async appendCardDescription(
         cardID: string,
         newDescription: string,

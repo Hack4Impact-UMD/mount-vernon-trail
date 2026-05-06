@@ -70,7 +70,7 @@ export default function TrailIssueDetailScreen() {
     }, [eventId, isNew]);
 
     const saveReady =
-        isNew === "true" ? !!(name.trim() && trelloCardId) : !!issueId;
+        isNew === "true" ? !!(name.trim() && trelloCardId) : !!(name.trim() && issueId);
 
     const handleSave = async () => {
         const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
@@ -93,7 +93,7 @@ export default function TrailIssueDetailScreen() {
                     Alert.alert("Not ready", "Issue ID is missing");
                     return;
                 }
-                await updateIssueCard(issueId, notes, metrics, API_KEY);
+                await updateIssueCard(issueId, name, notes, metrics, API_KEY);
             }
             router.back();
         } catch (e) {
@@ -187,17 +187,13 @@ export default function TrailIssueDetailScreen() {
                     </View>
 
                     {/* Issue title */}
-                    {isNew === "true" ? (
-                        <TextInput
-                            style={styles.issueTitleInput}
-                            value={name}
-                            onChangeText={setName}
-                            placeholder="Issue name"
-                            placeholderTextColor="#B0A8C0"
-                        />
-                    ) : (
-                        <Text style={styles.issueTitle}>{issueName}</Text>
-                    )}
+                    <TextInput
+                        style={styles.issueTitleInput}
+                        value={name}
+                        onChangeText={setName}
+                        placeholder="Issue name"
+                        placeholderTextColor="#B0A8C0"
+                    />
 
                     {/* PHOTOS */}
                     <Text style={styles.sectionLabel}>PHOTOS</Text>
