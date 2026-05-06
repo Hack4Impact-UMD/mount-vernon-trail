@@ -257,9 +257,9 @@ export async function createIssueCard(
     const description = descParts.join("\n\n");
 
     const card = await trello.createCard(list.id, name, description);
-    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
 
     try {
+        if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
         await trello.addAttachmentToCard(eventTrelloCardId, card.shortUrl);
     } catch (attachErr) {
         // compensate: delete the orphaned card so a retry won't create duplicates
@@ -276,17 +276,20 @@ export async function createIssueCard(
 export async function updateIssueCard(
     issueCardId: string,
     name: string,
-    notes: string,
-    metrics: string,
     key: string,
+    notes?: string,
+    metrics?: string,
 ): Promise<void> {
     const trello = new TrelloClient(key);
-    const descParts = [
-        notes.trim() ? `Notes:\n${notes.trim()}` : "",
-        metrics.trim() ? `Metrics:\n${metrics.trim()}` : "",
-    ].filter(Boolean);
-    const description = descParts.join("\n\n");
-    await trello.updateCard(issueCardId, { name: name.trim(), desc: description });
+    const fields: { name: string; desc?: string } = { name: name.trim() };
+    if (notes !== undefined || metrics !== undefined) {
+        const descParts = [
+            (notes ?? "").trim() ? `Notes:\n${(notes ?? "").trim()}` : "",
+            (metrics ?? "").trim() ? `Metrics:\n${(metrics ?? "").trim()}` : "",
+        ].filter(Boolean);
+        fields.desc = descParts.join("\n\n");
+    }
+    await trello.updateCard(issueCardId, fields);
 }
 
 // adds album link to a trello event card description

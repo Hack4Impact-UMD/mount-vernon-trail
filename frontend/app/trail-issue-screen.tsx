@@ -54,9 +54,11 @@ export default function TrailIssueDetailScreen() {
     const parsed = description
         ? parseDescription(description)
         : { notes: "", metrics: "" };
+    const initialNotes = parsed.notes;
+    const initialMetrics = parsed.metrics;
     const [name, setName] = useState(issueName ?? "");
-    const [notes, setNotes] = useState(parsed.notes);
-    const [metrics, setMetrics] = useState(parsed.metrics);
+    const [notes, setNotes] = useState(initialNotes);
+    const [metrics, setMetrics] = useState(initialMetrics);
     const [trelloCardId, setTrelloCardId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
@@ -70,10 +72,16 @@ export default function TrailIssueDetailScreen() {
     }, [eventId, isNew]);
 
     const saveReady =
-        isNew === "true" ? !!(name.trim() && trelloCardId) : !!(name.trim() && issueId);
+        isNew === "true"
+            ? !!(name.trim() && trelloCardId)
+            : !!(name.trim() && issueId);
 
     const handleSave = async () => {
-        const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
+        const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
+        if (!API_KEY) {
+            Alert.alert("Configuration error", "Trello API key is missing.");
+            return;
+        }
         setSaving(true);
         try {
             if (isNew === "true") {
@@ -93,7 +101,15 @@ export default function TrailIssueDetailScreen() {
                     Alert.alert("Not ready", "Issue ID is missing");
                     return;
                 }
-                await updateIssueCard(issueId, name, notes, metrics, API_KEY);
+                const notesChanged =
+                    notes !== initialNotes || metrics !== initialMetrics;
+                await updateIssueCard(
+                    issueId,
+                    name,
+                    API_KEY,
+                    notesChanged ? notes : undefined,
+                    notesChanged ? metrics : undefined,
+                );
             }
             router.back();
         } catch (e) {
@@ -236,7 +252,8 @@ export default function TrailIssueDetailScreen() {
                         <TouchableOpacity
                             style={[
                                 styles.saveButton,
-                                (!saveReady || saving) && styles.saveButtonDisabled,
+                                (!saveReady || saving) &&
+                                    styles.saveButtonDisabled,
                             ]}
                             onPress={handleSave}
                             disabled={!saveReady || saving}>
