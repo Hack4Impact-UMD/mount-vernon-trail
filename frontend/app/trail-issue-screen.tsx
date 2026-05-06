@@ -54,6 +54,7 @@ export default function TrailIssueDetailScreen() {
     const parsed = description
         ? parseDescription(description)
         : { notes: "", metrics: "" };
+    const [name, setName] = useState(issueName ?? "");
     const [notes, setNotes] = useState(parsed.notes);
     const [metrics, setMetrics] = useState(parsed.metrics);
     const [trelloCardId, setTrelloCardId] = useState<string | null>(null);
@@ -69,19 +70,19 @@ export default function TrailIssueDetailScreen() {
     }, [eventId, isNew]);
 
     const saveReady =
-        isNew === "true" ? !!(issueName && trelloCardId) : !!issueId;
+        isNew === "true" ? !!(name.trim() && trelloCardId) : !!issueId;
 
     const handleSave = async () => {
         const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
         setSaving(true);
         try {
             if (isNew === "true") {
-                if (!issueName || !trelloCardId) {
+                if (!name.trim() || !trelloCardId) {
                     Alert.alert("Not ready", "Event data is still loading");
                     return;
                 }
                 await createIssueCard(
-                    issueName,
+                    name.trim(),
                     notes,
                     metrics,
                     trelloCardId,
@@ -186,7 +187,17 @@ export default function TrailIssueDetailScreen() {
                     </View>
 
                     {/* Issue title */}
-                    <Text style={styles.issueTitle}>{issueName}</Text>
+                    {isNew === "true" ? (
+                        <TextInput
+                            style={styles.issueTitleInput}
+                            value={name}
+                            onChangeText={setName}
+                            placeholder="Issue name"
+                            placeholderTextColor="#B0A8C0"
+                        />
+                    ) : (
+                        <Text style={styles.issueTitle}>{issueName}</Text>
+                    )}
 
                     {/* PHOTOS */}
                     <Text style={styles.sectionLabel}>PHOTOS</Text>
@@ -308,6 +319,16 @@ const styles = StyleSheet.create({
         color: "#1A1A2E",
         marginBottom: 24,
         lineHeight: 28,
+    },
+    issueTitleInput: {
+        fontSize: 22,
+        fontWeight: "700",
+        color: "#1A1A2E",
+        marginBottom: 24,
+        lineHeight: 28,
+        borderBottomWidth: 1.5,
+        borderBottomColor: PURPLE_BORDER,
+        paddingBottom: 4,
     },
     sectionLabel: {
         fontSize: 12,
