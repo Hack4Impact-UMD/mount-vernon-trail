@@ -3,7 +3,7 @@ import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event, EventMetricsWithHours } from "@/services/event-service";
 import {
-	extractMetricsWithHours,
+    extractMetricsWithHours,
     getEventById,
     saveDraft,
 } from "@/services/event-service";
@@ -220,9 +220,9 @@ function MetricGridCard({ def, value, delay }: MetricGridCardProps) {
 
 export default function EventSummaryScreen() {
     const router = useRouter();
-    const { eventId, notepad } = useLocalSearchParams<{
+    const { eventId, notes } = useLocalSearchParams<{
         eventId: string;
-        notepad: string;
+        notes?: string;
     }>();
 
     const [saving, setSaving] = useState(false);
@@ -267,7 +267,7 @@ export default function EventSummaryScreen() {
         if (saving || savedDraft || savedTrello) return;
         setSaving(true);
         try {
-            await saveDraft(eventId, notepad);
+            await saveDraft(eventId, notes ?? event.notes ?? "");
             setSavedDraft(true);
         } catch {
             Alert.alert("Error", "Could not save event to drafts.");
@@ -376,7 +376,8 @@ export default function EventSummaryScreen() {
                     onPress={() => router.replace({
 						pathname: "/edit-draft",
 						params: {
-							eventId
+							eventId,
+                            notes: notes ?? event.notes ?? "",
 						}
 					})}
                     disabled={saving || savedDraft || savedTrello}>

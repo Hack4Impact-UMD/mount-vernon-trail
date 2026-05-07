@@ -82,7 +82,7 @@ export default function DraftsScreen() {
                         onPress={() =>
                             router.push({
                                 pathname: "/edit-draft",
-                                params: { eventId: draft.eventId },
+                                params: { eventId: draft.eventId, notes: draft.notes ?? "" },
                             })
                         }>
                         <View style={styles.rowIcon}>

@@ -321,3 +321,35 @@ export async function addAlbumLinkToCard(
 
     await trello.replaceCardDescription(cardID, replacedDescription);
 }
+
+// adds notes to a trello event card description
+export async function addNotesToCard(
+    cardID: string,
+    notes: string,
+    key: string,
+): Promise<void> {
+    const trello = new TrelloClient(key);
+    const card = await trello.getCard(cardID);
+    const currentDescription = card.desc ?? "";
+
+    const notesPattern = /\n\n📝 Notes:.*?(?=\n\n📷 Album Link:|$)/s;
+    const trimmedNotes = notes.trim();
+    const newNotesText = `\n\n📝 Notes:\n${trimmedNotes}`;
+
+    let replacedDescription: string;
+    if (
+        currentDescription.includes("📷 Album Link:") &&
+        notesPattern.test(currentDescription)
+    ) {
+        // replace existing notes to make operation idempotent
+        // note: this makes the assumption that notes are followed by the album link
+        replacedDescription = currentDescription.replace(
+            notesPattern,
+            newNotesText,
+        );
+    } else {
+        // append new notes if none exists or if notes exist but there is no album link (position is unknown so just append to end)
+        replacedDescription = currentDescription + newNotesText;
+    }
+    await trello.replaceCardDescription(cardID, replacedDescription);
+}

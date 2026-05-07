@@ -1,16 +1,16 @@
 import { auth } from "@/config/firebase";
 import {
-	collection,
-	doc,
-	getDoc,
-	getDocs,
-	getFirestore,
-	orderBy,
-	query,
-	Timestamp,
-	updateDoc,
-	where,
-	writeBatch,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    getFirestore,
+    orderBy,
+    query,
+    Timestamp,
+    updateDoc,
+    where,
+    writeBatch,
 } from "firebase/firestore";
 
 // per event metrics collected during trail event
@@ -93,7 +93,6 @@ export interface Event {
     toolHaulers: string;
     gloverLover: string;
     notes: string;
-    notepad?: string;
     publishedAt?: Timestamp;
     metrics?: EventMetrics;
 }
@@ -269,7 +268,7 @@ export async function setEventInactive(eventId: string): Promise<void> {
 // Save a completed event as a draft instead of immediately publishing
 export async function saveDraft(
     eventId: string,
-    notepad?: string,
+    notes?: string,
 ): Promise<void> {
     const db = getFirestore();
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
@@ -277,7 +276,18 @@ export async function saveDraft(
         isActive: false,
         endDate: Timestamp.now(),
         savedAsDraftAt: Timestamp.now(),
-        ...(notepad !== undefined ? { notepad } : {}),
+        ...(notes !== undefined ? { notes } : {}),
+    });
+}
+
+// Update only the notes field for an event
+export async function updateEventNotes(
+    eventId: string,
+    notes: string,
+): Promise<void> {
+    const db = getFirestore();
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
+        notes,
     });
 }
 
@@ -316,5 +326,5 @@ export function extractMetricsWithHours(event: Event): EventMetricsWithHours {
                 ).toFixed(1),
             );
         })(),
-    }
-};
+    };
+}
