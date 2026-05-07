@@ -15,8 +15,8 @@ import {
 } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -33,6 +33,14 @@ const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 export default function EditDraftScreen() {
     const router = useRouter();
     const { eventId } = useLocalSearchParams<{ eventId: string }>();
+
+    const pressedIssueRef = useRef(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    useFocusEffect(useCallback(() => {
+        pressedIssueRef.current = false;
+        setRefreshKey((k) => k + 1);
+    }, []));
 
     const [event, setEvent] = useState<Event>();
     const [loading, setLoading] = useState(true);
@@ -96,7 +104,7 @@ export default function EditDraftScreen() {
         return () => {
             cancelled = true;
         };
-    }, [event]);
+    }, [event, refreshKey]);
 
     const handleSaveDraft = async () => {
         if (!event || savingDraft || publishing) return;
@@ -161,6 +169,21 @@ export default function EditDraftScreen() {
                                 name={issue.name}
                                 date={issue.creationDate}
                                 imageUrl={issue.imageUrl}
+                                onPress={() => {
+                                    if (pressedIssueRef.current) return;
+                                    pressedIssueRef.current = true;
+                                    router.push({
+                                        pathname: "/trail-issue-screen",
+                                        params: {
+                                            issueId: issue.id,
+                                            issueName: issue.name,
+                                            imageUrl: issue.imageUrl ?? undefined,
+                                            description: (issue as any).description,
+                                            eventId: event.eventId,
+                                            isDraft: "true",
+                                        },
+                                    });
+                                }}
                             />
                         ))}
                         {!issuesError && issues.length === 0 && (
