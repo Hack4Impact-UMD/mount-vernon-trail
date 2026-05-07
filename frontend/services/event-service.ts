@@ -1,16 +1,17 @@
 import { auth } from "@/config/firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-	collection,
-	doc,
-	getDoc,
-	getDocs,
-	getFirestore,
-	orderBy,
-	query,
-	Timestamp,
-	updateDoc,
-	where,
-	writeBatch,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    getFirestore,
+    orderBy,
+    query,
+    Timestamp,
+    updateDoc,
+    where,
+    writeBatch,
 } from "firebase/firestore";
 
 // per event metrics collected during trail event
@@ -316,5 +317,21 @@ export function extractMetricsWithHours(event: Event): EventMetricsWithHours {
                 ).toFixed(1),
             );
         })(),
-    }
-};
+    };
+}
+
+const ACTIVE_EVENT_KEY = "active_event_trello_id";
+
+export async function saveActiveEventLocally(
+    trelloCardId: string,
+): Promise<void> {
+    await AsyncStorage.setItem(ACTIVE_EVENT_KEY, trelloCardId);
+}
+
+export async function clearActiveEventLocally(): Promise<void> {
+    await AsyncStorage.removeItem(ACTIVE_EVENT_KEY);
+}
+
+export async function getLocalActiveEventId(): Promise<string | null> {
+    return AsyncStorage.getItem(ACTIVE_EVENT_KEY);
+}
