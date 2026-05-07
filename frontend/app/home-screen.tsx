@@ -14,8 +14,8 @@ import { fetchEventCards } from "@/services/trello-service";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { getEventByTrelloCardId, startEvent } from "@/services/event-service";
-import { Stack, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { Stack, useRouter, useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
@@ -40,21 +40,24 @@ export default function HomeScreen() {
         }
     }
 
-    useEffect(() => {
-        if (!isAuthenticated || !API_KEY) {
-            setEventsLoading(false);
-            return;
-        }
-        setEventsLoading(true);
-        fetchEventCards(API_KEY, "upcoming")
-            .then(setEvents)
-            .catch((e) => setEventsError(e.message))
-            .finally(() => setEventsLoading(false));
-        fetchEventCards(API_KEY, "past")
-            .then(setPastEvents)
-            .catch((e) => setPastEventsError(e.message))
-            .finally(() => setPastEventsLoading(false));
-    }, [isAuthenticated]);
+    useFocusEffect(
+        useCallback(() => {
+            if (!isAuthenticated || !API_KEY) {
+                setEventsLoading(false);
+                return;
+            }
+            setEventsLoading(true);
+            setPastEventsLoading(true);
+            fetchEventCards(API_KEY, "upcoming")
+                .then(setEvents)
+                .catch((e) => setEventsError(e.message))
+                .finally(() => setEventsLoading(false));
+            fetchEventCards(API_KEY, "past")
+                .then(setPastEvents)
+                .catch((e) => setPastEventsError(e.message))
+                .finally(() => setPastEventsLoading(false));
+        }, [isAuthenticated])
+    );
 
     if (!isAuthenticated) {
         return (
@@ -121,7 +124,10 @@ export default function HomeScreen() {
                     showsVerticalScrollIndicator={false}>
                     <Header showGreeting />
                     <View style={styles.cardWrapper}>
-                        <TakeAfterPicture />
+                        <TakeAfterPicture onPress={() => router.push({
+                            pathname: "/camera-view",
+                            params: { mode: 'after' }
+                        })} />
                         <MakeBeforeAfterGraphic onPress={() => router.push("/before-after-graphic")} />
                         {isAdmin && (
                             <CreateNewEvent onPress={() => router.push("/setup-event")} />
