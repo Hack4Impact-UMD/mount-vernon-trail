@@ -275,9 +275,7 @@ export async function addNotesToCard(
     const newNotesText = `\n\n📝 Notes:\n${trimmedNotes}`;
 
     let replacedDescription: string;
-    if (trimmedNotes === "") {
-        replacedDescription = currentDescription;
-    } else if (
+    if (
         currentDescription.includes("📷 Album Link:") &&
         notesPattern.test(currentDescription)
     ) {

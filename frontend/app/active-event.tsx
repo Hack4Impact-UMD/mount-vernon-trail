@@ -38,9 +38,7 @@ export default function ActiveEventScreen() {
         if (!event) return;
         setEnding(true);
         try {
-            if (notes && notes.trim() !== "") {
-                await updateEventNotes(event.eventId, notes.trim());
-            }
+            await updateEventNotes(event.eventId, notes?.trim() ?? "");
             await setEventInactive(event.eventId);
             setModalVisible(false);
             router.replace({

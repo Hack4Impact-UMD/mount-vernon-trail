@@ -76,9 +76,7 @@ export default function TrailEventHeader({
     const handleConfirmEnd = async (notes?: string) => {
         setStopping(true);
         try {
-            if (notes && notes.trim() !== "") {
-                await saveDraft(event.eventId, notes);
-            }
+            await saveDraft(event.eventId, notes?.trim() ?? "");
             await setEventInactive(event.eventId);
             setEndModalVisible(false);
             onStop?.();
