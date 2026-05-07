@@ -1,4 +1,3 @@
-import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
@@ -290,7 +289,6 @@ export default function TrailDocumentScreen() {
 
                     </View>
                 </ScrollView>
-                <BottomNav />
             </View>
 
         </>
