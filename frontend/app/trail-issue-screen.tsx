@@ -1,5 +1,13 @@
-import React, { useState } from "react";
+import HomeHeader from "@/components/ui/header";
+import { getEventById } from "@/services/event-service";
+import { createIssueCard, updateIssueCard } from "@/services/trello-service";
+import { Feather } from "@expo/vector-icons";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
+    ActivityIndicator,
+    Alert,
+    Dimensions,
     Image,
     ScrollView,
     StyleSheet,
@@ -7,40 +15,152 @@ import {
     TextInput,
     TouchableOpacity,
     View,
-    Dimensions,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams, Stack } from "expo-router";
-import HomeHeader from "@/components/ui/header";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type PhotoSlot = "before" | "after";
 
 export default function TrailIssueDetailScreen() {
     const router = useRouter();
-    const { issueId, issueName, imageUrl, eventId, beforeImageUri, afterImageUri } = useLocalSearchParams<{
-		issueId?: string;
+    const {
+        issueId,
+        issueName,
+        imageUrl,
+        description,
+        eventId,
+        isNew,
+        beforeImageUri,
+        afterImageUri,
+    } = useLocalSearchParams<{
+        issueId?: string;
         issueName?: string;
-		imageUrl?: string;
-		eventId?: string;
+        imageUrl?: string;
+        description?: string;
+        eventId?: string;
         isNew?: string;
-		beforeImageUri?: string;
-		afterImageUri?: string;
+        beforeImageUri?: string;
+        afterImageUri?: string;
     }>();
-    const [notes, setNotes] = useState("");
-    const [metrics, setMetrics] = useState("");
+
+    function parseDescription(desc: string) {
+        const notesMatch = /Notes:\n([\s\S]*?)(?:\n\nMetrics:|$)/.exec(desc);
+        const metricsMatch = /Metrics:\n([\s\S]*)$/.exec(desc);
+        return {
+            notes: notesMatch?.[1]?.trim() ?? "",
+            metrics: metricsMatch?.[1]?.trim() ?? "",
+        };
+    }
+
+    const parsed = description
+        ? parseDescription(description)
+        : { notes: "", metrics: "" };
+    const initialNotes = parsed.notes;
+    const initialMetrics = parsed.metrics;
+    const [name, setName] = useState(issueName ?? "");
+    const [notes, setNotes] = useState(initialNotes);
+    const [metrics, setMetrics] = useState(initialMetrics);
+    const [trelloCardId, setTrelloCardId] = useState<string | null>(null);
+    const [savedCardId, setSavedCardId] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (!eventId || isNew !== "true") return;
+        getEventById(eventId)
+            .then((ev) => {
+                if (ev) setTrelloCardId(ev.trelloCardId);
+            })
+            .catch((e) => console.error("Failed to load event:", e));
+    }, [eventId, isNew]);
+
+    const saveReady =
+        isNew === "true"
+            ? !!(name.trim() && trelloCardId)
+            : !!(name.trim() && issueId);
+
+    const handleSave = async () => {
+        const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
+        if (!API_KEY) {
+            Alert.alert("Configuration error", "Trello API key is missing.");
+            return;
+        }
+        setSaving(true);
+        try {
+            if (isNew === "true" && !savedCardId) {
+                if (!name.trim() || !trelloCardId) {
+                    Alert.alert("Not ready", "Event data is still loading");
+                    return;
+                }
+                const newCardId = await createIssueCard(
+                    name.trim(),
+                    notes,
+                    metrics,
+                    trelloCardId,
+                    API_KEY,
+                );
+                setSavedCardId(newCardId);
+            } else {
+                const targetId = savedCardId ?? issueId;
+                if (!targetId) {
+                    Alert.alert("Not ready", "Issue ID is missing");
+                    return;
+                }
+                const notesChanged =
+                    notes !== initialNotes || metrics !== initialMetrics;
+                await updateIssueCard(
+                    targetId,
+                    name,
+                    API_KEY,
+                    notesChanged ? notes : undefined,
+                    notesChanged ? metrics : undefined,
+                );
+            }
+            router.back();
+        } catch (e) {
+            Alert.alert("Failed to save issue", (e as Error).message);
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const status = "In Progress"; // hardcoded for now
     const photos = { before: beforeImageUri, after: afterImageUri };
 
-    const handlePhotoPress = (slot: PhotoSlot) => {
+    const handlePhotoPress = async (slot: PhotoSlot) => {
+        let activeId = savedCardId ?? issueId;
+
+        if (isNew === "true" && !savedCardId) {
+            const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
+            if (!API_KEY) {
+                Alert.alert("Configuration error", "Trello API key is missing.");
+                return;
+            }
+            if (!name.trim() || !trelloCardId) {
+                Alert.alert("Not ready", "Event data is still loading. Please try again.");
+                return;
+            }
+            try {
+                const newCardId = await createIssueCard(
+                    name.trim(),
+                    notes,
+                    metrics,
+                    trelloCardId,
+                    API_KEY,
+                );
+                setSavedCardId(newCardId);
+                activeId = newCardId;
+            } catch (e) {
+                Alert.alert("Failed to save issue", (e as Error).message);
+                return;
+            }
+        }
+
         router.push({
             pathname: "/camera-view",
             params: {
-				activeIssueId: issueId,
+                activeIssueId: activeId,
                 mode: slot,
                 beforeImageUri: beforeImageUri ?? "",
-				eventId: eventId
+                eventId: eventId,
             },
         });
     };
@@ -51,8 +171,7 @@ export default function TrailIssueDetailScreen() {
             onPress={() => handlePhotoPress(slot)}
             activeOpacity={0.75}
             accessibilityLabel={`${label} photo`}
-            accessibilityRole="button"
-        >
+            accessibilityRole="button">
             {photos[slot] ? (
                 <Image
                     source={{ uri: photos[slot] as string }}
@@ -76,10 +195,10 @@ export default function TrailIssueDetailScreen() {
             <Stack.Screen options={{ headerShown: false }} />
             <ScrollView
                 style={styles.scroll}
-				contentContainerStyle={{ paddingBottom: 40 }}
+                contentContainerStyle={{ paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}>
-				{/* App Header */}
-				<HomeHeader />
+                {/* App Header */}
+                <HomeHeader />
                 {/* Cover Image */}
                 <View style={styles.coverContainer}>
                     {imageUrl ? (
@@ -98,9 +217,12 @@ export default function TrailIssueDetailScreen() {
                         onPress={() => router.back()}
                         activeOpacity={0.8}
                         accessibilityLabel="Go back"
-                        accessibilityRole="button"
-                    >
-                        <Feather name="chevron-left" size={22} color="#ffffff" />
+                        accessibilityRole="button">
+                        <Feather
+                            name="chevron-left"
+                            size={22}
+                            color="#ffffff"
+                        />
                     </TouchableOpacity>
                 </View>
 
@@ -112,13 +234,25 @@ export default function TrailIssueDetailScreen() {
                     </View>
 
                     {/* Issue title */}
-                    <Text style={styles.issueTitle}>{issueName}</Text>
+                    <TextInput
+                        style={styles.issueTitleInput}
+                        value={name}
+                        onChangeText={setName}
+                        placeholder="Issue name"
+                        placeholderTextColor="#B0A8C0"
+                    />
 
                     {/* PHOTOS */}
                     <Text style={styles.sectionLabel}>PHOTOS</Text>
                     <View style={styles.photoRow}>
-                        <PhotoCard slot="before" label="Before" />
-                        <PhotoCard slot="after" label="After" />
+                        <PhotoCard
+                            slot="before"
+                            label="Before"
+                        />
+                        <PhotoCard
+                            slot="after"
+                            label="After"
+                        />
                     </View>
 
                     {/* NOTEPAD */}
@@ -144,6 +278,25 @@ export default function TrailIssueDetailScreen() {
                         multiline
                         textAlignVertical="top"
                     />
+
+                    {(isNew === "true" || issueId) && (
+                        <TouchableOpacity
+                            style={[
+                                styles.saveButton,
+                                (!saveReady || saving) &&
+                                    styles.saveButtonDisabled,
+                            ]}
+                            onPress={handleSave}
+                            disabled={!saveReady || saving}>
+                            {saving ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.saveButtonText}>
+                                    Save Issue
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    )}
                 </View>
             </ScrollView>
         </View>
@@ -211,6 +364,16 @@ const styles = StyleSheet.create({
         marginBottom: 24,
         lineHeight: 28,
     },
+    issueTitleInput: {
+        fontSize: 22,
+        fontWeight: "700",
+        color: "#1A1A2E",
+        marginBottom: 24,
+        lineHeight: 28,
+        borderBottomWidth: 1.5,
+        borderBottomColor: PURPLE_BORDER,
+        paddingBottom: 4,
+    },
     sectionLabel: {
         fontSize: 12,
         fontWeight: "700",
@@ -264,5 +427,20 @@ const styles = StyleSheet.create({
         minHeight: 100,
         lineHeight: 22,
         marginBottom: 24,
+    },
+    saveButton: {
+        backgroundColor: PURPLE,
+        borderRadius: 14,
+        paddingVertical: 16,
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    saveButtonDisabled: {
+        opacity: 0.6,
+    },
+    saveButtonText: {
+        color: "#fff",
+        fontWeight: "700",
+        fontSize: 16,
     },
 });

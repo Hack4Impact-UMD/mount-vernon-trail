@@ -233,6 +233,66 @@ export async function moveCardAttachmentsToCompleted(
     }
 }
 
+// creates a new issue card in the Trail Issues list and attaches it to the event card
+export async function createIssueCard(
+    name: string,
+    notes: string,
+    metrics: string,
+    eventTrelloCardId: string,
+    key: string,
+): Promise<string> {
+    const trello = new TrelloClient(key);
+    const boards = await trello.getBoards();
+    const board = boards.find((b) => b.name === BOARD_NAME);
+    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+
+    const lists = await trello.getLists(board.id);
+    const list = lists.find((l) => l.name === TRAIL_ISSUES_LIST);
+    if (!list) throw new Error(`List "${TRAIL_ISSUES_LIST}" not found`);
+
+    const descParts = [
+        notes.trim() ? `Notes:\n${notes.trim()}` : "",
+        metrics.trim() ? `Metrics:\n${metrics.trim()}` : "",
+    ].filter(Boolean);
+    const description = descParts.join("\n\n");
+
+    const card = await trello.createCard(list.id, name, description);
+
+    try {
+        if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+        await trello.addAttachmentToCard(eventTrelloCardId, card.shortUrl);
+    } catch (attachErr) {
+        // compensate: delete the orphaned card so a retry won't create duplicates
+        try {
+            await trello.deleteCard(card.id);
+        } catch (deleteErr) {
+            console.error("Failed to clean up orphaned issue card:", card.id, deleteErr);
+        }
+        throw attachErr;
+    }
+    return card.id;
+}
+
+// updates the notes and metrics on an existing issue card
+export async function updateIssueCard(
+    issueCardId: string,
+    name: string,
+    key: string,
+    notes?: string,
+    metrics?: string,
+): Promise<void> {
+    const trello = new TrelloClient(key);
+    const fields: { name: string; desc?: string } = { name: name.trim() };
+    if (notes !== undefined || metrics !== undefined) {
+        const descParts = [
+            (notes ?? "").trim() ? `Notes:\n${(notes ?? "").trim()}` : "",
+            (metrics ?? "").trim() ? `Metrics:\n${(metrics ?? "").trim()}` : "",
+        ].filter(Boolean);
+        fields.desc = descParts.join("\n\n");
+    }
+    await trello.updateCard(issueCardId, fields);
+}
+
 // adds album link to a trello event card description
 export async function addAlbumLinkToCard(
     cardID: string,

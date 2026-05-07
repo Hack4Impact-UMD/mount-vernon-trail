@@ -255,6 +255,26 @@ export class TrelloClient {
         }
     }
 
+    async deleteCard(cardID: string): Promise<void> {
+        try {
+            await this.client.delete(`/cards/${cardID}`);
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(`unable to delete card ${cardID}:`, getErrorMessage(error));
+            throw error;
+        }
+    }
+
+    async addAttachmentToCard(cardID: string, url: string): Promise<void> {
+        try {
+            await this.client.post(`/cards/${cardID}/attachments`, { url });
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(`unable to add attachment to card ${cardID}:`, getErrorMessage(error));
+            throw error;
+        }
+    }
+
     async moveCardToList(cardID: string, listID: string): Promise<void> {
         try {
             await this.client.put(`/cards/${cardID}`, { idList: listID });
@@ -276,6 +296,26 @@ export class TrelloClient {
             const response = await this.client.put<Card>(`/cards/${cardID}`, {
                 desc: newDescription,
             });
+            return response.data;
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(
+                `unable to update card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    async updateCard(
+        cardID: string,
+        fields: { name?: string; desc?: string },
+    ): Promise<Card> {
+        try {
+            const response = await this.client.put<Card>(
+                `/cards/${cardID}`,
+                fields,
+            );
             return response.data;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;
