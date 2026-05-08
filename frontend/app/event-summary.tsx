@@ -1,4 +1,3 @@
-import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event, EventMetricsWithHours } from "@/services/event-service";
@@ -412,16 +411,24 @@ export default function EventSummaryScreen() {
                     <Pressable
                         style={styles.actionCard}
                         onPress={() => router.replace("/home-screen")}>
+                        <View style={styles.actionIconWrap}>
+                            <MaterialCommunityIcons
+                                name="home-outline"
+                                size={24}
+                                color="#666"
+                            />
+                        </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.actionCardTitle}>
                                 Back to home screen
+                            </Text>
+                            <Text style={styles.actionCardSubtitle}>
+                                Return to the main menu
                             </Text>
                         </View>
                     </Pressable>
                 )}
             </ScrollView>
-
-            <BottomNav />
         </View>
     );
 }
