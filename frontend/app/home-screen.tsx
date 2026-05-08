@@ -20,8 +20,8 @@ import {
     startEvent,
 } from "@/services/event-service";
 import { fetchEventCards } from "@/services/trello-service";
-import { Stack, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
@@ -54,21 +54,25 @@ export default function HomeScreen() {
         }
     };
 
-    useEffect(() => {
-        if (!isAuthenticated || !API_KEY) {
-            setEventsLoading(false);
-            return;
-        }
-        setEventsLoading(true);
-        fetchEventCards(API_KEY, "upcoming")
-            .then(setEvents)
-            .catch((e) => setEventsError(e.message))
-            .finally(() => setEventsLoading(false));
-        fetchEventCards(API_KEY, "past")
-            .then(setPastEvents)
-            .catch((e) => setPastEventsError(e.message))
-            .finally(() => setPastEventsLoading(false));
-    }, [isAuthenticated]);
+    useFocusEffect(
+        useCallback(() => {
+            if (!isAuthenticated || !API_KEY) {
+                setEventsLoading(false);
+                setPastEventsLoading(false);
+                return;
+            }
+            setEventsLoading(true);
+            setPastEventsLoading(true);
+            fetchEventCards(API_KEY, "upcoming")
+                .then(setEvents)
+                .catch((e) => setEventsError(e.message))
+                .finally(() => setEventsLoading(false));
+            fetchEventCards(API_KEY, "past")
+                .then(setPastEvents)
+                .catch((e) => setPastEventsError(e.message))
+                .finally(() => setPastEventsLoading(false));
+        }, [isAuthenticated]),
+    );
 
     useEffect(() => {
         if (!isAuthenticated) return;
