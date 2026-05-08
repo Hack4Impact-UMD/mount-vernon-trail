@@ -1,7 +1,6 @@
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import { saveDraft, setEventInactive } from "@/services/event-service";
-import { fetchCardUrl } from "@/services/trello-service";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Square } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
@@ -9,7 +8,6 @@ import {
     Alert,
     Linking,
     Pressable,
-    Share,
     StyleSheet,
     Text,
     View,
@@ -87,19 +85,6 @@ export default function TrailEventHeader({
         }
     };
 
-    const handleShareEvent = async () => {
-        if (!event.trelloCardId) return;
-        try {
-            const url = await fetchCardUrl(
-                event.trelloCardId,
-                API_KEY,
-            );
-            await Share.share({ message: url });
-        } catch (e) {
-            console.error("Failed to share event:", e);
-        }
-    };
-
     if (variant === "summary") {
         return (
             <View style={docStyles.container}>
@@ -131,22 +116,6 @@ export default function TrailEventHeader({
                             </Text>
                         </Pressable>
                     ) : null}
-                    <Pressable
-                        style={docStyles.actionRow}
-                        onPress={handleShareEvent}>
-                        <View
-                            style={[
-                                docStyles.iconCircle,
-                                { backgroundColor: Palette.blue },
-                            ]}>
-                            <MaterialIcons
-                                name="send"
-                                size={18}
-                                color="#fff"
-                            />
-                        </View>
-                        <Text style={docStyles.actionLabel}>Share event</Text>
-                    </Pressable>
                 </View>
             </View>
         );
@@ -159,7 +128,9 @@ export default function TrailEventHeader({
                     <View style={docStyles.left}>
                         <View style={docStyles.badgeRow}>
                             <View style={docStyles.badge}>
-                                <Text style={docStyles.badgeText}>In Progress</Text>
+                                <Text style={docStyles.badgeText}>
+                                    In Progress
+                                </Text>
                             </View>
                             <Text style={docStyles.duration}>
                                 {formatDuration(elapsed)}
@@ -179,7 +150,9 @@ export default function TrailEventHeader({
                                     fill="#fff"
                                 />
                             </Pressable>
-                            <Text style={docStyles.eventName}>{event.title}</Text>
+                            <Text style={docStyles.eventName}>
+                                {event.title}
+                            </Text>
                         </View>
                     </View>
 
@@ -204,22 +177,6 @@ export default function TrailEventHeader({
                                 </Text>
                             </Pressable>
                         ) : null}
-                        <Pressable
-                            style={docStyles.actionRow}
-                            onPress={handleShareEvent}>
-                            <View
-                                style={[
-                                    docStyles.iconCircle,
-                                    { backgroundColor: Palette.blue },
-                                ]}>
-                                <MaterialIcons
-                                    name="send"
-                                    size={18}
-                                    color="#fff"
-                                />
-                            </View>
-                            <Text style={docStyles.actionLabel}>Share event</Text>
-                        </Pressable>
                     </View>
                 </View>
                 <EndEventModal
@@ -264,7 +221,9 @@ export default function TrailEventHeader({
                         <Pressable
                             style={styles.actionButton}
                             onPress={() => Linking.openURL(event.albumUrl)}>
-                            <Text style={styles.actionButtonText}>View Album</Text>
+                            <Text style={styles.actionButtonText}>
+                                View Album
+                            </Text>
                         </Pressable>
                     ) : null}
                 </View>

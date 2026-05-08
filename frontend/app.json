@@ -11,7 +11,7 @@
       "com.googleusercontent.apps.405328478335-4gr2n100eq9g8tg8m4r89tm26gas4rcs"
     ],
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+   
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.mountvernontrail"
@@ -23,13 +23,25 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
+      
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.mountvernontrail"
+      "package": "com.hack4impact.mountvernontrail",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
+    },
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "NEVER"
     },
     "plugins": [
       "expo-router",
@@ -60,6 +72,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a86e295c-87e9-4b44-affe-e9cbc3681824"
+      }
     }
   }
 }
