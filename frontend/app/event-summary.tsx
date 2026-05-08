@@ -1,25 +1,24 @@
-import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event, EventMetricsWithHours } from "@/services/event-service";
 import {
-    clearActiveEventLocally,
-    extractMetricsWithHours,
-    getEventById,
-    saveDraft,
+	clearActiveEventLocally,
+	extractMetricsWithHours,
+	getEventById,
+	saveDraft,
 } from "@/services/event-service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+	ActivityIndicator,
+	Alert,
+	Animated,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
 } from "react-native";
 
 const PURPLE = "#693894";
@@ -221,9 +220,9 @@ function MetricGridCard({ def, value, delay }: MetricGridCardProps) {
 
 export default function EventSummaryScreen() {
     const router = useRouter();
-    const { eventId, notepad } = useLocalSearchParams<{
+    const { eventId, notes } = useLocalSearchParams<{
         eventId: string;
-        notepad: string;
+        notes?: string;
     }>();
 
     const [saving, setSaving] = useState(false);
@@ -268,7 +267,7 @@ export default function EventSummaryScreen() {
         if (saving || savedDraft || savedTrello) return;
         setSaving(true);
         try {
-            await saveDraft(eventId, notepad);
+            await saveDraft(eventId, notes ?? event.notes ?? "");
             await clearActiveEventLocally();
             setSavedDraft(true);
         } catch {
@@ -383,7 +382,10 @@ export default function EventSummaryScreen() {
                         }
                         router.replace({
                             pathname: "/edit-draft",
-                            params: { eventId },
+                            params: {
+                                eventId,
+                                notes: notes ?? event.notes ?? "",
+                            },
                         });
                     }}
                     disabled={saving || savedDraft || savedTrello}>
@@ -418,16 +420,24 @@ export default function EventSummaryScreen() {
                     <Pressable
                         style={styles.actionCard}
                         onPress={() => router.replace("/home-screen")}>
+                        <View style={styles.actionIconWrap}>
+                            <MaterialCommunityIcons
+                                name="home-outline"
+                                size={24}
+                                color="#666"
+                            />
+                        </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.actionCardTitle}>
                                 Back to home screen
+                            </Text>
+                            <Text style={styles.actionCardSubtitle}>
+                                Return to the main menu
                             </Text>
                         </View>
                     </Pressable>
                 )}
             </ScrollView>
-
-            <BottomNav />
         </View>
     );
 }

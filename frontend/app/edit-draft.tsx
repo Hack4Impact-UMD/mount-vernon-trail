@@ -9,14 +9,15 @@ import type { Event } from "@/services/event-service";
 import { getEventById, publishEvent, saveDraft } from "@/services/event-service";
 import { TrelloClient } from "@/services/trello-funcs";
 import {
+    addNotesToCard,
     fetchDocumentTrailIssues,
     moveCardAttachmentsToCompleted,
     moveCardToCompleted
 } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -34,12 +35,20 @@ export default function EditDraftScreen() {
     const router = useRouter();
     const { eventId } = useLocalSearchParams<{ eventId: string }>();
 
+    const pressedIssueRef = useRef(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    useFocusEffect(useCallback(() => {
+        pressedIssueRef.current = false;
+        setRefreshKey((k) => k + 1);
+    }, []));
+
     const [event, setEvent] = useState<Event>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
     const [issues, setIssues] = useState<TrailDocumentIssueItem[]>([]);
     const [issuesError, setIssuesError] = useState<string | null>(null);
-    const [notepad, setNotepad] = useState("");
+    const [notes, setNotes] = useState("");
     const [savingDraft, setSavingDraft] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [publishModalVisible, setPublishModalVisible] = useState(false);
@@ -57,7 +66,7 @@ export default function EditDraftScreen() {
                     return;
                 }
                 setEvent(e);
-                setNotepad(e.notepad ?? "");
+                setNotes(e.notes ?? "");
             })
             .catch((e) => setError((e as Error).message))
             .finally(() => setLoading(false));
@@ -96,13 +105,13 @@ export default function EditDraftScreen() {
         return () => {
             cancelled = true;
         };
-    }, [event]);
+    }, [event, refreshKey]);
 
     const handleSaveDraft = async () => {
         if (!event || savingDraft || publishing) return;
         setSavingDraft(true);
         try {
-            await saveDraft(event.eventId, notepad);
+            await saveDraft(event.eventId, notes);
             router.replace("/drafts");
         } catch (e) {
             Alert.alert("Save failed", (e as Error).message);
@@ -118,8 +127,9 @@ export default function EditDraftScreen() {
         }
         setPublishing(true);
         try {
-            await publishEvent(event.eventId);
+            await addNotesToCard(event.trelloCardId, notes, API_KEY);
             await moveCardToCompleted(event.trelloCardId, API_KEY);
+            await publishEvent(event.eventId);
             await moveCardAttachmentsToCompleted(event.trelloCardId, API_KEY);
             setPublishModalVisible(false);
             router.replace("/home-screen");
@@ -161,6 +171,21 @@ export default function EditDraftScreen() {
                                 name={issue.name}
                                 date={issue.creationDate}
                                 imageUrl={issue.imageUrl}
+                                onPress={() => {
+                                    if (pressedIssueRef.current) return;
+                                    pressedIssueRef.current = true;
+                                    router.push({
+                                        pathname: "/trail-issue-screen",
+                                        params: {
+                                            issueId: issue.id,
+                                            issueName: issue.name,
+                                            imageUrl: issue.imageUrl ?? undefined,
+                                            description: (issue as any).description,
+                                            eventId: event.eventId,
+                                            isDraft: "true",
+                                        },
+                                    });
+                                }}
                             />
                         ))}
                         {!issuesError && issues.length === 0 && (
@@ -174,8 +199,8 @@ export default function EditDraftScreen() {
                     <Text style={styles.sectionTitle}>Notepad</Text>
                     <TextInput
                         style={styles.notepad}
-                        value={notepad}
-                        onChangeText={setNotepad}
+                        value={notes}
+                        onChangeText={setNotes}
                         multiline
                         placeholder="Add notes about this event"
                         placeholderTextColor="#bbb"
