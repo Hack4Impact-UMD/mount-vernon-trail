@@ -6,6 +6,7 @@ import { Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View, Dime
 import Slider from '@react-native-community/slider';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { setPendingPhoto } from '@/store/photo-store';
 import { Palette } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // icons
@@ -35,12 +36,13 @@ export default function CameraViewScreen() {
     const [flash, setFlash] = useState<'off' | 'on'>('off');
     // when navigated from the trail document screen
     const router = useRouter();
-    const { beforeImageUri, afterImageUri, activeIssueId, eventId, mode } = useLocalSearchParams<{
+    const { beforeImageUri, afterImageUri, activeIssueId, eventId, mode, source } = useLocalSearchParams<{
         beforeImageUri?: string;
         afterImageUri?: string;
         activeIssueId?: string; // keep track of issue card user pressed
         eventId?: string;
         mode?: 'before' | 'after';
+        source?: string;
     }>();
     const resolveMode = mode === 'after' ? 'after' : 'before';
     // overlay is set to before image, but user can still has option to choose from their gallary
@@ -148,6 +150,11 @@ export default function CameraViewScreen() {
         } catch (error) {
             console.error('Error saving photo:', error);
         }
+        if (source === 'issue') {
+            setPendingPhoto(resolveMode, capturedPhotoUri);
+            router.back();
+            return;
+        }
         if (resolveMode === 'before') {
             router.replace({
                 pathname: '/trail-document-screen',
@@ -162,8 +169,8 @@ export default function CameraViewScreen() {
                 pathname: '/trail-document-screen',
                 params: {
                     activeIssueId,
-                    beforeImageUri: beforeImageUri ?? "", 
-                    afterImageUri: capturedPhotoUri,   
+                    beforeImageUri: beforeImageUri ?? "",
+                    afterImageUri: capturedPhotoUri,
                     eventId
                 },
             });

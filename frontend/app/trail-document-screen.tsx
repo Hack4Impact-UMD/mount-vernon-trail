@@ -9,6 +9,7 @@ import { fetchDocumentTrailIssues } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { consumeIssueImageUpdates } from "@/store/photo-store";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
@@ -53,6 +54,13 @@ export default function TrailDocumentScreen() {
     useFocusEffect(useCallback(() => {
         pressedTrailIssueRef.current = false;
         setRefreshKey((k) => k + 1);
+        const updates = consumeIssueImageUpdates();
+        for (const { issueId, slot, uri } of updates) {
+            setIssueImages((prev) => ({
+                ...prev,
+                [issueId]: { ...prev[issueId], [slot]: uri },
+            }));
+        }
         return undefined;
     }, []));
 
