@@ -37,22 +37,11 @@ function parseEventDescription(desc: string) {
 }
 
 function parseIssueDescription(desc: string) {
-    const fields: Record<string, string> = {};
-    // split on newlines, each line is a potential field
-    const lines = desc.split("\n");
-
-    for (const line of lines) {
-        // strip markdown headers (###, ##, #) and match "Label: value"
-        const cleaned = line.replace(/^#+\s*/, "").trim();
-        const match = cleaned.match(/^([^:]+):\s*(.*)/);
-        if (match) {
-            const key = match[1].trim().toLowerCase().replace(/\s+/g, "");
-            fields[key] = match[2].trim();
-        }
-    }
+    const notesMatch = /Notes:\n([\s\S]*?)(?:\n\nMetrics:|$)/i.exec(desc);
+    const metricsMatch = /Metrics:\n([\s\S]*)$/i.exec(desc);
     return {
-        notes: fields["notes"] ?? "",
-        metrics: fields["metrics"] ?? "",
+        notes: notesMatch?.[1]?.trim() ?? "",
+        metrics: metricsMatch?.[1]?.trim() ?? "",
     };
 }
 
@@ -250,6 +239,11 @@ export async function moveCardAttachmentsToCompleted(
     const issueCards = await Promise.all(
         attachments.map(async (attachmentId) => {
             const card = await trello.getCardByID(attachmentId, false);
+            console.log(
+                attachmentId,
+                card.desc,
+                hasIssueEvidence(card.desc ?? ""),
+            );
             return {
                 id: attachmentId,
                 addressed: hasIssueEvidence(card.desc ?? ""),
