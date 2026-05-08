@@ -36,6 +36,31 @@ function parseEventDescription(desc: string) {
     };
 }
 
+function parseIssueDescription(desc: string) {
+    const fields: Record<string, string> = {};
+    // split on newlines, each line is a potential field
+    const lines = desc.split("\n");
+
+    for (const line of lines) {
+        // strip markdown headers (###, ##, #) and match "Label: value"
+        const cleaned = line.replace(/^#+\s*/, "").trim();
+        const match = cleaned.match(/^([^:]+):\s*(.*)/);
+        if (match) {
+            const key = match[1].trim().toLowerCase().replace(/\s+/g, "");
+            fields[key] = match[2].trim();
+        }
+    }
+    return {
+        notes: fields["notes"] ?? "",
+        metrics: fields["metrics"] ?? "",
+    };
+}
+
+function hasIssueEvidence(desc: string): boolean {
+    const parsed = parseIssueDescription(desc);
+    return !!(parsed.notes.trim() || parsed.metrics.trim());
+}
+
 // fetches trail issues by most recent
 // key and token are passed as parameters so auth can be swapped later
 export async function fetchTrailIssues(key: string): Promise<TrailIssueItem[]> {
@@ -107,11 +132,18 @@ export async function fetchEventCards(
     if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
 
     const lists = await trello.getLists(board.id);
-    const listName = filter === "past" ? COMPLETED_EVENTS_LIST : UPCOMING_EVENTS_LIST;
+    const listName =
+        filter === "past" ? COMPLETED_EVENTS_LIST : UPCOMING_EVENTS_LIST;
     const list = lists.find((l) => l.name === listName);
     if (!list) throw new Error(`List "${listName}" not found`);
 
-    const cards = await trello.getEventCardsFiltered(list.id, filter, 30, true, true);
+    const cards = await trello.getEventCardsFiltered(
+        list.id,
+        filter,
+        30,
+        true,
+        true,
+    );
     return Promise.all(
         cards.map(async (card) => {
             const imgAttachmentUrl = getFirstImageAttachment(card.attachments);
@@ -214,16 +246,27 @@ export async function moveCardAttachmentsToCompleted(
     // get all attachments on the card
     const eventCard = await trello.getEventCardByID(cardId, true);
     const attachments = await trello.getEventCardAttachmentIDs(eventCard);
-
-    // move each attachment (issue card) to completed issues list
+    // get the issue cards that are attached to the event card
+    const issueCards = await Promise.all(
+        attachments.map(async (attachmentId) => {
+            const card = await trello.getCardByID(attachmentId, false);
+            return {
+                id: attachmentId,
+                addressed: hasIssueEvidence(card.desc ?? ""),
+            };
+        }),
+    );
+    // only move the issue cards that have been addressed
+    const addressedIssueIds = issueCards
+        .filter((issue) => issue.addressed)
+        .map((issue) => issue.id);
+    // move the addressed issue cards to the completed issues list
     const results = await Promise.allSettled(
-        attachments.map((attachmentId) =>
-            trello.moveCardToList(attachmentId, list.id),
-        ),
+        addressedIssueIds.map((id) => trello.moveCardToList(id, list.id)),
     );
     const failedAttachments = results
         .map((result, index) =>
-            result.status === "rejected" ? attachments[index] : null,
+            result.status === "rejected" ? addressedIssueIds[index] : null,
         )
         .filter((id) => id !== null);
     if (failedAttachments.length > 0) {
@@ -259,14 +302,19 @@ export async function createIssueCard(
     const card = await trello.createCard(list.id, name, description);
 
     try {
-        if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+        if (!card.shortUrl)
+            throw new Error("Trello did not return a card URL.");
         await trello.addAttachmentToCard(eventTrelloCardId, card.shortUrl);
     } catch (attachErr) {
         // compensate: delete the orphaned card so a retry won't create duplicates
         try {
             await trello.deleteCard(card.id);
         } catch (deleteErr) {
-            console.error("Failed to clean up orphaned issue card:", card.id, deleteErr);
+            console.error(
+                "Failed to clean up orphaned issue card:",
+                card.id,
+                deleteErr,
+            );
         }
         throw attachErr;
     }
