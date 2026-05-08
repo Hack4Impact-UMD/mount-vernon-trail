@@ -153,6 +153,10 @@ export default function CameraViewScreen() {
         if (source === 'issue') {
             setPendingPhoto(resolveMode, capturedPhotoUri);
             router.back();
+		}
+        // When user pressed TakeAfterPicture, no event id
+        if (!eventId) {
+            router.replace('/home-screen');
             return;
         }
         if (resolveMode === 'before') {

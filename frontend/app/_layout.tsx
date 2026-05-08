@@ -89,7 +89,7 @@ export default function RootLayout() {
             "drafts",
             "albums",
             "profile",
-			"before-after-graphic",
+            "before-after-graphic",
             "mock-statistics",
         ]);
         // if user not authenticated, re-route to /auth if an auth route is being accessed
