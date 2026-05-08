@@ -1,6 +1,6 @@
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
-import { setEventInactive } from "@/services/event-service";
+import { saveDraft, setEventInactive } from "@/services/event-service";
 import { fetchCardUrl } from "@/services/trello-service";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Square } from "lucide-react-native";
@@ -22,6 +22,7 @@ const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
 interface TrailEventHeaderProps {
     event: Event;
     onStop?: () => void;
+    notes?: string;
     variant?: "default" | "document" | "summary";
 }
 
@@ -35,6 +36,7 @@ function formatDuration(seconds: number): string {
 export default function TrailEventHeader({
     event,
     onStop,
+    notes,
     variant = "default",
 }: TrailEventHeaderProps) {
     const insets = useSafeAreaInsets();
@@ -71,9 +73,10 @@ export default function TrailEventHeader({
         setEndModalVisible(true);
     };
 
-    const handleConfirmEnd = async () => {
+    const handleConfirmEnd = async (notes?: string) => {
         setStopping(true);
         try {
+            await saveDraft(event.eventId, notes?.trim() ?? "");
             await setEventInactive(event.eventId);
             setEndModalVisible(false);
             onStop?.();
@@ -222,6 +225,7 @@ export default function TrailEventHeader({
                 <EndEventModal
                     visible={endModalVisible}
                     eventTitle={event.title}
+                    initialNotes={notes ?? ""}
                     onCancel={() => setEndModalVisible(false)}
                     onConfirm={handleConfirmEnd}
                     loading={stopping}
@@ -268,6 +272,7 @@ export default function TrailEventHeader({
             <EndEventModal
                 visible={endModalVisible}
                 eventTitle={event.title}
+                initialNotes={notes ?? ""}
                 onCancel={() => setEndModalVisible(false)}
                 onConfirm={handleConfirmEnd}
                 loading={stopping}

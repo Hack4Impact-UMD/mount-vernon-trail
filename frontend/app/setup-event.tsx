@@ -3,7 +3,7 @@ import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
 import { createEvent } from "@/services/event-service";
 import { createGoogleAlbum } from "@/services/googlePhotosAlbumsService";
-import { addAlbumLinkToCard, createEventCard } from "@/services/trello-service";
+import { addAlbumLinkToCard, addNotesToCard, createEventCard } from "@/services/trello-service";
 import { getDateString, parseAndValidateDate } from "@/utils/date";
 import { Feather } from "@expo/vector-icons";
 import RNDateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
@@ -101,13 +101,29 @@ export default function SetupEventScreen() {
             const album = await createGoogleAlbum(title.trim());
             const albumUrl = album.productUrl ?? "";
 
+            const roles = ["Event Leader", "Zone Leaders", "Tool Haulers", "Glover Lover"];
+            const rolesDescription = [
+                eventLeader.trim(),
+                zoneLeaders.trim(),
+                toolHaulers.trim(),
+                gloverLover.trim()
+            ].map((role, idx) => role && `${roles[idx]}: ${role}`).join('\n').trim();
+            const modifiedDescription = `${rolesDescription}\n\n${description.trim() ? `Work Scope:\n${description.trim()}` : ""}`.trim();
+
             // creates a trello card and adds it to the Scheduled Events list
             const { cardId, cardUrl } = await createEventCard(
                 title.trim(),
                 getDateString(eventDate),
-                description.trim(),
+                modifiedDescription,
                 TRELLO_KEY,
             );
+
+            // add notes to the trello card
+            await addNotesToCard(
+                cardId,
+                notes.trim(),
+                TRELLO_KEY,
+            )
 
             // adds the album link to the trello card
             await addAlbumLinkToCard(

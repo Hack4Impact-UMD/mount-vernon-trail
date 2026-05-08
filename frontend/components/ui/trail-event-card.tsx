@@ -13,6 +13,7 @@ interface TrailEventCardProps {
     visible: boolean;
     onClose: () => void;
     onStartEvent: (event: UpcomingEventItem) => void;
+    isResume?: boolean;
 }
 
 export default function TrailEventCard({
@@ -20,6 +21,7 @@ export default function TrailEventCard({
     visible,
     onClose,
     onStartEvent,
+    isResume = false,
 }: TrailEventCardProps) {
     const [showConfirmation, setShowConfirmation] = useState(false);
 
@@ -113,7 +115,11 @@ export default function TrailEventCard({
                                 styles.startButton,
                                 pressed && styles.startButtonPressed,
                             ]}
-                            onPress={() => setShowConfirmation(true)}>
+                            onPress={() =>
+                                isResume
+                                    ? onStartEvent(event)
+                                    : setShowConfirmation(true)
+                            }>
                             <Play
                                 size={16}
                                 color="#FFFFFF"
@@ -121,7 +127,7 @@ export default function TrailEventCard({
                                 style={styles.playIcon}
                             />
                             <Text style={styles.startButtonText}>
-                                Start Event
+                                {isResume ? "Resume Event" : "Start Event"}
                             </Text>
                         </Pressable>
                     </View>

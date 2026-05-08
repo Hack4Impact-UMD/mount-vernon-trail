@@ -12,12 +12,17 @@ import {
 } from "@/components/ui/upcoming-events-card";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
-import { getEventByTrelloCardId, startEvent } from "@/services/event-service";
+import {
+    clearActiveEventLocally,
+    getEventByTrelloCardId,
+    getLocalActiveEventId,
+    saveActiveEventLocally,
+    startEvent,
+} from "@/services/event-service";
 import { fetchEventCards } from "@/services/trello-service";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
-
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
 export default function HomeScreen() {
@@ -38,6 +43,9 @@ export default function HomeScreen() {
     const [selectedEvent, setSelectedEvent] =
         useState<UpcomingEventItem | null>(null);
     const isAdmin = useIsAdmin();
+    const [localActiveEventId, setLocalActiveEventId] = useState<string | null>(
+        null,
+    );
 
     const handleTrelloSignIn = async () => {
         const ok = await promptSignIn();
@@ -65,6 +73,34 @@ export default function HomeScreen() {
                 .finally(() => setPastEventsLoading(false));
         }, [isAuthenticated]),
     );
+
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        (async () => {
+            const storedId = await getLocalActiveEventId();
+            if (!storedId) return;
+
+            // verify it's still active in Firestore
+            let firebaseEvent;
+            try {
+                firebaseEvent = await getEventByTrelloCardId(storedId);
+            } catch {
+                Alert.alert("Error", "Error getting active event data.");
+                return;
+            }
+            if (
+                firebaseEvent &&
+                firebaseEvent.startDate &&
+                !firebaseEvent.endDate
+            ) {
+                setLocalActiveEventId(storedId);
+            } else {
+                // stale — clean it up
+                await clearActiveEventLocally();
+            }
+        })();
+    }, [isAuthenticated]);
 
     if (!isAuthenticated) {
         return (
@@ -97,9 +133,13 @@ export default function HomeScreen() {
     };
 
     const handleStartEvent = async (event: UpcomingEventItem) => {
+        const isResume = event.id === localActiveEventId;
         try {
             // set startDate in firebase
-            await startEvent(event.id);
+            if (!isResume) {
+                await startEvent(event.id);
+                await saveActiveEventLocally(event.id);
+            }
             // close modal
             setSelectedEvent(null);
             // go to in progress screen
@@ -156,6 +196,7 @@ export default function HomeScreen() {
                             maxItems={3}
                             onShowMore={() => {}}
                             onPressItem={(event) => handlePressEvent(event)}
+                            activeEventId={localActiveEventId}
                         />
                     </View>
                     <View style={styles.eventsSection}>
@@ -174,6 +215,7 @@ export default function HomeScreen() {
                     visible={selectedEvent !== null}
                     onClose={() => setSelectedEvent(null)}
                     onStartEvent={handleStartEvent}
+                    isResume={selectedEvent?.id === localActiveEventId}
                 />
             </View>
         </>

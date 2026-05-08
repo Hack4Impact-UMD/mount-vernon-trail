@@ -1,7 +1,7 @@
-import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
+import TrailMetricsSection from "@/components/ui/trail-metrics-section";
 import type { Event } from "@/services/event-service";
 import { getActiveEvent, getEventById } from "@/services/event-service";
 import { TrelloClient } from "@/services/trello-funcs";
@@ -19,7 +19,6 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import TrailMetricsSection from "@/components/ui/trail-metrics-section";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
@@ -45,7 +44,7 @@ export default function TrailDocumentScreen() {
         Record<string, { before?: string; after?: string }>
     >({});
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [notepad, setNotepad] = useState("");
+    const [notes, setNotes] = useState("");
     const [activeEventId, setActiveEventId] = useState<string | null>(null);
     const [issuesError, setIssuesError] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -76,8 +75,13 @@ export default function TrailDocumentScreen() {
         }
         getEventById(eventId)
             .then((e) => {
-                if (e) setEvent(e);
-                else setError("Event not found.");
+                if (e) {
+                    setEvent(e);
+                    // load existing notes from event creation
+                    setNotes(e.notes || "");
+                } else {
+                    setError("Event not found.");
+                }
             })
             .catch((e) => setError((e as Error).message))
             .finally(() => setLoading(false));
@@ -168,12 +172,13 @@ export default function TrailDocumentScreen() {
                     <TrailEventHeader
                         event={event}
                         variant="document"
+                        notes={notes}
                         onStop={() =>
                             router.replace({
                                 pathname: "/event-summary",
                                 params: {
                                     eventId: event.eventId,
-                                    notepad: notepad,
+                                    notes: notes,
                                 },
                             })
                         }
@@ -274,8 +279,8 @@ export default function TrailDocumentScreen() {
                                 marginBottom: 24,
                                 backgroundColor: "#FAFAFA",
                             }}
-                            value={notepad}
-                            onChangeText={setNotepad}
+                            value={notes}
+                            onChangeText={setNotes}
                             multiline
                             placeholder="Start documenting the event"
                             placeholderTextColor="#bbb"
@@ -290,7 +295,6 @@ export default function TrailDocumentScreen() {
 
                     </View>
                 </ScrollView>
-                <BottomNav />
             </View>
 
         </>
