@@ -2,6 +2,7 @@ import BottomNav from "@/components/ui/bottom-nav";
 import CreateNewEvent from "@/components/ui/create-new-event";
 import Header from "@/components/ui/header";
 import MakeBeforeAfterGraphic from "@/components/ui/make-graphic";
+import { PastEventsCard } from "@/components/ui/past-events-card";
 import TakeAfterPicture from "@/components/ui/take-after-picture";
 import TrailEventCard from "@/components/ui/trail-event-card";
 import TrelloLoginUI from "@/components/ui/trello-login";
@@ -9,12 +10,11 @@ import {
     UpcomingEventsCard,
     type UpcomingEventItem,
 } from "@/components/ui/upcoming-events-card";
-import { PastEventsCard } from "@/components/ui/past-events-card";
-import { fetchEventCards } from "@/services/trello-service";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
 import { getEventByTrelloCardId, startEvent } from "@/services/event-service";
-import { Stack, useRouter, useFocusEffect } from "expo-router";
+import { fetchEventCards } from "@/services/trello-service";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
@@ -22,7 +22,13 @@ const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
 export default function HomeScreen() {
     const router = useRouter();
-    const { isAuthenticated, promptSignIn, loading, initializing, error: trelloError } = useTrelloAuth();
+    const {
+        isAuthenticated,
+        promptSignIn,
+        loading,
+        initializing,
+        error: trelloError,
+    } = useTrelloAuth();
     const [events, setEvents] = useState<UpcomingEventItem[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState<string | null>(null);
@@ -38,12 +44,13 @@ export default function HomeScreen() {
         if (ok) {
             router.replace("/home-screen");
         }
-    }
+    };
 
     useFocusEffect(
         useCallback(() => {
             if (!isAuthenticated || !API_KEY) {
                 setEventsLoading(false);
+                setPastEventsLoading(false);
                 return;
             }
             setEventsLoading(true);
@@ -56,7 +63,7 @@ export default function HomeScreen() {
                 .then(setPastEvents)
                 .catch((e) => setPastEventsError(e.message))
                 .finally(() => setPastEventsLoading(false));
-        }, [isAuthenticated])
+        }, [isAuthenticated]),
     );
 
     if (!isAuthenticated) {
@@ -66,12 +73,14 @@ export default function HomeScreen() {
                 isLoading={loading || initializing}
                 errorMessage={trelloError?.message ?? null}
             />
-        )
+        );
     }
 
     const handlePressEvent = async (event: UpcomingEventItem) => {
         setSelectedEvent(event);
-        const firebaseEvent = await getEventByTrelloCardId(event.id).catch(() => null);
+        const firebaseEvent = await getEventByTrelloCardId(event.id).catch(
+            () => null,
+        );
         if (!firebaseEvent) return;
 
         setSelectedEvent((prev) => {
@@ -89,26 +98,31 @@ export default function HomeScreen() {
 
     const handleStartEvent = async (event: UpcomingEventItem) => {
         try {
-			// set startDate in firebase
+            // set startDate in firebase
             await startEvent(event.id);
-			// close modal
+            // close modal
             setSelectedEvent(null);
-			// go to in progress screen
-			const firebaseEvent = await getEventByTrelloCardId(event.id).catch(() => null);
-			if (firebaseEvent) {
-				router.push({
-					pathname: "/trail-document-screen",
-					params: { eventId: firebaseEvent.eventId },
-				});
-			} else {
-				Alert.alert("Not available", "This event hasn't been set up in the app yet.");
-			}
+            // go to in progress screen
+            const firebaseEvent = await getEventByTrelloCardId(event.id).catch(
+                () => null,
+            );
+            if (firebaseEvent) {
+                router.push({
+                    pathname: "/trail-document-screen",
+                    params: { eventId: firebaseEvent.eventId },
+                });
+            } else {
+                Alert.alert(
+                    "Not available",
+                    "This event hasn't been set up in the app yet.",
+                );
+            }
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
                     : "Failed to start event";
-			// close modal
+            // close modal
             setSelectedEvent(null);
             Alert.alert("Error", message);
         }
@@ -124,13 +138,14 @@ export default function HomeScreen() {
                     showsVerticalScrollIndicator={false}>
                     <Header showGreeting />
                     <View style={styles.cardWrapper}>
-                        <TakeAfterPicture onPress={() => router.push({
-                            pathname: "/camera-view",
-                            params: { mode: 'after' }
-                        })} />
-                        <MakeBeforeAfterGraphic onPress={() => router.push("/before-after-graphic")} />
+                        <TakeAfterPicture />
+                        <MakeBeforeAfterGraphic
+                            onPress={() => router.push("/before-after-graphic")}
+                        />
                         {isAdmin && (
-                            <CreateNewEvent onPress={() => router.push("/setup-event")} />
+                            <CreateNewEvent
+                                onPress={() => router.push("/setup-event")}
+                            />
                         )}
                     </View>
                     <View style={styles.eventsSection}>
