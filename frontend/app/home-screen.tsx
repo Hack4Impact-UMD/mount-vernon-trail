@@ -78,9 +78,13 @@ export default function HomeScreen() {
             if (!storedId) return;
 
             // verify it's still active in Firestore
-            const firebaseEvent = await getEventByTrelloCardId(storedId).catch(
-                () => null,
-            );
+            let firebaseEvent;
+            try {
+                firebaseEvent = await getEventByTrelloCardId(storedId);
+            } catch {
+                Alert.alert("Error", "Error getting active event data.");
+                return;
+            }
             if (
                 firebaseEvent &&
                 firebaseEvent.startDate &&

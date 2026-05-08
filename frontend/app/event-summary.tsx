@@ -376,7 +376,11 @@ export default function EventSummaryScreen() {
                         saving && styles.actionCardDisabled,
                     ]}
                     onPress={async () => {
-                        await clearActiveEventLocally();
+                        try {
+                            await clearActiveEventLocally();
+                        } catch (error) {
+                            setError((error as Error).message);
+                        }
                         router.replace({
                             pathname: "/edit-draft",
                             params: { eventId },
