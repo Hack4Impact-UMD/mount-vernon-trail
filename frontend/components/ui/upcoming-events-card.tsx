@@ -29,6 +29,7 @@ interface UpcomingEventsCardProps {
     maxItems?: number;
     onShowMore: () => void;
     onPressItem: (event: UpcomingEventItem) => void;
+    activeEventId?: string | null;
 }
 
 const EVENT_STATUS = {
@@ -55,6 +56,7 @@ export function UpcomingEventsCard({
     maxItems = 3,
     onShowMore,
     onPressItem,
+    activeEventId,
 }: UpcomingEventsCardProps) {
     const [expanded, setExpanded] = React.useState(false);
     const hasMore = events.length > maxItems;
@@ -122,17 +124,25 @@ export function UpcomingEventsCard({
                                             styles.tagPill,
                                             {
                                                 backgroundColor:
-                                                    EVENT_STATUS.backgroundColor,
+                                                    event.id === activeEventId
+                                                        ? "#1A7A4A18"
+                                                        : EVENT_STATUS.backgroundColor,
                                             },
                                         ]}>
                                         <Text
                                             style={[
                                                 styles.tagText,
                                                 {
-                                                    color: EVENT_STATUS.color,
+                                                    color:
+                                                        event.id ===
+                                                        activeEventId
+                                                            ? "#1A7A4A"
+                                                            : EVENT_STATUS.color,
                                                 },
                                             ]}>
-                                            {EVENT_STATUS.label}
+                                            {event.id === activeEventId
+                                                ? "In Progress"
+                                                : EVENT_STATUS.label}
                                         </Text>
                                     </View>
                                 </View>
