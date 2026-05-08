@@ -178,7 +178,14 @@ export default function HomeScreen() {
                     showsVerticalScrollIndicator={false}>
                     <Header showGreeting />
                     <View style={styles.cardWrapper}>
-                        <TakeAfterPicture />
+                        <TakeAfterPicture
+                            onPress={() =>
+                                router.push({
+                                    pathname: '/camera-view',
+                                    params: { mode: 'after' },
+                                })
+                            }
+                        />
                         <MakeBeforeAfterGraphic
                             onPress={() => router.push("/before-after-graphic")}
                         />

@@ -148,6 +148,11 @@ export default function CameraViewScreen() {
         } catch (error) {
             console.error('Error saving photo:', error);
         }
+        // When user pressed TakeAfterPicture, no event id
+        if (!eventId) {
+            router.replace('/home-screen');
+            return;
+        }
         if (resolveMode === 'before') {
             router.replace({
                 pathname: '/trail-document-screen',
