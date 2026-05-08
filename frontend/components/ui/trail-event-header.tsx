@@ -9,7 +9,6 @@ import {
     Alert,
     Linking,
     Pressable,
-    Share,
     StyleSheet,
     Text,
     View,
@@ -87,19 +86,6 @@ export default function TrailEventHeader({
         }
     };
 
-    const handleShareEvent = async () => {
-        if (!event.trelloCardId) return;
-        try {
-            const url = await fetchCardUrl(
-                event.trelloCardId,
-                API_KEY,
-            );
-            await Share.share({ message: url });
-        } catch (e) {
-            console.error("Failed to share event:", e);
-        }
-    };
-
     if (variant === "summary") {
         return (
             <View style={docStyles.container}>
@@ -131,22 +117,6 @@ export default function TrailEventHeader({
                             </Text>
                         </Pressable>
                     ) : null}
-                    <Pressable
-                        style={docStyles.actionRow}
-                        onPress={handleShareEvent}>
-                        <View
-                            style={[
-                                docStyles.iconCircle,
-                                { backgroundColor: Palette.blue },
-                            ]}>
-                            <MaterialIcons
-                                name="send"
-                                size={18}
-                                color="#fff"
-                            />
-                        </View>
-                        <Text style={docStyles.actionLabel}>Share event</Text>
-                    </Pressable>
                 </View>
             </View>
         );
@@ -204,22 +174,6 @@ export default function TrailEventHeader({
                                 </Text>
                             </Pressable>
                         ) : null}
-                        <Pressable
-                            style={docStyles.actionRow}
-                            onPress={handleShareEvent}>
-                            <View
-                                style={[
-                                    docStyles.iconCircle,
-                                    { backgroundColor: Palette.blue },
-                                ]}>
-                                <MaterialIcons
-                                    name="send"
-                                    size={18}
-                                    color="#fff"
-                                />
-                            </View>
-                            <Text style={docStyles.actionLabel}>Share event</Text>
-                        </Pressable>
                     </View>
                 </View>
                 <EndEventModal
