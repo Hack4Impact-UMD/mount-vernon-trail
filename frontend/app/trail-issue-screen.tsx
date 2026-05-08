@@ -29,6 +29,7 @@ export default function TrailIssueDetailScreen() {
         description,
         eventId,
         isNew,
+        isDraft,
         beforeImageUri,
         afterImageUri,
     } = useLocalSearchParams<{
@@ -38,6 +39,7 @@ export default function TrailIssueDetailScreen() {
         description?: string;
         eventId?: string;
         isNew?: string;
+        isDraft?: string;
         beforeImageUri?: string;
         afterImageUri?: string;
     }>();
@@ -165,30 +167,39 @@ export default function TrailIssueDetailScreen() {
         });
     };
 
-    const PhotoCard = ({ slot, label }: { slot: PhotoSlot; label: string }) => (
-        <TouchableOpacity
-            style={styles.photoCard}
-            onPress={() => handlePhotoPress(slot)}
-            activeOpacity={0.75}
-            accessibilityLabel={`${label} photo`}
-            accessibilityRole="button">
-            {photos[slot] ? (
+    const PhotoCard = ({ slot, label }: { slot: PhotoSlot; label: string }) => {
+        const photosLocked = isDraft === "true";
+        const content = photos[slot] ? (
+            <Image
+                source={{ uri: photos[slot] as string }}
+                style={styles.photoImage}
+                resizeMode="cover"
+            />
+        ) : (
+            <View style={styles.photoPlaceholder}>
                 <Image
-                    source={{ uri: photos[slot] as string }}
-                    style={styles.photoImage}
-                    resizeMode="cover"
+                    source={require("../assets/images/camera-purple.png")}
+                    style={[styles.cameraIcon, photosLocked && { opacity: 0.4 }]}
                 />
-            ) : (
-                <View style={styles.photoPlaceholder}>
-                    <Image
-                        source={require("../assets/images/camera-purple.png")}
-                        style={styles.cameraIcon}
-                    />
-                    <Text style={styles.photoLabel}>{label}</Text>
-                </View>
-            )}
-        </TouchableOpacity>
-    );
+                <Text style={[styles.photoLabel, photosLocked && { color: "#bbb" }]}>{label}</Text>
+            </View>
+        );
+
+        if (photosLocked) {
+            return <View style={styles.photoCard}>{content}</View>;
+        }
+
+        return (
+            <TouchableOpacity
+                style={styles.photoCard}
+                onPress={() => handlePhotoPress(slot)}
+                activeOpacity={0.75}
+                accessibilityLabel={`${label} photo`}
+                accessibilityRole="button">
+                {content}
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <View style={styles.screen}>

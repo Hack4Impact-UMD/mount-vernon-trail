@@ -1,24 +1,24 @@
-import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event, EventMetricsWithHours } from "@/services/event-service";
 import {
-    extractMetricsWithHours,
-    getEventById,
-    saveDraft,
+	clearActiveEventLocally,
+	extractMetricsWithHours,
+	getEventById,
+	saveDraft,
 } from "@/services/event-service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+	ActivityIndicator,
+	Alert,
+	Animated,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
 } from "react-native";
 
 const PURPLE = "#693894";
@@ -99,13 +99,13 @@ const METRIC_DEFS: MetricDef[] = [
         icon: "shield-check-outline",
         color: BLUE,
     },
-	{
-		key: "snowRemovalEvents",
-		label: "Snow removal",
-		sublabel: "# of removal events",
-		icon: "snowflake",
-		color: PURPLE
-	},
+    {
+        key: "snowRemovalEvents",
+        label: "Snow removal",
+        sublabel: "# of removal events",
+        icon: "snowflake",
+        color: PURPLE,
+    },
     {
         key: "potholesFilled",
         label: "Potholes",
@@ -113,13 +113,13 @@ const METRIC_DEFS: MetricDef[] = [
         icon: "road-variant",
         color: TEAL,
     },
-	{
-		key: "trailEdgedFeet",
-		label: "Trail edging",
-		sublabel: "ft of edging improved",
-		icon: "scissors-cutting",
-		color: BLUE
-	},
+    {
+        key: "trailEdgedFeet",
+        label: "Trail edging",
+        sublabel: "ft of edging improved",
+        icon: "scissors-cutting",
+        color: BLUE,
+    },
     {
         key: "trashBagsCollected",
         label: "Trash bags",
@@ -127,7 +127,7 @@ const METRIC_DEFS: MetricDef[] = [
         icon: "trash-can-outline",
         color: PURPLE,
     },
-	{
+    {
         key: "trashPoundsCollected",
         label: "Trash weight",
         sublabel: "# of lbs collected",
@@ -148,19 +148,19 @@ const METRIC_DEFS: MetricDef[] = [
         icon: "leaf-circle-outline",
         color: PURPLE,
     },
-	{
+    {
         key: "hoursOfService",
         label: "Hours of service",
         sublabel: "hrs",
         icon: "clock-outline",
         color: TEAL,
-    }
+    },
 ];
 interface MetricGridCardProps {
     def: MetricDef;
     value: number | string;
     delay: number;
-};
+}
 
 function MetricGridCard({ def, value, delay }: MetricGridCardProps) {
     const opacity = useRef(new Animated.Value(0)).current;
@@ -259,15 +259,16 @@ export default function EventSummaryScreen() {
 
     const stats = extractMetricsWithHours(event);
 
-    const visibleMetrics = stats ? METRIC_DEFS.filter(
-        (def) => (stats[def.key] as number) !== 0,
-    ) : [];
+    const visibleMetrics = stats
+        ? METRIC_DEFS.filter((def) => (stats[def.key] as number) !== 0)
+        : [];
 
     const handleSaveDraft = async () => {
         if (saving || savedDraft || savedTrello) return;
         setSaving(true);
         try {
             await saveDraft(eventId, notes ?? event.notes ?? "");
+            await clearActiveEventLocally();
             setSavedDraft(true);
         } catch {
             Alert.alert("Error", "Could not save event to drafts.");
@@ -373,13 +374,20 @@ export default function EventSummaryScreen() {
                         savedTrello && styles.actionCardSaved,
                         saving && styles.actionCardDisabled,
                     ]}
-                    onPress={() => router.replace({
-						pathname: "/edit-draft",
-						params: {
-							eventId,
-                            notes: notes ?? event.notes ?? "",
-						}
-					})}
+                    onPress={async () => {
+                        try {
+                            await clearActiveEventLocally();
+                        } catch (error) {
+                            setError((error as Error).message);
+                        }
+                        router.replace({
+                            pathname: "/edit-draft",
+                            params: {
+                                eventId,
+                                notes: notes ?? event.notes ?? "",
+                            },
+                        });
+                    }}
                     disabled={saving || savedDraft || savedTrello}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
@@ -412,16 +420,24 @@ export default function EventSummaryScreen() {
                     <Pressable
                         style={styles.actionCard}
                         onPress={() => router.replace("/home-screen")}>
+                        <View style={styles.actionIconWrap}>
+                            <MaterialCommunityIcons
+                                name="home-outline"
+                                size={24}
+                                color="#666"
+                            />
+                        </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.actionCardTitle}>
                                 Back to home screen
+                            </Text>
+                            <Text style={styles.actionCardSubtitle}>
+                                Return to the main menu
                             </Text>
                         </View>
                     </Pressable>
                 )}
             </ScrollView>
-
-            <BottomNav />
         </View>
     );
 }

@@ -1,7 +1,6 @@
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import { saveDraft, setEventInactive } from "@/services/event-service";
-import { fetchCardUrl } from "@/services/trello-service";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Square } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
@@ -129,7 +128,9 @@ export default function TrailEventHeader({
                     <View style={docStyles.left}>
                         <View style={docStyles.badgeRow}>
                             <View style={docStyles.badge}>
-                                <Text style={docStyles.badgeText}>In Progress</Text>
+                                <Text style={docStyles.badgeText}>
+                                    In Progress
+                                </Text>
                             </View>
                             <Text style={docStyles.duration}>
                                 {formatDuration(elapsed)}
@@ -149,7 +150,9 @@ export default function TrailEventHeader({
                                     fill="#fff"
                                 />
                             </Pressable>
-                            <Text style={docStyles.eventName}>{event.title}</Text>
+                            <Text style={docStyles.eventName}>
+                                {event.title}
+                            </Text>
                         </View>
                     </View>
 
@@ -218,7 +221,9 @@ export default function TrailEventHeader({
                         <Pressable
                             style={styles.actionButton}
                             onPress={() => Linking.openURL(event.albumUrl)}>
-                            <Text style={styles.actionButtonText}>View Album</Text>
+                            <Text style={styles.actionButtonText}>
+                                View Album
+                            </Text>
                         </Pressable>
                     ) : null}
                 </View>
