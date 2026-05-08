@@ -143,11 +143,11 @@ export default function EditDraftScreen() {
 
     return (
         <View style={styles.screen}>
+            <HomeHeader />
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}>
-                <HomeHeader />
                 <TrailEventHeader event={event} variant="summary" />
 
                 <View style={styles.contentContainer}>
