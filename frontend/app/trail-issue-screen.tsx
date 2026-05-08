@@ -66,6 +66,16 @@ export default function TrailIssueDetailScreen() {
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
+        const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+        console.log("[ping] EXPO_PUBLIC_BACKEND_URL =", backendUrl);
+        if (backendUrl) {
+            fetch(backendUrl)
+                .then((res) => console.log("[ping] success", res.status))
+                .catch((err) => console.log("[ping] failed", err.message));
+        }
+    }, []);
+
+    useEffect(() => {
         if (!eventId || isNew !== "true") return;
         getEventById(eventId)
             .then((ev) => {
@@ -133,11 +143,17 @@ export default function TrailIssueDetailScreen() {
         if (isNew === "true" && !savedCardId) {
             const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
             if (!API_KEY) {
-                Alert.alert("Configuration error", "Trello API key is missing.");
+                Alert.alert(
+                    "Configuration error",
+                    "Trello API key is missing.",
+                );
                 return;
             }
             if (!name.trim() || !trelloCardId) {
-                Alert.alert("Not ready", "Event data is still loading. Please try again.");
+                Alert.alert(
+                    "Not ready",
+                    "Event data is still loading. Please try again.",
+                );
                 return;
             }
             try {
@@ -179,9 +195,18 @@ export default function TrailIssueDetailScreen() {
             <View style={styles.photoPlaceholder}>
                 <Image
                     source={require("../assets/images/camera-purple.png")}
-                    style={[styles.cameraIcon, photosLocked && { opacity: 0.4 }]}
+                    style={[
+                        styles.cameraIcon,
+                        photosLocked && { opacity: 0.4 },
+                    ]}
                 />
-                <Text style={[styles.photoLabel, photosLocked && { color: "#bbb" }]}>{label}</Text>
+                <Text
+                    style={[
+                        styles.photoLabel,
+                        photosLocked && { color: "#bbb" },
+                    ]}>
+                    {label}
+                </Text>
             </View>
         );
 
