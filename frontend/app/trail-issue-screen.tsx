@@ -204,12 +204,12 @@ export default function TrailIssueDetailScreen() {
     return (
         <View style={styles.screen}>
             <Stack.Screen options={{ headerShown: false }} />
+            <HomeHeader />
             <ScrollView
                 style={styles.scroll}
                 contentContainerStyle={{ paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}>
                 {/* App Header */}
-                <HomeHeader />
                 {/* Cover Image */}
                 <View style={styles.coverContainer}>
                     {imageUrl ? (

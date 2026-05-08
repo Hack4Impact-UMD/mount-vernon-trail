@@ -164,11 +164,12 @@ export default function TrailDocumentScreen() {
     return (
         <>
             <View style={styles.screen}>
+                <HomeHeader />
                 <ScrollView
                     style={styles.container}
                     showsVerticalScrollIndicator={false}>
                     {/* App Header */}
-                    <HomeHeader />
+                    
                     <TrailEventHeader
                         event={event}
                         variant="document"
@@ -251,7 +252,6 @@ export default function TrailDocumentScreen() {
                                                 issueId: issue.id,
                                                 issueName: issue.name,
                                                 imageUrl: issue.imageUrl,
-                                                description: issue.description,
                                                 eventId: event.eventId,
                                                 beforeImageUri:
                                                     issueImages[issue.id]
