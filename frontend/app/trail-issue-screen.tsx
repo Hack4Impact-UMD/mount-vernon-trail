@@ -66,10 +66,22 @@ export default function TrailIssueDetailScreen() {
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        if (!eventId || isNew !== "true") return;
+        const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+        console.log("[ping] EXPO_PUBLIC_BACKEND_URL =", backendUrl);
+        if (backendUrl) {
+            fetch(backendUrl)
+                .then((res) => console.log("[ping] success", res.status))
+                .catch((err) => console.log("[ping] failed", err.message));
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!eventId) return;
         getEventById(eventId)
             .then((ev) => {
-                if (ev) setTrelloCardId(ev.trelloCardId);
+                if (ev) {
+                    if (isNew === "true") setTrelloCardId(ev.trelloCardId);
+                }
             })
             .catch((e) => console.error("Failed to load event:", e));
     }, [eventId, isNew]);
@@ -125,7 +137,10 @@ export default function TrailIssueDetailScreen() {
     };
 
     const status = "In Progress"; // hardcoded for now
-    const photos = { before: beforeImageUri, after: afterImageUri };
+    const [photoUris, setPhotoUris] = useState({
+        before: beforeImageUri ?? null,
+        after: afterImageUri ?? null,
+    });
 
     const handlePhotoPress = async (slot: PhotoSlot) => {
         let activeId = savedCardId ?? issueId;
@@ -133,11 +148,17 @@ export default function TrailIssueDetailScreen() {
         if (isNew === "true" && !savedCardId) {
             const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
             if (!API_KEY) {
-                Alert.alert("Configuration error", "Trello API key is missing.");
+                Alert.alert(
+                    "Configuration error",
+                    "Trello API key is missing.",
+                );
                 return;
             }
             if (!name.trim() || !trelloCardId) {
-                Alert.alert("Not ready", "Event data is still loading. Please try again.");
+                Alert.alert(
+                    "Not ready",
+                    "Event data is still loading. Please try again.",
+                );
                 return;
             }
             try {
@@ -161,17 +182,18 @@ export default function TrailIssueDetailScreen() {
             params: {
                 activeIssueId: activeId,
                 mode: slot,
-                beforeImageUri: beforeImageUri ?? "",
+                beforeImageUri: photoUris.before ?? "",
                 eventId: eventId,
+                source: "issue",
             },
         });
     };
 
     const PhotoCard = ({ slot, label }: { slot: PhotoSlot; label: string }) => {
         const photosLocked = isDraft === "true";
-        const content = photos[slot] ? (
+        const content = photoUris[slot] ? (
             <Image
-                source={{ uri: photos[slot] as string }}
+                source={{ uri: photoUris[slot] as string }}
                 style={styles.photoImage}
                 resizeMode="cover"
             />
@@ -179,9 +201,18 @@ export default function TrailIssueDetailScreen() {
             <View style={styles.photoPlaceholder}>
                 <Image
                     source={require("../assets/images/camera-purple.png")}
-                    style={[styles.cameraIcon, photosLocked && { opacity: 0.4 }]}
+                    style={[
+                        styles.cameraIcon,
+                        photosLocked && { opacity: 0.4 },
+                    ]}
                 />
-                <Text style={[styles.photoLabel, photosLocked && { color: "#bbb" }]}>{label}</Text>
+                <Text
+                    style={[
+                        styles.photoLabel,
+                        photosLocked && { color: "#bbb" },
+                    ]}>
+                    {label}
+                </Text>
             </View>
         );
 

@@ -4,8 +4,10 @@ import TrailEventHeader from "@/components/ui/trail-event-header";
 import TrailMetricsSection from "@/components/ui/trail-metrics-section";
 import type { Event } from "@/services/event-service";
 import { getActiveEvent, getEventById } from "@/services/event-service";
+import { uploadBeforeAndAfterImages } from "@/services/google-photos-api-service";
 import { TrelloClient } from "@/services/trello-funcs";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
+import { useIssueImageStore } from "@/store/issue-image-store";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -40,20 +42,20 @@ export default function TrailDocumentScreen() {
     const [issuesData, setIssuesData] = useState(
         [] as TrailDocumentIssueItem[],
     );
-    const [issueImages, setIssueImages] = useState<
-        Record<string, { before?: string; after?: string }>
-    >({});
+    const { issueImages, setIssueImage, clearIssueImages } = useIssueImageStore();
     const [loadError, setLoadError] = useState<string | null>(null);
     const [notes, setNotes] = useState("");
     const [activeEventId, setActiveEventId] = useState<string | null>(null);
     const [issuesError, setIssuesError] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
 
-    useFocusEffect(useCallback(() => {
-        pressedTrailIssueRef.current = false;
-        setRefreshKey((k) => k + 1);
-        return undefined;
-    }, []));
+    useFocusEffect(
+        useCallback(() => {
+            pressedTrailIssueRef.current = false;
+            setRefreshKey((k) => k + 1);
+            return undefined;
+        }, []),
+    );
 
     useEffect(() => {
         async function loadActiveEvent() {
@@ -129,15 +131,18 @@ export default function TrailDocumentScreen() {
     // when the user returns from camera-view, store the captured image under the correct issue
     useEffect(() => {
         if (activeIssueId && (beforeImageUri || afterImageUri)) {
-            setIssueImages((prev) => ({
-                ...prev,
-                [activeIssueId]: {
-                    before: beforeImageUri ?? prev[activeIssueId]?.before,
-                    after: afterImageUri ?? prev[activeIssueId]?.after,
-                },
-            }));
+            setIssueImage(activeIssueId, beforeImageUri, afterImageUri);
+
+            if (!event) return;
+
+            uploadBeforeAndAfterImages(
+                event.albumId,
+                activeIssueId,
+                afterImageUri ? undefined : beforeImageUri,
+                afterImageUri,
+            );
         }
-    }, [activeIssueId, beforeImageUri, afterImageUri]);
+    }, [activeIssueId, beforeImageUri, afterImageUri, event]); // don't add setIssueImage
 
     function handleAddIssue() {
         if (!event) return;
@@ -169,20 +174,22 @@ export default function TrailDocumentScreen() {
                     style={styles.container}
                     showsVerticalScrollIndicator={false}>
                     {/* App Header */}
-                    
+
                     <TrailEventHeader
                         event={event}
                         variant="document"
                         notes={notes}
-                        onStop={() =>
+                        onStop={() => {
+							clearIssueImages();
+
                             router.replace({
                                 pathname: "/event-summary",
                                 params: {
                                     eventId: event.eventId,
                                     notes: notes,
                                 },
-                            })
-                        }
+                            });
+                        }}
                     />
                     <View style={styles.contentContainer}>
                         {/* Trail Issues Section */}
@@ -260,7 +267,7 @@ export default function TrailDocumentScreen() {
                                                     issueImages[issue.id]
                                                         ?.after,
                                             },
-                                        })
+                                        });
                                     }}
                                 />
                             ))}
@@ -292,11 +299,9 @@ export default function TrailDocumentScreen() {
                             eventId={event.eventId}
                             initialMetrics={event.metrics}
                         />
-
                     </View>
                 </ScrollView>
             </View>
-
         </>
     );
 }
