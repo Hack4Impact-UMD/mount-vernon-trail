@@ -25,6 +25,28 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
+// filter out using firestore data to avoid showing events that are marked as drafts in the app but still exist as Trello cards (e.g. for testing or staging purposes)
+async function filterOutDrafts(
+    events: UpcomingEventItem[],
+): Promise<UpcomingEventItem[]> {
+    const checks = await Promise.all(
+        events.map(async (event) => {
+            try {
+                const firebaseEvent = await getEventByTrelloCardId(event.id);
+                // Keep if no Firestore doc exists or if it's not a draft.
+                // (No doc = legacy event, default to showing it.)
+                return firebaseEvent?.isDraft ? null : event;
+            } catch {
+                // On lookup failure, default to showing the event so a transient
+                // Firestore error doesn't hide everything.
+                return event;
+            }
+        }),
+    );
+    return checks.filter((e): e is UpcomingEventItem => e !== null);
+}
+
+
 export default function HomeScreen() {
     const router = useRouter();
     const {
@@ -64,6 +86,7 @@ export default function HomeScreen() {
             setEventsLoading(true);
             setPastEventsLoading(true);
             fetchEventCards(API_KEY, "upcoming")
+                .then(filterOutDrafts)
                 .then(setEvents)
                 .catch((e) => setEventsError(e.message))
                 .finally(() => setEventsLoading(false));
