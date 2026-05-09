@@ -2,9 +2,8 @@ import HomeHeader from "@/components/ui/header";
 import { getEventById } from "@/services/event-service";
 import { createIssueCard, updateIssueCard } from "@/services/trello-service";
 import { Feather } from "@expo/vector-icons";
-import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { consumePendingPhoto, setIssueImage } from "@/store/photo-store";
-import React, { useCallback, useEffect, useState } from "react";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -63,7 +62,6 @@ export default function TrailIssueDetailScreen() {
     const [notes, setNotes] = useState(initialNotes);
     const [metrics, setMetrics] = useState(initialMetrics);
     const [trelloCardId, setTrelloCardId] = useState<string | null>(null);
-    const [albumId, setAlbumId] = useState<string | null>(null);
     const [savedCardId, setSavedCardId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
@@ -83,7 +81,6 @@ export default function TrailIssueDetailScreen() {
             .then((ev) => {
                 if (ev) {
                     if (isNew === "true") setTrelloCardId(ev.trelloCardId);
-                    setAlbumId(ev.albumId ?? null);
                 }
             })
             .catch((e) => console.error("Failed to load event:", e));
@@ -131,40 +128,6 @@ export default function TrailIssueDetailScreen() {
                     notesChanged ? metrics : undefined,
                 );
             }
-            const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
-            const apiKey = process.env.EXPO_PUBLIC_APP_SECRET_KEY;
-            const photosExist = photoUris.before || photoUris.after;
-            if (backendUrl && apiKey && albumId && photosExist) {
-                try {
-                    const formData = new FormData();
-                    formData.append("albumId", albumId);
-                    const slug = name.trim().replace(/\s+/g, "-");
-                    if (photoUris.before) {
-                        formData.append("photos", {
-                            uri: photoUris.before,
-                            type: "image/jpeg",
-                            name: `before-${slug}.jpg`,
-                        } as any);
-                    }
-                    if (photoUris.after) {
-                        formData.append("photos", {
-                            uri: photoUris.after,
-                            type: "image/jpeg",
-                            name: `after-${slug}.jpg`,
-                        } as any);
-                    }
-                    const uploadRes = await fetch(`${backendUrl.replace(/\/$/, "")}/api/upload`, {
-                        method: "POST",
-                        headers: { "x-api-key": apiKey },
-                        body: formData,
-                    });
-                    if (!uploadRes.ok) {
-                        console.error("Photo upload failed:", await uploadRes.text());
-                    }
-                } catch (uploadErr) {
-                    console.error("Photo upload error:", uploadErr);
-                }
-            }
             router.back();
         } catch (e) {
             Alert.alert("Failed to save issue", (e as Error).message);
@@ -178,17 +141,6 @@ export default function TrailIssueDetailScreen() {
         before: beforeImageUri ?? null,
         after: afterImageUri ?? null,
     });
-
-    useFocusEffect(useCallback(() => {
-        const pending = consumePendingPhoto();
-        if (pending) {
-            setPhotoUris((prev) => ({ ...prev, [pending.slot]: pending.uri }));
-            const currentIssueId = savedCardId ?? issueId;
-            if (currentIssueId) {
-                setIssueImage(currentIssueId, pending.slot, pending.uri);
-            }
-        }
-    }, [savedCardId, issueId]));
 
     const handlePhotoPress = async (slot: PhotoSlot) => {
         let activeId = savedCardId ?? issueId;

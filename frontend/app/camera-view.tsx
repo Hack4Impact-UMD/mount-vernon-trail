@@ -6,7 +6,6 @@ import { Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View, Dime
 import Slider from '@react-native-community/slider';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { setPendingPhoto } from '@/store/photo-store';
 import { Palette } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // icons
@@ -151,7 +150,6 @@ export default function CameraViewScreen() {
             console.error('Error saving photo:', error);
         }
         if (source === 'issue') {
-            setPendingPhoto(resolveMode, capturedPhotoUri);
             router.back();
 		}
         // When user pressed TakeAfterPicture, no event id
