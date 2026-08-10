@@ -37,13 +37,6 @@ interface MetricDef {
 
 const METRIC_DEFS: MetricDef[] = [
     {
-        key: "trailImprovements",
-        label: "Trail Improvements",
-        sublabel: "in review",
-        icon: "trending-up",
-        color: PURPLE,
-    },
-    {
         key: "drainageCleaned",
         label: "Drainage",
         sublabel: "# of drains cleaned",
@@ -227,7 +220,6 @@ export default function EventSummaryScreen() {
 
     const [saving, setSaving] = useState(false);
     const [savedDraft, setSavedDraft] = useState(false);
-    const [savedTrello, setSavedTrello] = useState(false);
     const [event, setEvent] = useState<Event>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
@@ -264,13 +256,28 @@ export default function EventSummaryScreen() {
     ) : [];
 
     const handleSaveDraft = async () => {
-        if (saving || savedDraft || savedTrello) return;
+        if (saving || savedDraft) return;
         setSaving(true);
         try {
             await saveDraft(eventId, notepad);
             setSavedDraft(true);
         } catch {
             Alert.alert("Error", "Could not save event to drafts.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Persist the notepad before navigating. This path used to replace straight
+    // to /edit-draft, silently discarding everything typed during the event.
+    const handleEditNow = async () => {
+        if (saving) return;
+        setSaving(true);
+        try {
+            await saveDraft(eventId, notepad);
+            router.replace({ pathname: "/edit-draft", params: { eventId } });
+        } catch {
+            Alert.alert("Error", "Could not save your notes. Please try again.");
         } finally {
             setSaving(false);
         }
@@ -337,7 +344,7 @@ export default function EventSummaryScreen() {
                         saving && styles.actionCardDisabled,
                     ]}
                     onPress={handleSaveDraft}
-                    disabled={saving || savedDraft || savedTrello}>
+                    disabled={saving || savedDraft}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
                             <ActivityIndicator color={PURPLE} />
@@ -370,25 +377,15 @@ export default function EventSummaryScreen() {
                 <Pressable
                     style={[
                         styles.actionCard,
-                        savedTrello && styles.actionCardSaved,
                         saving && styles.actionCardDisabled,
                     ]}
-                    onPress={() => router.replace({
-						pathname: "/edit-draft",
-						params: {
-							eventId
-						}
-					})}
-                    disabled={saving || savedDraft || savedTrello}>
+                    onPress={() => {
+                        handleEditNow().catch(() => undefined);
+                    }}
+                    disabled={saving}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
                             <ActivityIndicator color={PURPLE} />
-                        ) : savedTrello ? (
-                            <MaterialCommunityIcons
-                                name="check"
-                                size={24}
-                                color="#3BA34C"
-                            />
                         ) : (
                             <MaterialCommunityIcons
                                 name="pencil-outline"
@@ -407,7 +404,7 @@ export default function EventSummaryScreen() {
                     </View>
                 </Pressable>
 
-                {(savedDraft || savedTrello) && (
+                {savedDraft && (
                     <Pressable
                         style={styles.actionCard}
                         onPress={() => router.replace("/home-screen")}>

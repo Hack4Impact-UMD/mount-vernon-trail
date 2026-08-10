@@ -8,18 +8,21 @@ import {
     View,
 } from "react-native";
 
-export interface UpcomingEventItem {
+export type EventStatus = "Not started" | "In progress" | "Completed";
+
+export type UpcomingEventItem = {
     id: string;
     name: string;
     description: string;
     date: Date;
     imageUrl: string | null;
+    status?: EventStatus;
     eventLeader?: string;
     zoneLeaders?: string;
     toolHaulers?: string;
     gloverLover?: string;
     workScope?: string;
-}
+};
 
 interface UpcomingEventsCardProps {
     title?: string;
@@ -31,11 +34,14 @@ interface UpcomingEventsCardProps {
     onPressItem: (event: UpcomingEventItem) => void;
 }
 
-const EVENT_STATUS = {
-    label: "Not started",
-    backgroundColor: "#D4930D18",
-    color: "#D4930D",
-};
+// Was a single hardcoded constant, so published past events rendered as
+// "Not started".
+const STATUS_STYLES: Record<EventStatus, { backgroundColor: string; color: string }> =
+    {
+        "Not started": { backgroundColor: "#D4930D18", color: "#D4930D" },
+        "In progress": { backgroundColor: "#5B2D8E18", color: "#5B2D8E" },
+        Completed: { backgroundColor: "#3BA34C18", color: "#2E7D3A" },
+    };
 
 const PLACEHOLDER_IMAGE = require("@/assets/images/mvt-beaver-logo.png");
 
@@ -84,7 +90,11 @@ export function UpcomingEventsCard({
             {/* Empty State */}
             {!loading && !error && events.length === 0 && (
                 <View style={styles.centeredState}>
-                    <Text style={styles.emptyText}>No upcoming events</Text>
+                    {/* Derived from the section title so the "Past Events"
+                        instance does not claim there are no *upcoming* ones. */}
+                    <Text style={styles.emptyText}>
+                        No {title.toLowerCase().replace(/\s*events$/, "")} events
+                    </Text>
                 </View>
             )}
 
@@ -122,17 +132,23 @@ export function UpcomingEventsCard({
                                             styles.tagPill,
                                             {
                                                 backgroundColor:
-                                                    EVENT_STATUS.backgroundColor,
+                                                    STATUS_STYLES[
+                                                        event.status ??
+                                                            "Not started"
+                                                    ].backgroundColor,
                                             },
                                         ]}>
                                         <Text
                                             style={[
                                                 styles.tagText,
                                                 {
-                                                    color: EVENT_STATUS.color,
+                                                    color: STATUS_STYLES[
+                                                        event.status ??
+                                                            "Not started"
+                                                    ].color,
                                                 },
                                             ]}>
-                                            {EVENT_STATUS.label}
+                                            {event.status ?? "Not started"}
                                         </Text>
                                     </View>
                                 </View>

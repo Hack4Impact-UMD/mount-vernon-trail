@@ -1,0 +1,20 @@
+{
+  "_comment": "Contract between frontend/services/album-service.ts (albumTitleKey) and backend/scripts/backfill-firestore.ts, which re-implements it. If these two ever diverge, the migration writes album-title reservations at keys the app never reads, and duplicate album names silently become possible again — the exact bug the reservation scheme exists to prevent. Both test suites assert against this file, so a drift fails CI.",
+  "vectors": [
+    { "title": "Spring Cleanup", "key": "t_spring%20cleanup" },
+    { "title": "spring cleanup", "key": "t_spring%20cleanup" },
+    { "title": "  Spring   CLEANUP  ", "key": "t_spring%20cleanup" },
+    { "title": "Spring\tCleanup", "key": "t_spring%20cleanup" },
+    { "title": "Spring\nCleanup", "key": "t_spring%20cleanup" },
+    { "title": "Zone A/B cleanup", "key": "t_zone%20a%2Fb%20cleanup" },
+    { "title": "..", "key": "t_%2E%2E" },
+    { "title": ".", "key": "t_%2E" },
+    { "title": "__proto__", "key": "t___proto__" },
+    { "title": "50% done", "key": "t_50%25%20done" },
+    { "title": "cleanup #2", "key": "t_cleanup%20%232" },
+    { "title": "a?b", "key": "t_a%3Fb" },
+    { "title": "café cleanup", "key": "t_caf%C3%A9%20cleanup" },
+    { "title": "Trail 🌲", "key": "t_trail%20%F0%9F%8C%B2" },
+    { "title": "em — dash", "key": "t_em%20%E2%80%94%20dash" }
+  ]
+}

@@ -7,13 +7,16 @@ export type TrailIssue = {
     afterImageUri?: string | null;
 };
 
-export type TrailDocumentScreenProps = {
-    eventCardID: string;
+export type TrailIssueItem = {
+    id: string;
+    name: string;
+    description: string;
+    imageUrl: string | null;
 };
 
-export interface TrailDocumentIssueItem {
+export type TrailDocumentIssueItem = {
     id: string;
     name: string;
     imageUrl: string | null;
     creationDate: Date;
-}
+};

@@ -7,7 +7,8 @@ import TrailMetricsSection from "@/components/ui/trail-metrics-section";
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import { getEventById, publishEvent, saveDraft } from "@/services/event-service";
-import { TrelloClient } from "@/services/trello-funcs";
+import { getTrelloClient } from "@/services/trello-config";
+import { getErrorMessage } from "@/utils/errors";
 import {
     fetchDocumentTrailIssues,
     moveCardAttachmentsToCompleted,
@@ -74,7 +75,7 @@ export default function EditDraftScreen() {
             if (!event) return;
             try {
                 if (!API_KEY) return;
-                const trello = new TrelloClient(API_KEY);
+                const trello = getTrelloClient(API_KEY);
                 const eventCard = await trello.getEventCardByID(
                     event.trelloCardId,
                     true,
@@ -118,13 +119,16 @@ export default function EditDraftScreen() {
         }
         setPublishing(true);
         try {
-            await publishEvent(event.eventId);
+            // Trello first, Firestore last. Reversed, a failing Trello move
+            // left the event already marked published and gone from Drafts,
+            // with no way to retry from the UI.
             await moveCardToCompleted(event.trelloCardId, API_KEY);
             await moveCardAttachmentsToCompleted(event.trelloCardId, API_KEY);
+            await publishEvent(event.eventId);
             setPublishModalVisible(false);
             router.replace("/home-screen");
         } catch (e) {
-            Alert.alert("Publish failed", (e as Error).message);
+            Alert.alert("Publish failed", getErrorMessage(e));
             setPublishing(false);
         }
     };

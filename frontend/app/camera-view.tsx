@@ -2,7 +2,9 @@ import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import React, { useRef, useState } from 'react';
-import { Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
+import { Alert, Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
+import { enqueuePhoto, flushInBackground } from '@/services/photo-queue';
+import { getErrorMessage } from '@/utils/errors';
 import Slider from '@react-native-community/slider';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -35,11 +37,12 @@ export default function CameraViewScreen() {
     const [flash, setFlash] = useState<'off' | 'on'>('off');
     // when navigated from the trail document screen
     const router = useRouter();
-    const { beforeImageUri, afterImageUri, activeIssueId, eventId, mode } = useLocalSearchParams<{
+    const { beforeImageUri, activeIssueId, issueName, eventId, albumId, mode } = useLocalSearchParams<{
         beforeImageUri?: string;
-        afterImageUri?: string;
         activeIssueId?: string; // keep track of issue card user pressed
+        issueName?: string;
         eventId?: string;
+        albumId?: string;
         mode?: 'before' | 'after';
     }>();
     const resolveMode = mode === 'after' ? 'after' : 'before';
@@ -134,40 +137,64 @@ export default function CameraViewScreen() {
             console.error('Error opening photo library:', error);
         }
     }
+    // Best-effort copy into the device camera roll. A refusal here must not
+    // cost the volunteer the photo — the queued upload is the real destination.
+    async function saveToCameraRoll(uri: string) {
+        if (!mediaPermission?.granted) {
+            const permissionResponse = await requestMediaPermission();
+            if (!permissionResponse.granted) {
+                Alert.alert(
+                    'Photo not saved to your library',
+                    'Without photo permission the picture will not appear in your camera roll. It is still attached to this trail issue.',
+                );
+                return;
+            }
+        }
+        const asset = await MediaLibrary.createAssetAsync(uri);
+        const album = await MediaLibrary.getAlbumAsync('mount-vernon-trail');
+        // createAlbumAsync unconditionally would make a new album per photo.
+        if (album) {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+        } else {
+            await MediaLibrary.createAlbumAsync('mount-vernon-trail', asset);
+        }
+    }
+
     // Captured photo confirmation buttons
     async function handleDone() {
         if (!capturedPhotoUri) return;
-        // saves captured photo to media library
+
         try {
-            if (!mediaPermission?.granted) {
-                const permissionResponse = await requestMediaPermission();
-                if (!permissionResponse.granted) return;
-            }
-            const asset = await MediaLibrary.createAssetAsync(capturedPhotoUri);
-            await MediaLibrary.createAlbumAsync('mount-vernon-trail', asset);
+            await saveToCameraRoll(capturedPhotoUri);
         } catch (error) {
-            console.error('Error saving photo:', error);
+            // Non-fatal: keep going so the photo still reaches the album.
+            console.error('Error saving photo to camera roll:', getErrorMessage(error));
         }
-        if (resolveMode === 'before') {
-            router.replace({
-                pathname: '/trail-document-screen',
-                params: {
-                    activeIssueId,
-                    beforeImageUri: capturedPhotoUri,
-                    eventId
-                },
-            });
-        } else {
-            router.replace({
-                pathname: '/trail-document-screen',
-                params: {
-                    activeIssueId,
-                    beforeImageUri: beforeImageUri ?? "", 
-                    afterImageUri: capturedPhotoUri,   
-                    eventId
-                },
-            });
+
+        if (eventId && albumId && activeIssueId) {
+            try {
+                await enqueuePhoto({
+                    eventId,
+                    albumId,
+                    issueId: activeIssueId,
+                    issueName: issueName ?? 'Trail issue',
+                    slot: resolveMode,
+                    uri: capturedPhotoUri,
+                });
+                flushInBackground(eventId);
+            } catch (error) {
+                Alert.alert(
+                    'Could not attach photo',
+                    getErrorMessage(error),
+                );
+                return;
+            }
         }
+
+        // back(), not replace(): the stack is trail-document -> trail-issue ->
+        // camera, so replacing would spawn a second trail-document behind this
+        // one, orphan the first (losing its notepad), and re-fetch every issue.
+        router.back();
     }
     function handleRetake() {
         setCapturedPhotoUri(null);
@@ -254,7 +281,9 @@ export default function CameraViewScreen() {
                                     <View style={styles.emptyPreview} />
                                 )}
                             </TouchableOpacity>
-                            <Text style={styles.previewLabel}>Before</Text>
+                            <Text style={styles.previewLabel}>
+                                {resolveMode === 'after' ? 'After' : 'Before'}
+                            </Text>
                         </View>
                         {/* take photo button (center position) */}
                         <View style={[styles.captureContainer, {bottom: insets.bottom} ]}>

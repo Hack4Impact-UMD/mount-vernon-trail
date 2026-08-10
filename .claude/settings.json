@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git merge:*)",
+      "Bash(git push:*)",
+      "Bash(git mv:*)",
+      "Bash(git checkout *)",
+      "Bash(git fetch *)",
+      "Bash(git stash *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(git rm *)",
+      "Bash(git ls-tree *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(grep -E \"\\\\.\\(tsx|ts|jsx|js\\)$\")",
+      "Bash(npx tsc *)",
+      "Bash(npx expo *)",
+      "Bash(bun run *)",
+      "Bash(npm run *)",
+      "Bash(/Users/bhavesh/Desktop/Projects/mount-vernon-trail/frontend)",
+      "Bash(gh pr *)"
+    ]
+  }
+}

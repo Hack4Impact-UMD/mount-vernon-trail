@@ -1,0 +1,90 @@
+rules_version = '2';
+
+// Enforcement for the client-direct Firestore access in frontend/services.
+// The client-side requireUser() guards are UX only — these rules are the
+// actual boundary.
+//
+// Deploy with: firebase deploy --only firestore:rules
+// Test with:   firebase emulators:exec --only firestore,auth "npm run test:rules"
+
+service cloud.firestore {
+    match /databases/{database}/documents {
+
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        // Set by backend/scripts/set-admin-claim.ts. An env var cannot be
+        // referenced from rules, which is why the old EXPO_PUBLIC_ADMIN_EMAIL
+        // check could never be enforced server-side.
+        function isAdmin() {
+            return isSignedIn() && request.auth.token.admin == true;
+        }
+
+        function changed() {
+            return request.resource.data.diff(resource.data).affectedKeys();
+        }
+
+        match /events/{eventId} {
+            // Deliberately readable by any signed-in user: the pre-start event
+            // modal on home-screen must read an admin-created event the
+            // volunteer has never touched. Per-user scoping of drafts and the
+            // active event is a client query concern, not a secrecy guarantee.
+            allow read: if isSignedIn();
+
+            allow create: if isAdmin()
+                && request.resource.data.createdBy == request.auth.uid
+                && request.resource.data.startedBy == null
+                && request.resource.data.startDate == null
+                && request.resource.data.endDate == null;
+
+            // Claiming an unstarted event. Only ever sets these three fields,
+            // only on an unclaimed event, and only to the caller's own uid.
+            allow update: if isSignedIn()
+                && resource.data.startedBy == null
+                && changed().hasOnly(['startDate', 'startedBy', 'isActive'])
+                && request.resource.data.startedBy == request.auth.uid;
+
+            // Running/finishing an event you claimed. Dotted metrics.* writes
+            // report as the top-level key 'metrics', so this covers all 15.
+            allow update: if (isAdmin() || resource.data.startedBy == request.auth.uid)
+                && changed().hasOnly([
+                    'metrics', 'notepad', 'notes',
+                    'isActive', 'isDraft',
+                    'endDate', 'savedAsDraftAt', 'publishedAt'
+                ])
+                && request.resource.data.createdBy == resource.data.createdBy
+                && request.resource.data.startedBy == resource.data.startedBy;
+
+            allow delete: if false;
+        }
+
+        match /albums/{albumId} {
+            allow read: if isSignedIn();
+            allow create: if isAdmin()
+                && request.resource.data.createdBy == request.auth.uid;
+            // Linking an album to its event on event creation, and rollback.
+            allow update, delete: if isAdmin()
+                && resource.data.createdBy == request.auth.uid;
+        }
+
+        // Title reservations backing the atomic duplicate-album check.
+        match /albumTitles/{titleKey} {
+            allow read: if isSignedIn();
+            allow create: if isAdmin()
+                && request.resource.data.reservedBy == request.auth.uid
+                && request.resource.data.status == 'pending';
+            allow update: if isAdmin()
+                && resource.data.reservedBy == request.auth.uid;
+            // A finished reservation is permanent; only a pending one can be
+            // rolled back, and only by the admin holding it.
+            allow delete: if isAdmin()
+                && resource.data.reservedBy == request.auth.uid
+                && resource.data.status == 'pending';
+        }
+
+        match /{document=**} {
+            allow read, write: if false;
+        }
+    }
+}

@@ -6,13 +6,14 @@ import {
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { User } from "firebase/auth";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
+import { Alert } from "react-native";
 import "react-native-reanimated";
 
-import { subscribeToAuthState } from "@/auth/google-auth";
+import { AuthProvider, useAuth } from "@/auth/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { getActiveEvent } from "@/services/event-service";
+import { getErrorMessage } from "@/utils/errors";
 
 import {
     Lato_300Light,
@@ -23,50 +24,36 @@ import {
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+const NON_AUTH_ROUTES = new Set(["auth"]);
+
+// Every screen in app/ must appear here or an authenticated user gets bounced
+// back to /home-screen when they navigate to it.
+const AUTH_ROUTES = new Set([
+    "home-screen",
+    "trail-document-screen",
+    "camera-view",
+    "trail-issue-screen",
+    "setup-event",
+    "event-summary",
+    "edit-draft",
+    "drafts",
+    "albums",
+    "profile",
+    "before-after-graphic",
+]);
+
+function RootNavigator() {
     const colorScheme = useColorScheme();
     const router = useRouter();
     const segments = useSegments();
-    // undefined = not yet initialized
-    // null = not signed in
-    // User = signed in
-    const [user, setUser] = useState<User | null | undefined>(undefined);
-    const [isEligibleActiveEvent, setIsEligibleActiveEvent] = useState(false);
+    const { user } = useAuth();
+    const resumeCheckedRef = useRef(false);
+
     const [fontsLoaded] = useFonts({
         Lato_300Light,
         Lato_400Regular,
         Lato_700Bold,
     });
-    // whenever auth state changes, user is updated
-    useEffect(() => {
-        const unsubscribe = subscribeToAuthState((firebaseUser) => {
-            setUser(firebaseUser);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    // check eligibility for active event whenever user changes
-    useEffect(() => {
-        if (!user) {
-            setIsEligibleActiveEvent(false);
-            return;
-        }
-
-        const checkEligibility = async () => {
-            try {
-                const activeEvent = await getActiveEvent();
-                setIsEligibleActiveEvent(activeEvent !== null);
-            } catch (error) {
-                console.error(
-                    "Error checking active event eligibility:",
-                    error,
-                );
-                setIsEligibleActiveEvent(false);
-            }
-        };
-
-        checkEligibility();
-    }, [user]);
 
     useEffect(() => {
         if (user === undefined || !fontsLoaded) return;
@@ -74,36 +61,54 @@ export default function RootLayout() {
 
         const route = segments[0] ?? "";
 
-        const nonAuthRoutes = new Set(["auth"]);
-        const authRoutes = new Set([
-            "(tabs)",
-            "trello",
-            "home-screen",
-            "trail-document-screen",
-            "camera-view",
-            "trail-issue-screen",
-            "setup-event",
-            "active-event",
-            "event-summary",
-            "edit-draft",
-            "drafts",
-            "albums",
-            "profile",
-			"before-after-graphic",
-            "mock-statistics",
-        ]);
-        // if user not authenticated, re-route to /auth if an auth route is being accessed
         if (!user) {
-            if (!nonAuthRoutes.has(route)) {
+            resumeCheckedRef.current = false;
+            if (!NON_AUTH_ROUTES.has(route)) {
                 router.replace("/auth");
             }
             return;
         }
-        // if user is authenticated, re-route to "home" if non-auth route is being accessed
-        if (!authRoutes.has(route)) {
+        if (!AUTH_ROUTES.has(route)) {
             router.replace("/home-screen");
         }
     }, [user, fontsLoaded, segments, router]);
+
+    // If the app was killed mid-event, offer to jump back into it. Scoped to
+    // the events this user started, so nobody is dropped into someone else's.
+    useEffect(() => {
+        if (!user || resumeCheckedRef.current) return;
+        resumeCheckedRef.current = true;
+
+        let cancelled = false;
+        getActiveEvent()
+            .then((activeEvent) => {
+                if (cancelled || !activeEvent) return;
+                Alert.alert(
+                    "Event still running",
+                    `"${activeEvent.title}" is still in progress. Pick up where you left off?`,
+                    [
+                        { text: "Not now", style: "cancel" },
+                        {
+                            text: "Resume",
+                            onPress: () =>
+                                router.push({
+                                    pathname: "/trail-document-screen",
+                                    params: { eventId: activeEvent.eventId },
+                                }),
+                        },
+                    ],
+                );
+            })
+            .catch((error: unknown) => {
+                console.error(
+                    "Could not check for an active event:",
+                    getErrorMessage(error),
+                );
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [user, router]);
 
     if (user === undefined || !fontsLoaded) return null;
 
@@ -120,16 +125,8 @@ export default function RootLayout() {
                     options={{ headerShown: false, animation: "fade" }}
                 />
                 <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false, animation: "fade" }}
-                />
-                <Stack.Screen
                     name="setup-event"
                     options={{ headerShown: true, title: "Set Up Event" }}
-                />
-                <Stack.Screen
-                    name="active-event"
-                    options={{ headerShown: true, title: "Active Event" }}
                 />
                 <Stack.Screen
                     name="trail-document-screen"
@@ -140,8 +137,8 @@ export default function RootLayout() {
                     options={{ headerShown: false }}
                 />
                 <Stack.Screen
-                    name="modal"
-                    options={{ presentation: "modal", title: "Modal" }}
+                    name="camera-view"
+                    options={{ headerShown: false }}
                 />
                 <Stack.Screen
                     name="event-summary"
@@ -171,12 +168,16 @@ export default function RootLayout() {
                     name="before-after-graphic"
                     options={{ headerShown: false, animation: "none" }}
                 />
-                <Stack.Screen
-                    name="mock-statistics"
-                    options={{ headerShown: false }}
-                />
             </Stack>
             <StatusBar style="auto" />
         </ThemeProvider>
+    );
+}
+
+export default function RootLayout() {
+    return (
+        <AuthProvider>
+            <RootNavigator />
+        </AuthProvider>
     );
 }

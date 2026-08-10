@@ -2,26 +2,44 @@
   "name": "mount-vernon-trail-backend",
   "version": "0.0.0",
   "private": true,
-  "description": "Backend service for Mount Vernon Trail — proxies Google Photos uploads into the MVT-owned album.",
+  "description": "Backend service for Mount Vernon Trail \u2014 proxies Google Photos uploads into the MVT-owned album.",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsc --watch"
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "set-admin": "tsx scripts/set-admin-claim.ts",
+    "backfill": "tsx scripts/backfill-firestore.ts",
+    "snapshot": "tsx scripts/firestore-snapshot.ts",
+    "triage": "tsx scripts/triage-test-data.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.37.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "firebase-admin": "^14.2.0",
     "googleapis": "^171.4.0",
     "multer": "^2.1.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
     "@types/multer": "^2.1.0",
     "@types/node": "^22.0.0",
-    "typescript": "~5.9.2"
+    "@types/supertest": "^7.2.1",
+    "eslint": "^9.39.5",
+    "jest": "^29.7.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.12",
+    "tsx": "^4.23.10",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.66.0"
   }
 }

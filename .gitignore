@@ -86,4 +86,18 @@ android/
 
 google-services.json
 GoogleService-Info.plist
-package-lock.json
+
+# Machine-specific Claude Code settings
+.claude/settings.local.json
+
+# Firebase CLI debug output
+firebase-debug.log
+firestore-debug.log
+
+# Local Firestore snapshots — contain real event data
+backend/backups/
+
+# Firebase service-account keys
+*-adminsdk-*.json
+secrets/
+backend/secrets/

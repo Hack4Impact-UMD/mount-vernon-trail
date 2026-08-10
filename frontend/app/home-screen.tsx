@@ -11,45 +11,20 @@ import {
 } from "@/components/ui/upcoming-events-card";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useTrelloAuth } from "@/hooks/use-trello-auth";
-import { getEventByTrelloCardId, startEvent } from "@/services/event-service";
+import {
+    getActiveEvent,
+    getEventByTrelloCardId,
+    getPublishedEvents,
+    startEvent,
+} from "@/services/event-service";
 import { fetchUpcomingEvents } from "@/services/trello-service";
+import { warmTrelloCache } from "@/services/trello-config";
+import { getErrorMessage } from "@/utils/errors";
 import { Stack, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
-
-// THESE ARE PLACEHOLDER EVENTS FOR THE PAST EVENTS FIGMA DESIGN
-const PLACEHOLDER_PAST_EVENTS: UpcomingEventItem[] = [
-    {
-        id: "past-1",
-        name: "Snow cleanup on Sector A",
-        description: "",
-        date: new Date(2026, 1, 15),
-        imageUrl: null,
-    },
-    {
-        id: "past-2",
-        name: "Trail marker restoration at Mile 3",
-        description: "",
-        date: new Date(2026, 0, 22),
-        imageUrl: null,
-    },
-    {
-        id: "past-3",
-        name: "Fallen tree removal near bridge",
-        description: "",
-        date: new Date(2025, 11, 10),
-        imageUrl: null,
-    },
-    {
-        id: "past-4",
-        name: "Holiday litter sweep",
-        description: "",
-        date: new Date(2025, 11, 1),
-        imageUrl: null,
-    },
-];
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -59,6 +34,11 @@ export default function HomeScreen() {
     const [eventsError, setEventsError] = useState<string | null>(null);
     const [selectedEvent, setSelectedEvent] =
         useState<UpcomingEventItem | null>(null);
+    const [pastEvents, setPastEvents] = useState<UpcomingEventItem[]>([]);
+    const [pastLoading, setPastLoading] = useState(true);
+    const [pastError, setPastError] = useState<string | null>(null);
+    const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+    const [showAllPast, setShowAllPast] = useState(false);
     const isAdmin = useIsAdmin();
 
     const handleTrelloSignIn = async () => {
@@ -74,11 +54,64 @@ export default function HomeScreen() {
             return;
         }
         setEventsLoading(true);
+        setEventsError(null);
+        // One board/list lookup for the whole session instead of one per call.
+        warmTrelloCache(API_KEY).catch(() => undefined);
         fetchUpcomingEvents(API_KEY)
             .then(setEvents)
-            .catch((e) => setEventsError(e.message))
+            .catch((e: unknown) => setEventsError(getErrorMessage(e)))
             .finally(() => setEventsLoading(false));
     }, [isAuthenticated]);
+
+    // Real published events, replacing the hardcoded Figma placeholders that
+    // used to render to every user.
+    useEffect(() => {
+        let cancelled = false;
+        setPastLoading(true);
+        setPastError(null);
+        getPublishedEvents()
+            .then((published) => {
+                if (cancelled) return;
+                setPastEvents(
+                    published.map((event) => ({
+                        id: event.trelloCardId,
+                        name: event.title,
+                        description: event.description,
+                        date: event.date.toDate(),
+                        imageUrl: null,
+                        status: "Completed",
+                    })),
+                );
+            })
+            .catch((e: unknown) => {
+                if (!cancelled) setPastError(getErrorMessage(e));
+            })
+            .finally(() => {
+                if (!cancelled) setPastLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const handleTakeAfterPicture = useCallback(async () => {
+        try {
+            const activeEvent = await getActiveEvent();
+            if (!activeEvent) {
+                Alert.alert(
+                    "No event in progress",
+                    "Start an event from the list below, then pick the issue you want to photograph.",
+                );
+                return;
+            }
+            router.push({
+                pathname: "/trail-document-screen",
+                params: { eventId: activeEvent.eventId },
+            });
+        } catch (e) {
+            Alert.alert("Something went wrong", getErrorMessage(e));
+        }
+    }, [router]);
 
     if (!isAuthenticated) {
         return (
@@ -92,7 +125,14 @@ export default function HomeScreen() {
 
     const handlePressEvent = async (event: UpcomingEventItem) => {
         setSelectedEvent(event);
-        const firebaseEvent = await getEventByTrelloCardId(event.id).catch(() => null);
+        const firebaseEvent = await getEventByTrelloCardId(event.id).catch(
+            (e: unknown) => {
+                // Previously swallowed, so the modal silently opened without
+                // leader/zone data and looked like the event had none.
+                setEventsError(getErrorMessage(e));
+                return null;
+            },
+        );
         if (!firebaseEvent) return;
 
         setSelectedEvent((prev) => {
@@ -145,7 +185,13 @@ export default function HomeScreen() {
                     showsVerticalScrollIndicator={false}>
                     <Header showGreeting />
                     <View style={styles.cardWrapper}>
-                        <TakeAfterPicture />
+                        <TakeAfterPicture
+                            onPress={() => {
+                                handleTakeAfterPicture().catch((e: unknown) =>
+                                    setEventsError(getErrorMessage(e)),
+                                );
+                            }}
+                        />
                         <MakeBeforeAfterGraphic onPress={() => router.push("/before-after-graphic")} />
                         {isAdmin && (
                             <CreateNewEvent onPress={() => router.push("/setup-event")} />
@@ -156,24 +202,21 @@ export default function HomeScreen() {
                             events={events}
                             loading={eventsLoading}
                             error={eventsError}
-                            maxItems={3}
-                            onShowMore={() => {}}
+                            maxItems={showAllUpcoming ? events.length : 3}
+                            onShowMore={() => setShowAllUpcoming((v) => !v)}
                             onPressItem={(event) => handlePressEvent(event)}
                         />
                     </View>
 
-                    {/* PLACEHOLDER FOR PAST EVENTS IN FIGMA */}
                     <View style={styles.eventsSection}>
                         <UpcomingEventsCard
                             title="Past Events"
-                            events={PLACEHOLDER_PAST_EVENTS}
-                            loading={false}
-                            error={null}
-                            maxItems={3}
-                            onShowMore={() => {}}
-                            onPressItem={(event) =>
-                                console.log("pressed past:", event.name)
-                            }
+                            events={pastEvents}
+                            loading={pastLoading}
+                            error={pastError}
+                            maxItems={showAllPast ? pastEvents.length : 3}
+                            onShowMore={() => setShowAllPast((v) => !v)}
+                            onPressItem={(event) => handlePressEvent(event)}
                         />
                     </View>
                 </ScrollView>
