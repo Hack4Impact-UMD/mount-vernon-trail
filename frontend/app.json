@@ -25,7 +25,15 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.hack4impact.mountvernontrail"
+      "package": "com.hack4impact.mountvernontrail",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "output": "static",
@@ -60,6 +68,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "friends-of-mvt-h4i",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a86e295c-87e9-4b44-affe-e9cbc3681824"
+      }
     }
   }
 }
