@@ -184,7 +184,8 @@ describe("endDate is written exactly once", () => {
         // Re-saving a draft used to push endDate to now, inflating
         // hoursOfService by however long the draft sat untouched.
         expect(payload).not.toHaveProperty("endDate");
-        expect(payload).toHaveProperty("notepad", "some notes");
+        // main merged the old `notepad` field into `notes` (7260e85).
+        expect(payload).toHaveProperty("notes", "some notes");
     });
 
     it("publishEvent never touches endDate", async () => {

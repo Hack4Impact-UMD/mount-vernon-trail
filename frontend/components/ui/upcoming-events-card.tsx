@@ -24,7 +24,7 @@ export type UpcomingEventItem = {
     workScope?: string;
 };
 
-interface UpcomingEventsCardProps {
+type UpcomingEventsCardProps = {
     title?: string;
     events: UpcomingEventItem[];
     loading: boolean;
@@ -32,16 +32,36 @@ interface UpcomingEventsCardProps {
     maxItems?: number;
     onShowMore: () => void;
     onPressItem: (event: UpcomingEventItem) => void;
-}
+    // Locally recorded active event (AsyncStorage). Renders instantly and
+    // offline, so the pill flips to "In Progress" the moment an event starts.
+    activeEventId?: string | null;
+};
 
 // Was a single hardcoded constant, so published past events rendered as
-// "Not started".
-const STATUS_STYLES: Record<EventStatus, { backgroundColor: string; color: string }> =
-    {
-        "Not started": { backgroundColor: "#D4930D18", color: "#D4930D" },
-        "In progress": { backgroundColor: "#5B2D8E18", color: "#5B2D8E" },
-        Completed: { backgroundColor: "#3BA34C18", color: "#2E7D3A" },
-    };
+// "Not started". `label` is separate from the key so the in-progress pill keeps
+// the exact "In Progress" casing shipped on main.
+const STATUS_STYLES: Record<
+    EventStatus,
+    { label: string; backgroundColor: string; color: string }
+> = {
+    "Not started": {
+        label: "Not started",
+        backgroundColor: "#D4930D18",
+        color: "#D4930D",
+    },
+    // Green rather than the brand purple: this is the colour already shipped on
+    // main for the running event, and volunteers read it as "live".
+    "In progress": {
+        label: "In Progress",
+        backgroundColor: "#1A7A4A18",
+        color: "#1A7A4A",
+    },
+    Completed: {
+        label: "Completed",
+        backgroundColor: "#3BA34C18",
+        color: "#2E7D3A",
+    },
+};
 
 const PLACEHOLDER_IMAGE = require("@/assets/images/mvt-beaver-logo.png");
 
@@ -53,6 +73,19 @@ export function formatEventDate(date: Date): string {
     });
 }
 
+// The locally tracked active event wins over the item's own status: it is the
+// freshest signal a volunteer has, while `status` is derived from Firestore/
+// Trello data that may still be a fetch behind.
+function resolveStatus(
+    event: UpcomingEventItem,
+    activeEventId?: string | null,
+): EventStatus {
+    if (activeEventId && event.id === activeEventId) {
+        return "In progress";
+    }
+    return event.status ?? "Not started";
+}
+
 export function UpcomingEventsCard({
     title = "Upcoming Events",
     events,
@@ -61,6 +94,7 @@ export function UpcomingEventsCard({
     maxItems = 3,
     onShowMore,
     onPressItem,
+    activeEventId,
 }: UpcomingEventsCardProps) {
     const [expanded, setExpanded] = React.useState(false);
     const hasMore = events.length > maxItems;
@@ -100,7 +134,10 @@ export function UpcomingEventsCard({
 
             {!loading &&
                 !error &&
-                visibleEvents.map((event, index) => {
+                visibleEvents.map((event) => {
+                    const status = resolveStatus(event, activeEventId);
+                    const statusStyle = STATUS_STYLES[status];
+
                     return (
                         <Pressable
                             key={event.id}
@@ -132,23 +169,15 @@ export function UpcomingEventsCard({
                                             styles.tagPill,
                                             {
                                                 backgroundColor:
-                                                    STATUS_STYLES[
-                                                        event.status ??
-                                                            "Not started"
-                                                    ].backgroundColor,
+                                                    statusStyle.backgroundColor,
                                             },
                                         ]}>
                                         <Text
                                             style={[
                                                 styles.tagText,
-                                                {
-                                                    color: STATUS_STYLES[
-                                                        event.status ??
-                                                            "Not started"
-                                                    ].color,
-                                                },
+                                                { color: statusStyle.color },
                                             ]}>
-                                            {event.status ?? "Not started"}
+                                            {statusStyle.label}
                                         </Text>
                                     </View>
                                 </View>

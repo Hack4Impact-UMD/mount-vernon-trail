@@ -37,6 +37,8 @@ export default function CameraViewScreen() {
     const [flash, setFlash] = useState<'off' | 'on'>('off');
     // when navigated from the trail document screen
     const router = useRouter();
+    // The standalone "Take After Picture" entry point on the home screen passes
+    // only `mode`, so every issue-scoped param has to stay optional.
     const { beforeImageUri, activeIssueId, issueName, eventId, albumId, mode } = useLocalSearchParams<{
         beforeImageUri?: string;
         activeIssueId?: string; // keep track of issue card user pressed
@@ -50,7 +52,7 @@ export default function CameraViewScreen() {
     const [overlayUri, setOverlayUri] = useState<string | null>(
         resolveMode === 'after' ? (beforeImageUri ?? null) : null
     );
-    const [viewState, setViewState] = useState<'camera' | 'confirmation'>('camera'); 
+    const [viewState, setViewState] = useState<'camera' | 'confirmation'>('camera');
     const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
 
     if (!permission) {
@@ -88,7 +90,7 @@ export default function CameraViewScreen() {
     async function takePhoto() {
         try {
             setIsCapturing(true);
-            
+
             // white flash to indicate photo capture
             Animated.sequence([
                 Animated.timing(flashAnim, {
@@ -105,7 +107,7 @@ export default function CameraViewScreen() {
 
             const photo = await cameraRef.current?.takePictureAsync();
             if (!photo) return;
-            
+
             setCapturedPhotoUri(photo.uri);
             setRecentPhoto(photo.uri);
             setViewState('confirmation');
@@ -171,6 +173,8 @@ export default function CameraViewScreen() {
             console.error('Error saving photo to camera roll:', getErrorMessage(error));
         }
 
+        // Issue-scoped capture. The standalone "Take After Picture" flow has no
+        // event/album/issue, so it only lands in the camera roll above.
         if (eventId && albumId && activeIssueId) {
             try {
                 await enqueuePhoto({
@@ -193,8 +197,14 @@ export default function CameraViewScreen() {
 
         // back(), not replace(): the stack is trail-document -> trail-issue ->
         // camera, so replacing would spawn a second trail-document behind this
-        // one, orphan the first (losing its notepad), and re-fetch every issue.
-        router.back();
+        // one, orphan the first (losing its notes), and re-fetch every issue.
+        // The screen that pushed us re-reads the photo queue on focus.
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+        // Nothing to return to (e.g. camera opened as the entry screen).
+        router.replace('/home-screen');
     }
     function handleRetake() {
         setCapturedPhotoUri(null);
@@ -203,10 +213,10 @@ export default function CameraViewScreen() {
     if (viewState === 'confirmation' && capturedPhotoUri) {
         return (
             <View style={styles.container}>
-                <Image 
-                    source={{ uri: capturedPhotoUri }} 
-                    style={styles.camera} 
-                    resizeMode="cover" 
+                <Image
+                    source={{ uri: capturedPhotoUri }}
+                    style={styles.camera}
+                    resizeMode="cover"
                 />
                 <View style={[styles.confirmButtonRow, {bottom: insets.bottom + 20}]}>
                     <TouchableOpacity style={styles.confirmButton} onPress={handleDone}>
@@ -228,9 +238,9 @@ export default function CameraViewScreen() {
         <GestureHandlerRootView style={styles.container}>
             <GestureDetector gesture={pinchGesture}>
                 <View style={styles.container}>
-                    <CameraView 
-                        style={styles.camera} 
-                        facing={facing} 
+                    <CameraView
+                        style={styles.camera}
+                        facing={facing}
                         flash={flash}
                         // @ts-ignore
                         ref={cameraRef}
@@ -238,9 +248,9 @@ export default function CameraViewScreen() {
                     />
                     {resolveMode === 'after' && overlayUri && (
                         <View style={[ StyleSheet.absoluteFillObject, { opacity: overlayOpacity }]} pointerEvents="none">
-                            <Image 
-                                source={{ uri: overlayUri }} 
-                                resizeMode="cover" 
+                            <Image
+                                source={{ uri: overlayUri }}
+                                resizeMode="cover"
                                 style={{ flex : 1 }}
                             />
                         </View>
@@ -287,11 +297,11 @@ export default function CameraViewScreen() {
                         </View>
                         {/* take photo button (center position) */}
                         <View style={[styles.captureContainer, {bottom: insets.bottom} ]}>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={[
                                     styles.captureButton,
                                     isCapturing && styles.captureButtonActive,
-                                ]} 
+                                ]}
                                 onPress={takePhoto}
                                 disabled={isCapturing}
                             >
@@ -423,7 +433,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     slider: {
-        width: SCREEN_HEIGHT * 0.12, 
+        width: SCREEN_HEIGHT * 0.12,
         height: SCREEN_HEIGHT * 0.04,
         transform: [{ scale: 0.9 }]
     },
@@ -474,4 +484,4 @@ const styles = StyleSheet.create({
         fontFamily: 'Lato_400Regular',
         fontSize: 14,
     },
-}); 
+});

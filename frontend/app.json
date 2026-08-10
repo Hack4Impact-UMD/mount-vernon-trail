@@ -11,10 +11,9 @@
       "com.googleusercontent.apps.405328478335-4gr2n100eq9g8tg8m4r89tm26gas4rcs"
     ],
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hack4impact.mountvernontrail"
+      "bundleIdentifier": "com.anonymous.mountvernontrail"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +22,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.hack4impact.mountvernontrail",
       "permissions": [
@@ -38,6 +36,10 @@
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
+    },
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "NEVER"
     },
     "plugins": [
       "expo-router",
@@ -69,12 +71,12 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "owner": "friends-of-mvt-h4i",
     "extra": {
       "router": {},
       "eas": {
         "projectId": "a86e295c-87e9-4b44-affe-e9cbc3681824"
       }
-    }
+    },
+    "owner": "friends-of-mvt-h4i"
   }
 }

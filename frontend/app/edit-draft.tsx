@@ -8,16 +8,17 @@ import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import { getEventById, publishEvent, saveDraft } from "@/services/event-service";
 import { getTrelloClient } from "@/services/trello-config";
-import { getErrorMessage } from "@/utils/errors";
 import {
+    addNotesToCard,
     fetchDocumentTrailIssues,
     moveCardAttachmentsToCompleted,
-    moveCardToCompleted
+    moveCardToCompleted,
 } from "@/services/trello-service";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
+import { getErrorMessage } from "@/utils/errors";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -31,16 +32,37 @@ import {
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
+// fetchDocumentTrailIssues carries the Trello card description through, but it
+// is not part of TrailDocumentIssueItem yet. Read it defensively so the issue
+// editor still prefills, without casting through `any`.
+function issueDescription(issue: TrailDocumentIssueItem): string | undefined {
+    return "description" in issue && typeof issue.description === "string"
+        ? issue.description
+        : undefined;
+}
+
 export default function EditDraftScreen() {
     const router = useRouter();
     const { eventId } = useLocalSearchParams<{ eventId: string }>();
+
+    // Guards against a double tap opening two copies of the issue editor.
+    const pressedIssueRef = useRef(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    // Returning from the issue editor must show the edits that were just made.
+    useFocusEffect(
+        useCallback(() => {
+            pressedIssueRef.current = false;
+            setRefreshKey((k) => k + 1);
+        }, []),
+    );
 
     const [event, setEvent] = useState<Event>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
     const [issues, setIssues] = useState<TrailDocumentIssueItem[]>([]);
     const [issuesError, setIssuesError] = useState<string | null>(null);
-    const [notepad, setNotepad] = useState("");
+    const [notes, setNotes] = useState("");
     const [savingDraft, setSavingDraft] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [publishModalVisible, setPublishModalVisible] = useState(false);
@@ -58,9 +80,9 @@ export default function EditDraftScreen() {
                     return;
                 }
                 setEvent(e);
-                setNotepad(e.notepad ?? "");
+                setNotes(e.notes ?? "");
             })
-            .catch((e) => setError((e as Error).message))
+            .catch((e) => setError(getErrorMessage(e)))
             .finally(() => setLoading(false));
     }, [eventId]);
 
@@ -74,7 +96,6 @@ export default function EditDraftScreen() {
             }
             if (!event) return;
             try {
-                if (!API_KEY) return;
                 const trello = getTrelloClient(API_KEY);
                 const eventCard = await trello.getEventCardByID(
                     event.trelloCardId,
@@ -87,9 +108,7 @@ export default function EditDraftScreen() {
                 if (!cancelled) setIssues(fetched);
             } catch (err) {
                 if (!cancelled) {
-                    setIssuesError(
-                        (err as Error).message ?? "Failed to load trail issues",
-                    );
+                    setIssuesError(getErrorMessage(err));
                 }
             }
         }
@@ -97,16 +116,16 @@ export default function EditDraftScreen() {
         return () => {
             cancelled = true;
         };
-    }, [event]);
+    }, [event, refreshKey]);
 
     const handleSaveDraft = async () => {
         if (!event || savingDraft || publishing) return;
         setSavingDraft(true);
         try {
-            await saveDraft(event.eventId, notepad);
+            await saveDraft(event.eventId, notes);
             router.replace("/drafts");
         } catch (e) {
-            Alert.alert("Save failed", (e as Error).message);
+            Alert.alert("Save failed", getErrorMessage(e));
             setSavingDraft(false);
         }
     };
@@ -119,9 +138,10 @@ export default function EditDraftScreen() {
         }
         setPublishing(true);
         try {
-            // Trello first, Firestore last. Reversed, a failing Trello move
+            // Trello first, Firestore last. Reversed, a failing Trello call
             // left the event already marked published and gone from Drafts,
             // with no way to retry from the UI.
+            await addNotesToCard(event.trelloCardId, notes, API_KEY);
             await moveCardToCompleted(event.trelloCardId, API_KEY);
             await moveCardAttachmentsToCompleted(event.trelloCardId, API_KEY);
             await publishEvent(event.eventId);
@@ -145,11 +165,11 @@ export default function EditDraftScreen() {
 
     return (
         <View style={styles.screen}>
+            <HomeHeader />
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}>
-                <HomeHeader />
                 <TrailEventHeader event={event} variant="summary" />
 
                 <View style={styles.contentContainer}>
@@ -165,6 +185,24 @@ export default function EditDraftScreen() {
                                 name={issue.name}
                                 date={issue.creationDate}
                                 imageUrl={issue.imageUrl}
+                                onPress={() => {
+                                    if (pressedIssueRef.current) return;
+                                    pressedIssueRef.current = true;
+                                    router.push({
+                                        pathname: "/trail-issue-screen",
+                                        params: {
+                                            issueId: issue.id,
+                                            issueName: issue.name,
+                                            imageUrl:
+                                                issue.imageUrl ?? undefined,
+                                            description: issueDescription(
+                                                issue,
+                                            ),
+                                            eventId: event.eventId,
+                                            isDraft: "true",
+                                        },
+                                    });
+                                }}
                             />
                         ))}
                         {!issuesError && issues.length === 0 && (
@@ -174,25 +212,23 @@ export default function EditDraftScreen() {
                         )}
                     </View>
 
-                <View>
-                    <Text style={styles.sectionTitle}>Notepad</Text>
-                    <TextInput
-                        style={styles.notepad}
-                        value={notepad}
-                        onChangeText={setNotepad}
-                        multiline
-                        placeholder="Add notes about this event"
-                        placeholderTextColor="#bbb"
-                        textAlignVertical="top"
+                    <View>
+                        <Text style={styles.sectionTitle}>Notepad</Text>
+                        <TextInput
+                            style={styles.notepad}
+                            value={notes}
+                            onChangeText={setNotes}
+                            multiline
+                            placeholder="Add notes about this event"
+                            placeholderTextColor="#bbb"
+                            textAlignVertical="top"
+                        />
+                    </View>
+
+                    <TrailMetricsSection
+                        eventId={event.eventId}
+                        initialMetrics={event.metrics}
                     />
-                </View>
-
-				{/* Metrics Section */}
-				<TrailMetricsSection
-					eventId={event.eventId}
-					initialMetrics={event.metrics}
-				/>
-
                 </View>
 
                 <View style={styles.actionRow}>

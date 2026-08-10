@@ -192,6 +192,7 @@ export class TrelloClient {
     // includes option to remove date from card name (for display only)
     async getEventCardsFiltered(
         listID: string,
+        timeline: "upcoming" | "past" = "upcoming",
         days: number = 30,
         getAttachments: boolean = false,
         removeDate: boolean = false,
@@ -205,8 +206,8 @@ export class TrelloClient {
                 now.getDate(),
             );
             const daysMilliseconds = 24 * 60 * 60 * 1000;
-            const futureDate = new Date(
-                today.getTime() + days * daysMilliseconds,
+            const timelineDate = new Date(
+                today.getTime() + (timeline === "upcoming"? 1 : -1) * days * daysMilliseconds,
             );
             // convert to event cards
             const result: EventCard[] = cards
@@ -214,11 +215,16 @@ export class TrelloClient {
                 .filter(
                     (card): card is EventCard =>
                         card !== null &&
-                        card.eventDate >= today &&
-                        card.eventDate <= futureDate,
+                        (timeline === "upcoming"
+                            ? card.eventDate >= today && card.eventDate <= timelineDate
+                           : card.eventDate < today && card.eventDate >= timelineDate),
                 )
-                // sort by date ascending
-                .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
+                // sort by date ascending or descending
+                .sort((a, b) => 
+                    timeline === "upcoming"
+                    ? a.eventDate.getTime() - b.eventDate.getTime()
+                    : b.eventDate.getTime() - a.eventDate.getTime(),
+                );
             return result;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;
@@ -238,6 +244,26 @@ export class TrelloClient {
                 `unable to get card ${cardID}:`,
                 getErrorMessage(error),
             );
+            throw error;
+        }
+    }
+
+    async deleteCard(cardID: string): Promise<void> {
+        try {
+            await this.client.delete(`/cards/${cardID}`);
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(`unable to delete card ${cardID}:`, getErrorMessage(error));
+            throw error;
+        }
+    }
+
+    async addAttachmentToCard(cardID: string, url: string): Promise<void> {
+        try {
+            await this.client.post(`/cards/${cardID}/attachments`, { url });
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(`unable to add attachment to card ${cardID}:`, getErrorMessage(error));
             throw error;
         }
     }
@@ -263,6 +289,26 @@ export class TrelloClient {
             const response = await this.client.put<Card>(`/cards/${cardID}`, {
                 desc: newDescription,
             });
+            return response.data;
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(
+                `unable to update card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    async updateCard(
+        cardID: string,
+        fields: { name?: string; desc?: string },
+    ): Promise<Card> {
+        try {
+            const response = await this.client.put<Card>(
+                `/cards/${cardID}`,
+                fields,
+            );
             return response.data;
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;

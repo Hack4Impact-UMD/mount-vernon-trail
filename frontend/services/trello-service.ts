@@ -1,6 +1,9 @@
 // service layer between TrelloClient func and the UI
 import type { UpcomingEventItem } from "@/components/ui/upcoming-events-card";
-import type { TrailDocumentIssueItem, TrailIssueItem } from "@/types/trail-types";
+import type {
+    TrailDocumentIssueItem,
+    TrailIssueItem,
+} from "@/types/trail-types";
 import { getListId, getTrelloClient } from "./trello-config";
 import { EventCard, TrelloAttachment } from "./trello-types";
 
@@ -80,13 +83,24 @@ export async function fetchDocumentTrailIssues(
     );
 }
 
-// fetches upcoming event cards within the next 30 days
-export async function fetchUpcomingEvents(
+// fetches event cards within 30 days of today: either the upcoming ones still
+// scheduled, or the already published ones sitting in Completed Events
+export async function fetchEventCards(
     key: string,
+    filter: "upcoming" | "past",
 ): Promise<UpcomingEventItem[]> {
     const trello = getTrelloClient(key);
-    const listId = await getListId("upcomingEvents", key);
-    const cards = await trello.getEventCardsFiltered(listId, 30, true, true);
+    const listId = await getListId(
+        filter === "past" ? "completedEvents" : "upcomingEvents",
+        key,
+    );
+    const cards = await trello.getEventCardsFiltered(
+        listId,
+        filter,
+        30,
+        true,
+        true,
+    );
     return Promise.all(
         cards.map(async (card) => {
             const imgAttachmentUrl = getFirstImageAttachment(card.attachments);
@@ -158,8 +172,8 @@ export async function moveCardToCompleted(
     await trello.moveCardToList(cardId, listId);
 }
 
-// Compensation for a failed event setup. Trello has no card delete on this
-// client surface, so archiving is the correct undo.
+// Compensation for a failed event setup. An event card may already be visible
+// to the team, so archiving is the safer undo than a hard delete.
 export async function archiveCard(cardId: string, key: string): Promise<void> {
     await getTrelloClient(key).archiveCard(cardId);
 }
@@ -229,9 +243,70 @@ export async function createTrailIssue(
     const trello = getTrelloClient(key);
     const listId = await getListId("trailIssues", key);
     const card = await trello.createCard(listId, name, description);
-    if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
-    await trello.addAttachment(eventCardId, card.shortUrl);
-    return { cardId: card.id, cardUrl: card.shortUrl };
+
+    try {
+        if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+        await trello.addAttachmentToCard(eventCardId, card.shortUrl);
+        return { cardId: card.id, cardUrl: card.shortUrl };
+    } catch (attachErr) {
+        // compensate: delete the orphaned card so a retry won't create duplicates
+        try {
+            await trello.deleteCard(card.id);
+        } catch (deleteErr) {
+            console.error(
+                "Failed to clean up orphaned issue card:",
+                card.id,
+                deleteErr,
+            );
+        }
+        throw attachErr;
+    }
+}
+
+// The Notes/Metrics layout the issue screen writes into a card description.
+function buildIssueDescription(notes: string, metrics: string): string {
+    return [
+        notes.trim() ? `Notes:\n${notes.trim()}` : "",
+        metrics.trim() ? `Metrics:\n${metrics.trim()}` : "",
+    ]
+        .filter(Boolean)
+        .join("\n\n");
+}
+
+// creates a new issue card in the Trail Issues list and attaches it to the event card
+// Delegates to createTrailIssue so the orphan rollback lives in exactly one place.
+export async function createIssueCard(
+    name: string,
+    notes: string,
+    metrics: string,
+    eventTrelloCardId: string,
+    key: string,
+): Promise<string> {
+    const { cardId } = await createTrailIssue(
+        eventTrelloCardId,
+        name,
+        buildIssueDescription(notes, metrics),
+        key,
+    );
+    return cardId;
+}
+
+// updates the notes and metrics on an existing issue card
+// Note: this rewrites the whole description, whereas saveIssueNotes only
+// rewrites the "📝 Field Notes" section. A card edited through both paths keeps
+// both blocks; pick one path per screen.
+export async function updateIssueCard(
+    issueCardId: string,
+    name: string,
+    key: string,
+    notes?: string,
+    metrics?: string,
+): Promise<void> {
+    const fields: { name: string; desc?: string } = { name: name.trim() };
+    if (notes !== undefined || metrics !== undefined) {
+        fields.desc = buildIssueDescription(notes ?? "", metrics ?? "");
+    }
+    await getTrelloClient(key).updateCard(issueCardId, fields);
 }
 
 // adds album link to a trello event card description
@@ -260,5 +335,37 @@ export async function addAlbumLinkToCard(
         replacedDescription = currentDescription + newLinkText;
     }
 
+    await trello.replaceCardDescription(cardID, replacedDescription);
+}
+
+// adds notes to a trello event card description
+export async function addNotesToCard(
+    cardID: string,
+    notes: string,
+    key: string,
+): Promise<void> {
+    const trello = getTrelloClient(key);
+    const card = await trello.getCard(cardID);
+    const currentDescription = card.desc ?? "";
+
+    const notesPattern = /\n\n📝 Notes:.*?(?=\n\n📷 Album Link:|$)/s;
+    const trimmedNotes = notes.trim();
+    const newNotesText = `\n\n📝 Notes:\n${trimmedNotes}`;
+
+    let replacedDescription: string;
+    if (
+        currentDescription.includes("📷 Album Link:") &&
+        notesPattern.test(currentDescription)
+    ) {
+        // replace existing notes to make operation idempotent
+        // note: this makes the assumption that notes are followed by the album link
+        replacedDescription = currentDescription.replace(
+            notesPattern,
+            newNotesText,
+        );
+    } else {
+        // append new notes if none exists or if notes exist but there is no album link (position is unknown so just append to end)
+        replacedDescription = currentDescription + newNotesText;
+    }
     await trello.replaceCardDescription(cardID, replacedDescription);
 }

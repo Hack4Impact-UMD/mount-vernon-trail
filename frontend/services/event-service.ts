@@ -1,4 +1,5 @@
 import { db } from "@/config/firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
     collection,
     doc,
@@ -81,7 +82,6 @@ export type Event = {
     toolHaulers: string;
     gloverLover: string;
     notes: string;
-    notepad?: string;
     publishedAt?: Timestamp;
     metrics?: EventMetrics;
 };
@@ -249,14 +249,25 @@ export async function setEventInactive(eventId: string): Promise<void> {
 
 export async function saveDraft(
     eventId: string,
-    notepad?: string,
+    notes?: string,
 ): Promise<void> {
     requireUser("save a draft");
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         isDraft: true,
         isActive: false,
         savedAsDraftAt: Timestamp.now(),
-        ...(notepad !== undefined ? { notepad } : {}),
+        ...(notes !== undefined ? { notes } : {}),
+    });
+}
+
+// Update only the notes field for an event
+export async function updateEventNotes(
+    eventId: string,
+    notes: string,
+): Promise<void> {
+    requireUser("update event notes");
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
+        notes,
     });
 }
 
@@ -297,6 +308,8 @@ export function extractMetricsWithHours(event: Event): EventMetricsWithHours {
     const start = event.startDate;
     const end = event.endDate ? event.endDate.toMillis() : Date.now();
     return {
+        // Defaults first so an event predating a metric still reports it as 0
+        // rather than undefined.
         ...createDefaultMetrics(),
         ...(event.metrics ?? {}),
         hoursOfService: start
@@ -305,4 +318,23 @@ export function extractMetricsWithHours(event: Event): EventMetricsWithHours {
               )
             : 0,
     };
+}
+
+// Local record of the event this device started, from main. Complements
+// getActiveEvent(): this one is instant and works offline, the Firestore query
+// is authoritative and survives a reinstall or a device switch.
+const ACTIVE_EVENT_KEY = "active_event_trello_id";
+
+export async function saveActiveEventLocally(
+    trelloCardId: string,
+): Promise<void> {
+    await AsyncStorage.setItem(ACTIVE_EVENT_KEY, trelloCardId);
+}
+
+export async function clearActiveEventLocally(): Promise<void> {
+    await AsyncStorage.removeItem(ACTIVE_EVENT_KEY);
+}
+
+export async function getLocalActiveEventId(): Promise<string | null> {
+    return AsyncStorage.getItem(ACTIVE_EVENT_KEY);
 }

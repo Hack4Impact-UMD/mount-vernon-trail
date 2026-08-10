@@ -1,6 +1,6 @@
 import { Palette } from "@/constants/theme";
 import { Feather } from "@expo/vector-icons";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Modal,
@@ -14,7 +14,8 @@ type Props = {
     visible: boolean;
     eventTitle: string;
     onCancel: () => void;
-    onConfirm: () => void;
+    onConfirm: (notes: string) => void;
+    initialNotes?: string;
     loading?: boolean;
 };
 
@@ -23,8 +24,14 @@ export default function EndEventModal({
     eventTitle,
     onCancel,
     onConfirm,
+    initialNotes,
     loading = false,
 }: Props) {
+    const [notes, setNotes] = useState(initialNotes ?? "");
+    useEffect(() => {
+        setNotes(initialNotes ?? "");
+    }, [initialNotes]);
+
     return (
         <Modal
             visible={visible}
@@ -53,7 +60,7 @@ export default function EndEventModal({
                             styles.confirmBtn,
                             loading && styles.confirmBtnDisabled,
                         ]}
-                        onPress={onConfirm}
+                        onPress={() => onConfirm(notes)}
                         disabled={loading}>
                         {loading ? (
                             <ActivityIndicator color="#fff" />

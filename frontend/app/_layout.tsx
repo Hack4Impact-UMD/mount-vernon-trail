@@ -27,7 +27,10 @@ SplashScreen.preventAutoHideAsync();
 const NON_AUTH_ROUTES = new Set(["auth"]);
 
 // Every screen in app/ must appear here or an authenticated user gets bounced
-// back to /home-screen when they navigate to it.
+// back to /home-screen when they navigate to it. The pre-merge list also held
+// "(tabs)", "trello", "active-event" and "mock-statistics"; the first three
+// screens were removed in this refactor and "mock-statistics" never had a file
+// backing it, so listing them would only whitelist routes that cannot resolve.
 const AUTH_ROUTES = new Set([
     "home-screen",
     "trail-document-screen",
@@ -75,6 +78,8 @@ function RootNavigator() {
 
     // If the app was killed mid-event, offer to jump back into it. Scoped to
     // the events this user started, so nobody is dropped into someone else's.
+    // The old /active-event screen is gone, so resuming lands on the trail
+    // document screen for that event instead.
     useEffect(() => {
         if (!user || resumeCheckedRef.current) return;
         resumeCheckedRef.current = true;

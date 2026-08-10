@@ -2,6 +2,7 @@ import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
 import { setupEvent } from "@/services/event-setup";
+import { addNotesToCard } from "@/services/trello-service";
 import { getDateString, parseAndValidateDate } from "@/utils/date";
 import { getErrorMessage } from "@/utils/errors";
 import { Feather } from "@expo/vector-icons";
@@ -37,7 +38,7 @@ export default function SetupEventScreen() {
     const [toolHaulers, setToolHaulers] = useState("");
     const [gloverLover, setGloverLover] = useState("");
     const [notes, setNotes] = useState("");
-    
+
     const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
     const [creating, setCreating] = useState(false);
     const [canceling, setCanceling] = useState(false);
@@ -99,13 +100,46 @@ export default function SetupEventScreen() {
                 },
                 TRELLO_KEY,
             );
-            Alert.alert("Event Created", `"${title.trim()}" has been set up!`, [
-                {
-                    text: "Open Trello Card",
-                    onPress: () => Linking.openURL(result.cardUrl),
-                },
-                { text: "OK", onPress: () => router.back() },
-            ]);
+
+            // The roster and the notes belong on the Trello card so leaders can
+            // read them without opening the app. They go into the card's notes
+            // section instead of its description because setupEvent reuses that
+            // description as the event's stored work scope, which the home
+            // screen renders verbatim.
+            const roster = [
+                ["Event Leader", eventLeader],
+                ["Zone Leaders", zoneLeaders],
+                ["Tool Haulers", toolHaulers],
+                ["Glover Lover", gloverLover],
+            ]
+                .filter(([, value]) => value.trim())
+                .map(([label, value]) => `${label}: ${value.trim()}`)
+                .join("\n");
+            const cardNotes = [roster, notes.trim()].filter(Boolean).join("\n\n");
+
+            // The event and its card already exist by now, so a failure here is
+            // a degraded card rather than a failed setup — surface it without
+            // claiming the event was not created.
+            let cardNotesWarning = "";
+            if (cardNotes) {
+                try {
+                    await addNotesToCard(result.cardId, cardNotes, TRELLO_KEY);
+                } catch (e) {
+                    cardNotesWarning = `\n\nThe roster and notes could not be added to the Trello card: ${getErrorMessage(e)}`;
+                }
+            }
+
+            Alert.alert(
+                "Event Created",
+                `"${title.trim()}" has been set up!${cardNotesWarning}`,
+                [
+                    {
+                        text: "Open Trello Card",
+                        onPress: () => Linking.openURL(result.cardUrl),
+                    },
+                    { text: "OK", onPress: () => router.back() },
+                ],
+            );
         } catch (e) {
             setError(getErrorMessage(e));
         } finally {
@@ -129,9 +163,9 @@ export default function SetupEventScreen() {
             <View style={styles.screen}>
                 <View style={styles.content}>
                     <Header />
-                    <ScrollView 
+                    <ScrollView
                         ref={scrollViewRef}
-                        style={styles.scrollContent} 
+                        style={styles.scrollContent}
                         contentContainerStyle={styles.scrollContentContainer}
                         keyboardShouldPersistTaps="handled"
                     >
@@ -155,16 +189,16 @@ export default function SetupEventScreen() {
                             </View>
                             {/* Date Input */}
                             <Pressable style={styles.dateInputContainer} onPress={() => setShowDatePicker(true)}>
-                                <Feather name="calendar" size={18} color={Palette.primaryPurple50} /> 
+                                <Feather name="calendar" size={18} color={Palette.primaryPurple50} />
                                 <Text style={styles.dateInput}>{dateStr || "Select date"}</Text>
                             </Pressable>
                             {showDatePicker && (
                                 <View style={styles.datePickerContainer}>
-                                    <RNDateTimePicker 
-                                        mode="date" 
+                                    <RNDateTimePicker
+                                        mode="date"
                                         display="default"
                                         value={date ?? new Date()}
-                                        onChange={handleDateChange} 
+                                        onChange={handleDateChange}
                                         minimumDate={new Date()}
                                     />
                                 </View>
@@ -274,9 +308,9 @@ export default function SetupEventScreen() {
 }
 
 const styles = StyleSheet.create({
-    screen: { 
-        flex: 1, 
-        backgroundColor: "#fff" 
+    screen: {
+        flex: 1,
+        backgroundColor: "#fff"
     },
     content: {
         flex: 1,

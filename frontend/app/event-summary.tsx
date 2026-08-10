@@ -1,12 +1,14 @@
-import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event, EventMetricsWithHours } from "@/services/event-service";
 import {
-	extractMetricsWithHours,
+    clearActiveEventLocally,
+    extractMetricsWithHours,
     getEventById,
     saveDraft,
+    updateEventNotes,
 } from "@/services/event-service";
+import { getErrorMessage } from "@/utils/errors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -35,6 +37,8 @@ interface MetricDef {
     color: string;
 }
 
+// No "trailImprovements" entry: it is not a key of EventMetrics, so the card
+// only ever rendered undefined. Every key below must exist on the metrics type.
 const METRIC_DEFS: MetricDef[] = [
     {
         key: "drainageCleaned",
@@ -92,13 +96,13 @@ const METRIC_DEFS: MetricDef[] = [
         icon: "shield-check-outline",
         color: BLUE,
     },
-	{
-		key: "snowRemovalEvents",
-		label: "Snow removal",
-		sublabel: "# of removal events",
-		icon: "snowflake",
-		color: PURPLE
-	},
+    {
+        key: "snowRemovalEvents",
+        label: "Snow removal",
+        sublabel: "# of removal events",
+        icon: "snowflake",
+        color: PURPLE,
+    },
     {
         key: "potholesFilled",
         label: "Potholes",
@@ -106,13 +110,13 @@ const METRIC_DEFS: MetricDef[] = [
         icon: "road-variant",
         color: TEAL,
     },
-	{
-		key: "trailEdgedFeet",
-		label: "Trail edging",
-		sublabel: "ft of edging improved",
-		icon: "scissors-cutting",
-		color: BLUE
-	},
+    {
+        key: "trailEdgedFeet",
+        label: "Trail edging",
+        sublabel: "ft of edging improved",
+        icon: "scissors-cutting",
+        color: BLUE,
+    },
     {
         key: "trashBagsCollected",
         label: "Trash bags",
@@ -120,7 +124,7 @@ const METRIC_DEFS: MetricDef[] = [
         icon: "trash-can-outline",
         color: PURPLE,
     },
-	{
+    {
         key: "trashPoundsCollected",
         label: "Trash weight",
         sublabel: "# of lbs collected",
@@ -141,19 +145,20 @@ const METRIC_DEFS: MetricDef[] = [
         icon: "leaf-circle-outline",
         color: PURPLE,
     },
-	{
+    {
         key: "hoursOfService",
         label: "Hours of service",
         sublabel: "hrs",
         icon: "clock-outline",
         color: TEAL,
-    }
+    },
 ];
+
 interface MetricGridCardProps {
     def: MetricDef;
     value: number | string;
     delay: number;
-};
+}
 
 function MetricGridCard({ def, value, delay }: MetricGridCardProps) {
     const opacity = useRef(new Animated.Value(0)).current;
@@ -213,9 +218,9 @@ function MetricGridCard({ def, value, delay }: MetricGridCardProps) {
 
 export default function EventSummaryScreen() {
     const router = useRouter();
-    const { eventId, notepad } = useLocalSearchParams<{
+    const { eventId, notes } = useLocalSearchParams<{
         eventId: string;
-        notepad: string;
+        notes?: string;
     }>();
 
     const [saving, setSaving] = useState(false);
@@ -235,7 +240,7 @@ export default function EventSummaryScreen() {
                 if (e) setEvent(e);
                 else setError("Event not found.");
             })
-            .catch((e) => setError((e as Error).message))
+            .catch((e) => setError(getErrorMessage(e)))
             .finally(() => setLoading(false));
     }, [eventId]);
 
@@ -251,15 +256,16 @@ export default function EventSummaryScreen() {
 
     const stats = extractMetricsWithHours(event);
 
-    const visibleMetrics = stats ? METRIC_DEFS.filter(
-        (def) => (stats[def.key] as number) !== 0,
-    ) : [];
+    const visibleMetrics = stats
+        ? METRIC_DEFS.filter((def) => (stats[def.key] as number) !== 0)
+        : [];
 
     const handleSaveDraft = async () => {
         if (saving || savedDraft) return;
         setSaving(true);
         try {
-            await saveDraft(eventId, notepad);
+            await saveDraft(eventId, notes ?? event.notes ?? "");
+            await clearActiveEventLocally();
             setSavedDraft(true);
         } catch {
             Alert.alert("Error", "Could not save event to drafts.");
@@ -268,13 +274,20 @@ export default function EventSummaryScreen() {
         }
     };
 
-    // Persist the notepad before navigating. This path used to replace straight
-    // to /edit-draft, silently discarding everything typed during the event.
+    // Persist the notes before navigating: this path used to replace straight to
+    // /edit-draft, silently discarding everything typed during the event. Notes
+    // only — the end-event modal already saved the draft and stamped endDate, so
+    // nothing here may write those fields a second time.
     const handleEditNow = async () => {
-        if (saving) return;
+        if (saving || savedDraft) return;
         setSaving(true);
         try {
-            await saveDraft(eventId, notepad);
+            await updateEventNotes(eventId, notes ?? event.notes ?? "");
+            // A failed local clear must not strand the user on this screen;
+            // home-screen reconciles against Firestore on its next load.
+            await clearActiveEventLocally().catch((e: unknown) =>
+                setError(getErrorMessage(e)),
+            );
             router.replace({ pathname: "/edit-draft", params: { eventId } });
         } catch {
             Alert.alert("Error", "Could not save your notes. Please try again.");
@@ -382,7 +395,7 @@ export default function EventSummaryScreen() {
                     onPress={() => {
                         handleEditNow().catch(() => undefined);
                     }}
-                    disabled={saving}>
+                    disabled={saving || savedDraft}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
                             <ActivityIndicator color={PURPLE} />
@@ -408,16 +421,24 @@ export default function EventSummaryScreen() {
                     <Pressable
                         style={styles.actionCard}
                         onPress={() => router.replace("/home-screen")}>
+                        <View style={styles.actionIconWrap}>
+                            <MaterialCommunityIcons
+                                name="home-outline"
+                                size={24}
+                                color="#666"
+                            />
+                        </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.actionCardTitle}>
                                 Back to home screen
+                            </Text>
+                            <Text style={styles.actionCardSubtitle}>
+                                Return to the main menu
                             </Text>
                         </View>
                     </Pressable>
                 )}
             </ScrollView>
-
-            <BottomNav />
         </View>
     );
 }

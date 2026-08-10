@@ -1,14 +1,15 @@
-import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
+import TrailMetricsSection from "@/components/ui/trail-metrics-section";
+import { usePhotoQueue } from "@/hooks/use-photo-queue";
 import type { Event } from "@/services/event-service";
 import { getEventById } from "@/services/event-service";
+import { clearUploadedPhotos } from "@/services/photo-queue";
 import { getTrelloClient } from "@/services/trello-config";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
-import { usePhotoQueue } from "@/hooks/use-photo-queue";
-import { getErrorMessage } from "@/utils/errors";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
+import { getErrorMessage } from "@/utils/errors";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -21,7 +22,6 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import TrailMetricsSection from "@/components/ui/trail-metrics-section";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
@@ -32,23 +32,31 @@ export default function TrailDocumentScreen() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
     const pressedTrailIssueRef = useRef<boolean>(false);
+    // Captured images no longer travel back through route params: camera-view
+    // enqueues them and returns with router.back(), so this screen only needs
+    // the event it is documenting.
     const { eventId } = useLocalSearchParams<{ eventId?: string }>();
     const [issuesData, setIssuesData] = useState(
         [] as TrailDocumentIssueItem[],
     );
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [notepad, setNotepad] = useState("");
+    const [notes, setNotes] = useState("");
     const [issuesError, setIssuesError] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     // Photos are read from the persisted queue rather than component state, so
     // they survive navigating into an issue, backgrounding, and app restarts.
     const { pendingCount, failedCount, uploading, flush } =
         usePhotoQueue(eventId);
 
-    useFocusEffect(useCallback(() => {
-        pressedTrailIssueRef.current = false;
-        return undefined;
-    }, []));
+    // Refetching on focus picks up issues created or edited on the issue screen.
+    useFocusEffect(
+        useCallback(() => {
+            pressedTrailIssueRef.current = false;
+            setRefreshKey((k) => k + 1);
+            return undefined;
+        }, []),
+    );
 
     useEffect(() => {
         if (!eventId) {
@@ -58,8 +66,13 @@ export default function TrailDocumentScreen() {
         }
         getEventById(eventId)
             .then((e) => {
-                if (e) setEvent(e);
-                else setError("Event not found.");
+                if (e) {
+                    setEvent(e);
+                    // load existing notes from event creation
+                    setNotes(e.notes ?? "");
+                } else {
+                    setError("Event not found.");
+                }
             })
             .catch((e) => setError((e as Error).message))
             .finally(() => setLoading(false));
@@ -102,7 +115,7 @@ export default function TrailDocumentScreen() {
         return () => {
             cancelled = true;
         };
-    }, [event]);
+    }, [event, refreshKey]);
 
     function handleAddIssue() {
         if (!event) return;
@@ -118,18 +131,26 @@ export default function TrailDocumentScreen() {
     }
 
     // Photos upload opportunistically during the event; this is the last chance
-    // to clear the backlog before the summary screen.
+    // to clear the backlog before the summary screen. Uploaded entries are then
+    // dropped so the local queue does not grow across events (failed ones stay
+    // for a later retry).
     async function handleStop() {
         if (!event) return;
         if (pendingCount > 0) {
             await flush().catch((err: unknown) => {
-                console.error("Photo upload failed on stop:", getErrorMessage(err));
+                console.error(
+                    "Photo upload failed on stop:",
+                    getErrorMessage(err),
+                );
                 return null;
             });
         }
+        await clearUploadedPhotos(event.eventId).catch((err: unknown) => {
+            console.error("Could not prune photo queue:", getErrorMessage(err));
+        });
         router.replace({
             pathname: "/event-summary",
-            params: { eventId: event.eventId, notepad },
+            params: { eventId: event.eventId, notes },
         });
     }
 
@@ -145,14 +166,15 @@ export default function TrailDocumentScreen() {
     return (
         <>
             <View style={styles.screen}>
+                {/* App Header — outside the ScrollView so it stays sticky */}
+                <HomeHeader />
                 <ScrollView
                     style={styles.container}
                     showsVerticalScrollIndicator={false}>
-                    {/* App Header */}
-                    <HomeHeader />
                     <TrailEventHeader
                         event={event}
                         variant="document"
+                        notes={notes}
                         onStop={() => {
                             handleStop().catch((err: unknown) =>
                                 setIssuesError(getErrorMessage(err)),
@@ -255,7 +277,7 @@ export default function TrailDocumentScreen() {
                                                 imageUrl: issue.imageUrl,
                                                 eventId: event.eventId,
                                             },
-                                        })
+                                        });
                                     }}
                                 />
                             ))}
@@ -274,8 +296,8 @@ export default function TrailDocumentScreen() {
                                 marginBottom: 24,
                                 backgroundColor: "#FAFAFA",
                             }}
-                            value={notepad}
-                            onChangeText={setNotepad}
+                            value={notes}
+                            onChangeText={setNotes}
                             multiline
                             placeholder="Start documenting the event"
                             placeholderTextColor="#bbb"
@@ -287,12 +309,9 @@ export default function TrailDocumentScreen() {
                             eventId={event.eventId}
                             initialMetrics={event.metrics}
                         />
-
                     </View>
                 </ScrollView>
-                <BottomNav />
             </View>
-
         </>
     );
 }
