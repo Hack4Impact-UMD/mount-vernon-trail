@@ -19,10 +19,13 @@ import {
     saveActiveEventLocally,
     startEvent,
 } from "@/services/event-service";
+import { warmTrelloCache } from "@/services/trello-config";
 import { fetchEventCards } from "@/services/trello-service";
+import { getErrorMessage } from "@/utils/errors";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
+
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
 // filter out using firestore data to avoid showing events that are marked as drafts in the app but still exist as Trello cards (e.g. for testing or staging purposes)
@@ -45,7 +48,6 @@ async function filterOutDrafts(
     );
     return checks.filter((e): e is UpcomingEventItem => e !== null);
 }
-
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -85,14 +87,21 @@ export default function HomeScreen() {
             }
             setEventsLoading(true);
             setPastEventsLoading(true);
+            // Clear stale failures so a recovered fetch stops rendering the
+            // error state over a good list.
+            setEventsError(null);
+            setPastEventsError(null);
+            // One board/list lookup for the whole session instead of one per
+            // call; both fetches below then hit the warm cache.
+            warmTrelloCache(API_KEY).catch(() => undefined);
             fetchEventCards(API_KEY, "upcoming")
                 .then(filterOutDrafts)
                 .then(setEvents)
-                .catch((e) => setEventsError(e.message))
+                .catch((e: unknown) => setEventsError(getErrorMessage(e)))
                 .finally(() => setEventsLoading(false));
             fetchEventCards(API_KEY, "past")
                 .then(setPastEvents)
-                .catch((e) => setPastEventsError(e.message))
+                .catch((e: unknown) => setPastEventsError(getErrorMessage(e)))
                 .finally(() => setPastEventsLoading(false));
         }, [isAuthenticated]),
     );
@@ -138,7 +147,12 @@ export default function HomeScreen() {
     const handlePressEvent = async (event: UpcomingEventItem) => {
         setSelectedEvent(event);
         const firebaseEvent = await getEventByTrelloCardId(event.id).catch(
-            () => null,
+            (e: unknown) => {
+                // Previously swallowed, so the modal silently opened without
+                // leader/zone data and looked like the event had none.
+                setEventsError(getErrorMessage(e));
+                return null;
+            },
         );
         if (!firebaseEvent) return;
 
@@ -201,11 +215,14 @@ export default function HomeScreen() {
                     showsVerticalScrollIndicator={false}>
                     <Header showGreeting />
                     <View style={styles.cardWrapper}>
+                        {/* Standalone after-photo flow: camera-view handles a
+                            missing eventId by returning here once saved, so no
+                            active event has to be resolved first. */}
                         <TakeAfterPicture
                             onPress={() =>
                                 router.push({
-                                    pathname: '/camera-view',
-                                    params: { mode: 'after' },
+                                    pathname: "/camera-view",
+                                    params: { mode: "after" },
                                 })
                             }
                         />
@@ -229,6 +246,10 @@ export default function HomeScreen() {
                             activeEventId={localActiveEventId}
                         />
                     </View>
+                    {/* Past events come from the Trello "Completed Events" list
+                        rather than getPublishedEvents(): Trello is the source of
+                        truth for events that predate the app's Firestore
+                        records, so a Firestore-only list would hide them. */}
                     <View style={styles.eventsSection}>
                         <PastEventsCard
                             events={pastEvents}
