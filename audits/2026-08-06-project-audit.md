@@ -1,5 +1,10 @@
 # Project Audit — mount-vernon-trail
 
+> **Historical document — not a to-do list.** This is a point-in-time snapshot of
+> the code as it stood on 2026-08-06, before the `stack/01`–`stack/15` refactor
+> series. Most findings below have since been fixed. Check the current code before
+> acting on anything here.
+
 **Date:** 2026-08-06 · **Scope:** full repo (frontend app, backend proxy, config, git/GitHub state) · **Method:** 14-agent read-only audit — every screen/component/service/auth file read, `tsc --noEmit` + ESLint run against the repo's own toolchain, GitHub state verified via `gh` API. All findings marked **✓ verified** were independently re-confirmed by an adversarial second pass.
 
 ## 1. Summary
