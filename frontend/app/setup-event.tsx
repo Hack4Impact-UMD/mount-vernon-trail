@@ -1,10 +1,10 @@
 import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
-import { createEvent } from "@/services/event-service";
-import { createGoogleAlbum } from "@/services/googlePhotosAlbumsService";
-import { addAlbumLinkToCard, addNotesToCard, createEventCard } from "@/services/trello-service";
+import { setupEvent } from "@/services/event-setup";
+import { addNotesToCard } from "@/services/trello-service";
 import { getDateString, parseAndValidateDate } from "@/utils/date";
+import { getErrorMessage } from "@/utils/errors";
 import { Feather } from "@expo/vector-icons";
 import RNDateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Stack, useRouter } from "expo-router";
@@ -38,7 +38,7 @@ export default function SetupEventScreen() {
     const [toolHaulers, setToolHaulers] = useState("");
     const [gloverLover, setGloverLover] = useState("");
     const [notes, setNotes] = useState("");
-    
+
     const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
     const [creating, setCreating] = useState(false);
     const [canceling, setCanceling] = useState(false);
@@ -58,16 +58,23 @@ export default function SetupEventScreen() {
             router.back();
             return;
         }
+        // No back history to return to, so the screen stays put — clear the
+        // spinner rather than leaving the buttons locked.
         setCanceling(false);
     }
 
     const handleCreate = async () => {
-        if (!title.trim()) {
-            setError("Event title is required.");
-            return;
-        }
-        if (!dateStr.trim()) {
-            setError("Event date is required.");
+        // The volunteer roster is often unknown when an event is scheduled, and
+        // every read path already defaults these to "", so only the title, date
+        // and the accountable event leader are required.
+        const required = [
+            { value: title, message: "Event title is required." },
+            { value: dateStr, message: "Event date is required." },
+            { value: eventLeader, message: "Event leader is required." },
+        ];
+        const missing = required.find((field) => !field.value.trim());
+        if (missing) {
+            setError(missing.message);
             return;
         }
         const eventDate = parseAndValidateDate(dateStr.trim());
@@ -75,84 +82,66 @@ export default function SetupEventScreen() {
             setError("Invalid date. Use MM/DD/YYYY format.");
             return;
         }
-        if (!eventLeader.trim()) {
-            setError("Event leader is required.");
-            return;
-        }
-        // TODO check if these should be required
-        if (!zoneLeaders.trim()) {
-            setError("At least one zone leader is required.");
-            return;
-        }
-        if (!toolHaulers.trim()) {
-            setError("At least one tool hauler is required.");
-            return;
-        }
-        if (!gloverLover.trim()) {
-            setError("Glover lover is required.");
-            return;
-        }
 
         setCreating(true);
         setError(null);
 
         try {
-            // creates a Google Photos Album
-            const album = await createGoogleAlbum(title.trim());
-            const albumUrl = album.productUrl ?? "";
-
-            const roles = ["Event Leader", "Zone Leaders", "Tool Haulers", "Glover Lover"];
-            const rolesDescription = [
-                eventLeader.trim(),
-                zoneLeaders.trim(),
-                toolHaulers.trim(),
-                gloverLover.trim()
-            ].map((role, idx) => role && `${roles[idx]}: ${role}`).join('\n').trim();
-            const modifiedDescription = `${rolesDescription}\n\n${description.trim() ? `Work Scope:\n${description.trim()}` : ""}`.trim();
-
-            // creates a trello card and adds it to the Scheduled Events list
-            const { cardId, cardUrl } = await createEventCard(
-                title.trim(),
-                getDateString(eventDate),
-                modifiedDescription,
+            const result = await setupEvent(
+                {
+                    title: title.trim(),
+                    description: description.trim(),
+                    eventDate,
+                    eventLeader: eventLeader.trim(),
+                    zoneLeaders: zoneLeaders.trim(),
+                    toolHaulers: toolHaulers.trim(),
+                    gloverLover: gloverLover.trim(),
+                    notes: notes.trim(),
+                },
                 TRELLO_KEY,
             );
 
-            // add notes to the trello card
-            await addNotesToCard(
-                cardId,
-                notes.trim(),
-                TRELLO_KEY,
-            )
+            // The roster and the notes belong on the Trello card so leaders can
+            // read them without opening the app. They go into the card's notes
+            // section instead of its description because setupEvent reuses that
+            // description as the event's stored work scope, which the home
+            // screen renders verbatim.
+            const roster = [
+                ["Event Leader", eventLeader],
+                ["Zone Leaders", zoneLeaders],
+                ["Tool Haulers", toolHaulers],
+                ["Glover Lover", gloverLover],
+            ]
+                .filter(([, value]) => value.trim())
+                .map(([label, value]) => `${label}: ${value.trim()}`)
+                .join("\n");
+            const cardNotes = [roster, notes.trim()].filter(Boolean).join("\n\n");
 
-            // adds the album link to the trello card
-            await addAlbumLinkToCard(
-                cardId,
-                albumUrl,
-                TRELLO_KEY,
-            );
+            // The event and its card already exist by now, so a failure here is
+            // a degraded card rather than a failed setup — surface it without
+            // claiming the event was not created.
+            let cardNotesWarning = "";
+            if (cardNotes) {
+                try {
+                    await addNotesToCard(result.cardId, cardNotes, TRELLO_KEY);
+                } catch (e) {
+                    cardNotesWarning = `\n\nThe roster and notes could not be added to the Trello card: ${getErrorMessage(e)}`;
+                }
+            }
 
-            // creates an event document in firebase
-            await createEvent(
-                title.trim(),
-                description.trim(),
-                eventDate,
-                cardId,
-                album.id,
-                albumUrl,
-                eventLeader.trim(),
-                zoneLeaders.trim(),
-                toolHaulers.trim(),
-                gloverLover.trim(),
-                notes.trim(),
-                false,
+            Alert.alert(
+                "Event Created",
+                `"${title.trim()}" has been set up!${cardNotesWarning}`,
+                [
+                    {
+                        text: "Open Trello Card",
+                        onPress: () => Linking.openURL(result.cardUrl),
+                    },
+                    { text: "OK", onPress: () => router.back() },
+                ],
             );
-            Alert.alert("Event Created", `"${title.trim()}" has been set up!`, [
-                { text: "Open Trello Card", onPress: () => Linking.openURL(cardUrl) },
-                { text: "OK", onPress: () => router.back() },
-            ]);
         } catch (e) {
-            setError((e as Error).message);
+            setError(getErrorMessage(e));
         } finally {
             setCreating(false);
         }
@@ -174,9 +163,9 @@ export default function SetupEventScreen() {
             <View style={styles.screen}>
                 <View style={styles.content}>
                     <Header />
-                    <ScrollView 
+                    <ScrollView
                         ref={scrollViewRef}
-                        style={styles.scrollContent} 
+                        style={styles.scrollContent}
                         contentContainerStyle={styles.scrollContentContainer}
                         keyboardShouldPersistTaps="handled"
                     >
@@ -200,16 +189,16 @@ export default function SetupEventScreen() {
                             </View>
                             {/* Date Input */}
                             <Pressable style={styles.dateInputContainer} onPress={() => setShowDatePicker(true)}>
-                                <Feather name="calendar" size={18} color={Palette.primaryPurple50} /> 
+                                <Feather name="calendar" size={18} color={Palette.primaryPurple50} />
                                 <Text style={styles.dateInput}>{dateStr || "Select date"}</Text>
                             </Pressable>
                             {showDatePicker && (
                                 <View style={styles.datePickerContainer}>
-                                    <RNDateTimePicker 
-                                        mode="date" 
+                                    <RNDateTimePicker
+                                        mode="date"
                                         display="default"
                                         value={date ?? new Date()}
-                                        onChange={handleDateChange} 
+                                        onChange={handleDateChange}
                                         minimumDate={new Date()}
                                     />
                                 </View>
@@ -226,7 +215,7 @@ export default function SetupEventScreen() {
                             <View style={styles.column}>
                                 <Text style={styles.label}>Zone Leaders</Text>
                                 <View style={styles.inputPill}>
-                                    <TextInput style={styles.input} placeholder="Enter leaders..." placeholderTextColor="#aaa" value={zoneLeaders} onChangeText={setZoneLeaders} />
+                                    <TextInput style={styles.input} placeholder="Enter leaders (optional)..." placeholderTextColor="#aaa" value={zoneLeaders} onChangeText={setZoneLeaders} />
                                 </View>
                             </View>
                         </View>
@@ -235,13 +224,13 @@ export default function SetupEventScreen() {
                             <View style={styles.column}>
                                 <Text style={styles.label}>Tool Haulers</Text>
                                 <View style={styles.inputPill}>
-                                    <TextInput style={styles.input} placeholder="Select tool haulers..." placeholderTextColor="#aaa" value={toolHaulers} onChangeText={setToolHaulers} />
+                                    <TextInput style={styles.input} placeholder="Select tool haulers (optional)..." placeholderTextColor="#aaa" value={toolHaulers} onChangeText={setToolHaulers} />
                                 </View>
                             </View>
                             <View style={styles.column}>
                                 <Text style={styles.label}>Glover Lover</Text>
                                 <View style={styles.inputPill}>
-                                    <TextInput style={styles.input} placeholder="Select glover lover..." placeholderTextColor="#aaa" value={gloverLover} onChangeText={setGloverLover} />
+                                    <TextInput style={styles.input} placeholder="Select glover lover (optional)..." placeholderTextColor="#aaa" value={gloverLover} onChangeText={setGloverLover} />
                                 </View>
                             </View>
                         </View>
@@ -319,9 +308,9 @@ export default function SetupEventScreen() {
 }
 
 const styles = StyleSheet.create({
-    screen: { 
-        flex: 1, 
-        backgroundColor: "#fff" 
+    screen: {
+        flex: 1,
+        backgroundColor: "#fff"
     },
     content: {
         flex: 1,
@@ -464,8 +453,10 @@ const styles = StyleSheet.create({
     },
     cancelButton: {
         flex: 1,
-        outlineWidth: 1,
-        outlineColor: Palette.primaryPurple70,
+        // borderWidth/borderColor, not outlineWidth/outlineColor: the outline
+        // properties are web-only and render nothing on iOS or Android.
+        borderWidth: 1,
+        borderColor: Palette.primaryPurple70,
         backgroundColor: "#fff",
         paddingVertical: 14,
         borderRadius: 10,

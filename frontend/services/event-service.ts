@@ -1,22 +1,25 @@
-import { auth } from "@/config/firebase";
+import { db } from "@/config/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-	collection,
-	doc,
-	getDoc,
-	getDocs,
-	getFirestore,
-	orderBy,
-	query,
-	Timestamp,
-	updateDoc,
-	where,
-	writeBatch,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    limit,
+    orderBy,
+    query,
+    runTransaction,
+    Timestamp,
+    updateDoc,
+    where,
+    writeBatch,
 } from "firebase/firestore";
+import { ALBUMS_COLLECTION } from "./album-service";
+import { requireUser } from "./require-user";
 
-// per event metrics collected during trail event
-export interface EventMetrics {
-    trailImprovements: number;
+// Per-event metrics collected during a trail event. Every key here must have a
+// matching input in components/ui/trail-metrics-section.tsx — a test asserts it.
+export type EventMetrics = {
     drainageCleaned: number;
     graffitiTagsRemoved: number;
     stickersRemoved: number;
@@ -32,31 +35,12 @@ export interface EventMetrics {
     trashPoundsCollected: number;
     treesTrimmed: number;
     vegetationVolunteers: number;
-}
+};
 
-export interface EventMetricsWithHours {
-    trailImprovements: number;
-    drainageCleaned: number;
-    graffitiTagsRemoved: number;
-    stickersRemoved: number;
-    otherImprovements: number;
-    itemsPainted: number;
-    pressureWashed: number;
-    itemsRepaired: number;
-    safetyImprovements: number;
-    snowRemovalEvents: number;
-    potholesFilled: number;
-    trailEdgedFeet: number;
-    trashBagsCollected: number;
-    trashPoundsCollected: number;
-    treesTrimmed: number;
-    vegetationVolunteers: number;
-    hoursOfService: number;
-}
+export type EventMetricsWithHours = EventMetrics & { hoursOfService: number };
 
 export function createDefaultMetrics(): EventMetrics {
     return {
-        trailImprovements: 0,
         drainageCleaned: 0,
         graffitiTagsRemoved: 0,
         stickersRemoved: 0,
@@ -75,7 +59,7 @@ export function createDefaultMetrics(): EventMetrics {
     };
 }
 
-export interface Event {
+export type Event = {
     eventId: string;
     title: string;
     description: string;
@@ -83,10 +67,14 @@ export interface Event {
     trelloCardId: string;
     albumId: string;
     albumUrl: string;
+    // Who set the event up (an admin) vs who is running it (any volunteer).
+    // Separate people, so ownership needs two fields.
+    createdBy: string;
+    startedBy: string | null;
     startDate: Timestamp | null;
     isActive: boolean;
     isDraft: boolean;
-    savedAsDraftAt?: Timestamp;
+    savedAsDraftAt: Timestamp | null;
     endDate: Timestamp | null;
     createdAt: Timestamp;
     eventLeader: string;
@@ -96,125 +84,111 @@ export interface Event {
     notes: string;
     publishedAt?: Timestamp;
     metrics?: EventMetrics;
-}
+};
+
+export type CreateEventInput = {
+    title: string;
+    description: string;
+    eventDate: Date;
+    trelloCardId: string;
+    albumId: string;
+    albumUrl: string;
+    eventLeader: string;
+    zoneLeaders: string;
+    toolHaulers: string;
+    gloverLover: string;
+    notes: string;
+    isDraft: boolean;
+};
 
 const EVENTS_COLLECTION = "events";
-const ALBUMS_COLLECTION = "albums";
 
-// creates a new event and adds album doc to albums collection
-export async function createEvent(
-    title: string,
-    description: string,
-    eventDate: Date,
-    trelloCardId: string,
-    albumId: string,
-    albumUrl: string,
-    eventLeader: string,
-    zoneLeaders: string,
-    toolHaulers: string,
-    gloverLover: string,
-    notes: string,
-    isDraft: boolean,
-): Promise<string> {
-    const db = getFirestore();
-    const currentUser = auth.currentUser;
-
-    if (!currentUser) {
-        throw new Error(
-            "User is not authenticated. Please sign in to create an event.",
-        );
-    }
+export async function createEvent(input: CreateEventInput): Promise<string> {
+    const currentUser = requireUser("create an event");
 
     const eventRef = doc(collection(db, EVENTS_COLLECTION));
     const eventData: Event = {
         eventId: eventRef.id,
-        title,
-        description,
-        date: Timestamp.fromDate(eventDate),
-        trelloCardId,
-        albumId,
-        albumUrl,
-        isActive: true,
-        isDraft,
+        title: input.title,
+        description: input.description,
+        date: Timestamp.fromDate(input.eventDate),
+        trelloCardId: input.trelloCardId,
+        albumId: input.albumId,
+        albumUrl: input.albumUrl,
+        createdBy: currentUser.uid,
+        startedBy: null,
+        isActive: false,
+        isDraft: input.isDraft,
         startDate: null,
         endDate: null,
+        // Written as null rather than omitted so orderBy("savedAsDraftAt")
+        // cannot silently drop the document.
+        savedAsDraftAt: null,
         createdAt: Timestamp.now(),
-        eventLeader,
-        zoneLeaders,
-        toolHaulers,
-        gloverLover,
-        notes,
+        eventLeader: input.eventLeader,
+        zoneLeaders: input.zoneLeaders,
+        toolHaulers: input.toolHaulers,
+        gloverLover: input.gloverLover,
+        notes: input.notes,
         metrics: createDefaultMetrics(),
     };
 
     const batch = writeBatch(db);
     batch.set(eventRef, eventData);
-    batch.set(doc(db, ALBUMS_COLLECTION, albumId), {
-        albumId,
-        title,
-        albumUrl,
+    // update, not set: the album document already carries title/titleLower/
+    // createdBy/createdAt from album-service, and a set would erase them.
+    batch.update(doc(db, ALBUMS_COLLECTION, input.albumId), {
         eventId: eventRef.id,
-        createdAt: Timestamp.now(),
+        albumUrl: input.albumUrl,
     });
     await batch.commit();
 
     return eventRef.id;
 }
 
-// start event by setting startDate to current timestamp
 export async function startEvent(trelloCardId: string): Promise<void> {
-    const db = getFirestore();
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-        throw new Error(
-            "User is not authenticated. Please sign in to start an event.",
-        );
-    }
+    const currentUser = requireUser("start an event");
 
     const q = query(
         collection(db, EVENTS_COLLECTION),
         where("trelloCardId", "==", trelloCardId),
     );
     const snapshot = await getDocs(q);
-
     if (snapshot.empty) {
         throw new Error(`No event found for trello card: ${trelloCardId}`);
     }
 
     const eventDoc = snapshot.docs[0];
     const eventData = eventDoc.data() as Event;
-
     if (eventData.startDate) {
         throw new Error("This event has already been started.");
     }
 
     await updateDoc(eventDoc.ref, {
         startDate: Timestamp.now(),
+        startedBy: currentUser.uid,
+        isActive: true,
     });
 }
 
-// get the currently active event (startDate && !endDate)
+// The event this user is currently running. Scoped to startedBy so one
+// volunteer's live event never redirects — or gets ended by — anyone else.
 export async function getActiveEvent(): Promise<Event | null> {
-    const db = getFirestore();
+    const currentUser = requireUser("view the active event");
     const q = query(
         collection(db, EVENTS_COLLECTION),
-        where("startDate", "!=", null),
+        where("startedBy", "==", currentUser.uid),
+        where("endDate", "==", null),
+        orderBy("startDate", "desc"),
+        limit(1),
     );
     const snapshot = await getDocs(q);
-
     if (snapshot.empty) return null;
-
-    const activeDoc = snapshot.docs.find((doc) => {
-        const data = doc.data();
-        return data.endDate === null || data.endDate === undefined;
-    });
-
-    if (!activeDoc) return null;
-    return activeDoc.data() as Event;
+    return snapshot.docs[0].data() as Event;
 }
 
 export async function getEventById(eventId: string): Promise<Event | null> {
-    const db = getFirestore();
+    requireUser("view an event");
     const snapshot = await getDoc(doc(db, EVENTS_COLLECTION, eventId));
     if (!snapshot.exists()) return null;
     return snapshot.data() as Event;
@@ -223,7 +197,7 @@ export async function getEventById(eventId: string): Promise<Event | null> {
 export async function getEventByTrelloCardId(
     trelloCardId: string,
 ): Promise<Event | null> {
-    const db = getFirestore();
+    requireUser("view an event");
     const q = query(
         collection(db, EVENTS_COLLECTION),
         where("trelloCardId", "==", trelloCardId),
@@ -233,49 +207,54 @@ export async function getEventByTrelloCardId(
     return snapshot.docs[0].data() as Event;
 }
 
-// only changed numeric fields are written via dotted metrics.* paths
+// Only changed numeric fields are written, via dotted metrics.* paths.
 export async function updateEventMetrics(
     eventId: string,
     updates: Partial<EventMetrics>,
 ): Promise<void> {
-    const db = getFirestore();
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-        throw new Error(
-            "User is not authenticated. Please sign in to update metrics.",
-        );
-    }
-    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
-
+    requireUser("update metrics");
     const dottedUpdates: Record<string, number> = {};
     for (const [key, value] of Object.entries(updates)) {
         if (typeof value === "number" && !Number.isNaN(value)) {
             dottedUpdates[`metrics.${key}`] = value;
         }
     }
-
     if (Object.keys(dottedUpdates).length === 0) return;
-    await updateDoc(eventRef, dottedUpdates);
+    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), dottedUpdates);
 }
 
+// The one and only writer of endDate, and idempotent. saveDraft and
+// publishEvent must never touch it: hoursOfService is derived from
+// endDate - startDate, so re-saving a draft used to inflate it by however long
+// the draft sat untouched.
 export async function setEventInactive(eventId: string): Promise<void> {
-    const db = getFirestore();
-    await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
-        isActive: false,
-        endDate: Timestamp.now(),
+    requireUser("end an event");
+    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+    await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(eventRef);
+        if (!snapshot.exists()) {
+            throw new Error(`No event found with id: ${eventId}`);
+        }
+        const data = snapshot.data() as Event;
+        if (data.endDate) {
+            if (data.isActive) transaction.update(eventRef, { isActive: false });
+            return;
+        }
+        transaction.update(eventRef, {
+            isActive: false,
+            endDate: Timestamp.now(),
+        });
     });
 }
 
-// Save a completed event as a draft instead of immediately publishing
 export async function saveDraft(
     eventId: string,
     notes?: string,
 ): Promise<void> {
-    const db = getFirestore();
+    requireUser("save a draft");
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         isDraft: true,
         isActive: false,
-        endDate: Timestamp.now(),
         savedAsDraftAt: Timestamp.now(),
         ...(notes !== undefined ? { notes } : {}),
     });
@@ -286,50 +265,64 @@ export async function updateEventNotes(
     eventId: string,
     notes: string,
 ): Promise<void> {
-    const db = getFirestore();
+    requireUser("update event notes");
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         notes,
     });
 }
 
-// Mark a draft as published (call this after the Trello publish succeeds)
 export async function publishEvent(eventId: string): Promise<void> {
-    const db = getFirestore();
+    requireUser("publish an event");
     await updateDoc(doc(db, EVENTS_COLLECTION, eventId), {
         isDraft: false,
         isActive: false,
-        endDate: Timestamp.now(),
         publishedAt: Timestamp.now(),
     });
 }
 
-// Fetch all drafts, newest first
 export async function getDraftEvents(): Promise<Event[]> {
-    const db = getFirestore();
+    const currentUser = requireUser("view drafts");
     const q = query(
         collection(db, EVENTS_COLLECTION),
         where("isDraft", "==", true),
+        where("startedBy", "==", currentUser.uid),
         orderBy("savedAsDraftAt", "desc"),
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d) => d.data() as Event);
 }
 
+export async function getPublishedEvents(max = 20): Promise<Event[]> {
+    requireUser("view past events");
+    const q = query(
+        collection(db, EVENTS_COLLECTION),
+        where("publishedAt", "!=", null),
+        orderBy("publishedAt", "desc"),
+        limit(max),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => d.data() as Event);
+}
+
 export function extractMetricsWithHours(event: Event): EventMetricsWithHours {
+    const start = event.startDate;
+    const end = event.endDate ? event.endDate.toMillis() : Date.now();
     return {
-        ...(event.metrics ?? createDefaultMetrics()),
-        hoursOfService: (() => {
-            if (!event.startDate) return 0;
-            const end = event.endDate ? event.endDate.toMillis() : Date.now();
-            return parseFloat(
-                (
-                    Math.max(0, end - event.startDate.toMillis()) / 3_600_000
-                ).toFixed(1),
-            );
-        })(),
+        // Defaults first so an event predating a metric still reports it as 0
+        // rather than undefined.
+        ...createDefaultMetrics(),
+        ...(event.metrics ?? {}),
+        hoursOfService: start
+            ? parseFloat(
+                  (Math.max(0, end - start.toMillis()) / 3_600_000).toFixed(1),
+              )
+            : 0,
     };
 }
 
+// Local record of the event this device started, from main. Complements
+// getActiveEvent(): this one is instant and works offline, the Firestore query
+// is authoritative and survives a reinstall or a device switch.
 const ACTIVE_EVENT_KEY = "active_event_trello_id";
 
 export async function saveActiveEventLocally(
