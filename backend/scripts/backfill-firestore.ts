@@ -53,7 +53,10 @@ function parseArgs(): Args {
     const argv = process.argv.slice(2);
     const ownerIndex = argv.indexOf("--owner");
     const owner = ownerIndex >= 0 ? argv[ownerIndex + 1] : undefined;
-    if (!owner) {
+    // A bare `--owner --apply` would otherwise take "--apply" as the owner AND
+    // silently enable apply mode; `--owner uid:` would write "" into createdBy
+    // and startedBy on every document scanned.
+    if (!owner || owner.startsWith("--") || owner === "uid:") {
         throw new Error(
             "Missing --owner <email|uid:UID>. This account is attributed as " +
                 "createdBy on legacy events and albums, and as startedBy on " +
@@ -174,10 +177,21 @@ function planEvents(
             }
         }
 
-        if (!has("startDate")) set("startDate", null);
-        if (!has("endDate")) set("endDate", null);
+        // Presence alone is not enough: a legacy document storing a date as a
+        // string satisfies has(), keeps the bad value, and is reported as
+        // "already current" — while orderBy and where("endDate","==",null)
+        // still treat it differently than the new queries expect, and
+        // drafts.tsx calls .toDate() on it during render.
+        const isNullOrTimestamp = (field: string) =>
+            data[field] === null || data[field] instanceof Timestamp;
+        if (!has("startDate") || !isNullOrTimestamp("startDate")) {
+            set("startDate", startedAt);
+        }
+        if (!has("endDate") || !isNullOrTimestamp("endDate")) {
+            set("endDate", endedAt);
+        }
 
-        if (!has("savedAsDraftAt")) {
+        if (!has("savedAsDraftAt") || !isNullOrTimestamp("savedAsDraftAt")) {
             // orderBy("savedAsDraftAt") drops documents missing the field, so
             // an existing draft would vanish from the Drafts list entirely.
             // Only a real Timestamp is acceptable — drafts.tsx calls .toDate()

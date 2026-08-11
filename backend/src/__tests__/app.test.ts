@@ -184,7 +184,11 @@ describe("POST /api/albums", () => {
             .set("Authorization", "Bearer good")
             .send({ title: "Cleanup" });
         expect(res.status).toBe(502);
-        expect(res.body).toMatchObject({ status: 500, body: "upstream boom" });
+        expect(res.body).toMatchObject({ status: 500 });
+        // Google's error body can name the project, the service account and
+        // quota state, so it is logged but never returned to the client.
+        expect(res.body).not.toHaveProperty("body");
+        expect(JSON.stringify(res.body)).not.toContain("upstream boom");
     });
 
     it("maps a missing MVT refresh token to 401", async () => {

@@ -8,6 +8,7 @@ import express, {
 import type { Auth } from "firebase-admin/auth";
 import { MulterError } from "multer";
 import type { Env } from "./env";
+import { CorsRejectedError } from "./errors";
 import type { TokenStore } from "./google-tokens";
 import { requireFirebaseAuth } from "./middleware/auth";
 import { createAdminAuthRouter } from "./routes/admin-auth";
@@ -21,7 +22,7 @@ function corsOptions(env: Env): CorsOptions {
             // missing Origin is not something CORS can or should gate.
             if (!origin) return callback(null, true);
             if (env.allowedOrigins.includes(origin)) return callback(null, true);
-            callback(new Error(`Origin ${origin} is not allowed`));
+            callback(new CorsRejectedError(origin));
         },
     };
 }
@@ -60,7 +61,7 @@ export function createApp(
                     code: error.code,
                 });
             }
-            if (error instanceof Error && error.message.includes("is not allowed")) {
+            if (error instanceof CorsRejectedError) {
                 return res.status(403).json({ error: error.message });
             }
             console.error("Unhandled error:", error);

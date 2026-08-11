@@ -9,6 +9,20 @@ export class NotAuthenticatedError extends Error {
     }
 }
 
+// Raised by the CORS origin callback. A dedicated type rather than a message
+// string, so the error handler can identify it with instanceof instead of a
+// substring match that no type checker protects and any upstream error text
+// could accidentally satisfy.
+export class CorsRejectedError extends Error {
+    readonly origin: string;
+
+    constructor(origin: string) {
+        super(`Origin ${origin} is not allowed`);
+        this.name = "CorsRejectedError";
+        this.origin = origin;
+    }
+}
+
 // Raised when Google Photos itself rejects a request. `status` is Google's
 // status code; `body` is its raw response, preserved for debugging.
 export class GooglePhotosError extends Error {
@@ -30,11 +44,14 @@ export function sendError(res: Response, context: string, error: unknown): Respo
         return res.status(401).json({ error: error.message });
     }
     if (error instanceof GooglePhotosError) {
+        // Logged in full, but deliberately NOT returned: Google's error body can
+        // name the project, the service account and quota state, and every
+        // volunteer holding an ID token would receive it. The status is enough
+        // for a client to branch on.
         console.error(`${context}:`, error.status, error.body);
         return res.status(error.status === 404 ? 404 : 502).json({
             error: "Google Photos API error",
             status: error.status,
-            body: error.body,
         });
     }
     console.error(`${context}:`, error);

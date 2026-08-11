@@ -2,6 +2,13 @@ import { GooglePhotosError } from "./errors";
 
 const API_BASE = "https://photoslibrary.googleapis.com/v1";
 
+// fetch applies no deadline of its own. These calls run on the Express request
+// path, so a stalled Google connection would hold the socket, the buffered file
+// and one of the upload concurrency slots until the socket eventually breaks —
+// which exhausts memory on a 512 MB instance under load.
+const REQUEST_TIMEOUT_MS = 30_000;
+const UPLOAD_TIMEOUT_MS = 120_000;
+
 export type NewMediaItem = {
     uploadToken: string;
     fileName: string;
@@ -15,6 +22,7 @@ async function request(
 ): Promise<unknown> {
     const response = await fetch(`${API_BASE}${path}`, {
         ...init,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -34,6 +42,8 @@ export async function uploadBytes(
 ): Promise<string> {
     const response = await fetch(`${API_BASE}/uploads`, {
         method: "POST",
+        // Longer than the JSON calls: this one streams multi-megabyte photos.
+        signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
         headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/octet-stream",

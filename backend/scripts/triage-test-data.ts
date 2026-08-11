@@ -286,7 +286,11 @@ async function main(): Promise<void> {
     const deleteIndex = argv.indexOf("--delete");
     if (deleteIndex >= 0) {
         const file = argv[deleteIndex + 1];
-        if (!file) throw new Error("Usage: --delete <triage-plan.json> [--apply]");
+        // Without the flag check, `--delete --apply` takes "--apply" as the
+        // path and fails inside readFileSync with an ENOENT rather than usage.
+        if (!file || file.startsWith("--")) {
+            throw new Error("Usage: --delete <triage-plan.json> [--apply]");
+        }
         await runDeletion(db, projectId, file, argv.includes("--apply"));
         return;
     }
