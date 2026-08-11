@@ -1,6 +1,11 @@
 import { parseAndValidateDate } from "@/utils/date";
-import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
-import axios from "axios";
+import { getErrorMessage } from "@/utils/errors";
+import {
+    create as createAxios,
+    isAxiosError,
+    type AxiosInstance,
+    type InternalAxiosRequestConfig,
+} from "axios";
 import { getTrelloToken } from "../auth/trello-token-storage";
 import { TrelloAuthError } from "./trello-auth-error";
 import type {
@@ -10,17 +15,6 @@ import type {
     List,
     TrelloAttachment,
 } from "./trello-types";
-
-// helper for error message from unknown error type
-function getErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-        return error.message;
-    }
-    if (typeof error === "string") {
-        return error;
-    }
-    return String(error) || "Unknown error";
-}
 
 function isTrelloHost(url: string): boolean {
     try {
@@ -50,7 +44,7 @@ export class TrelloClient {
 
     constructor(key: string) {
         this.key = key;
-        this.client = axios.create({
+        this.client = createAxios({
             baseURL: "https://api.trello.com/1",
         });
 
@@ -80,7 +74,7 @@ export class TrelloClient {
         this.client.interceptors.response.use(
             (response) => response,
             (error: unknown) => {
-                if (axios.isAxiosError(error)) {
+                if (isAxiosError(error)) {
                     if (error.response?.status) {
                         handleHttpError(error.response.status);
                         // non-auth status, re-throw original
@@ -132,7 +126,6 @@ export class TrelloClient {
                 idList: listID,
                 name: name,
                 desc: description || "",
-                fields: "id,name,desc,idList,idBoard,shortUrl",
             });
             return response.data;
         } catch (error) {
@@ -402,7 +395,37 @@ export class TrelloClient {
             );
             return card;
         } catch (error) {
-            console.error("unable to get card:", error);
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(
+                `unable to get card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    async addAttachment(cardID: string, url: string): Promise<void> {
+        try {
+            await this.client.post(`/cards/${cardID}/attachments`, { url });
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(
+                `unable to attach to card ${cardID}:`,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    async archiveCard(cardID: string): Promise<void> {
+        try {
+            await this.client.put(`/cards/${cardID}`, { closed: true });
+        } catch (error) {
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(
+                `unable to archive card ${cardID}:`,
+                getErrorMessage(error),
+            );
             throw error;
         }
     }
@@ -421,7 +444,11 @@ export class TrelloClient {
             }
             return eventCard;
         } catch (error) {
-            console.error("unable to get event card:", error);
+            if (error instanceof TrelloAuthError) throw error;
+            console.error(
+                `unable to get event card ${cardID}:`,
+                getErrorMessage(error),
+            );
             throw error;
         }
     }
@@ -464,7 +491,7 @@ export class TrelloClient {
         } catch (error) {
             if (error instanceof TrelloAuthError) throw error;
 
-            console.error("Error loading image:", error);
+            console.error("Error loading image:", getErrorMessage(error));
             return null;
         }
     }
