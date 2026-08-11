@@ -15,7 +15,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import EndEventModal from "./end-event-modal";
 
-const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
 
 interface TrailEventHeaderProps {
     event: Event;
