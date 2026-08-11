@@ -21,7 +21,7 @@ export default function AuthScreen() {
         if (user) {
             router.replace("/home-screen");
         }
-    }, [user]);
+    }, [user, router]);
 
     const errorMessage = error ? getErrorMessage(error.code) : undefined;
 
