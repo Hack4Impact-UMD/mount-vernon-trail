@@ -1,13 +1,13 @@
-import { listAlbums, type GooglePhotosAlbum } from "@/api/googlePhotosClient";
-import { getValidAccessToken } from "@/auth/google-auth";
+import { listAllAlbums, type GooglePhotosAlbum } from "@/api/backend-client";
 import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
 import { useIsAdmin } from "@/hooks/use-is-admin";
+import { getAlbumCreatedAtMap } from "@/services/album-service";
+import { getErrorMessage } from "@/utils/errors";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
-import { collection, getDocs, getFirestore } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -26,43 +26,20 @@ type NormalizedAlbum = Omit<GooglePhotosAlbum, "mediaItemsCount"> & {
     mediaItemsCount: number | null;
     appCreatedAt?: number;
 };
-async function getAlbumMeta() {
-    const db = getFirestore();
-    const snapshot = await getDocs(collection(db, "albums"));
-    const map: Record<string, number> = {};
-    snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.albumId && data.createdAt) {
-            map[data.albumId] = data.createdAt.toMillis();
-        }
-    });
-    return map;
-}
-
-async function fetchAllAlbums(
-    accessToken: string,
-): Promise<NormalizedAlbum[]> {
-    const all: NormalizedAlbum[] = [];
-    let pageToken: string | undefined;
-    const metaMap = await getAlbumMeta();
-    do {
-        const { albums, nextPageToken } = await listAlbums(
-            accessToken,
-            pageToken,
-        );
-        const normalized = await Promise.all(
-            albums.map(async (a) => {
-                return {
-                    ...a,
-                    mediaItemsCount: a.mediaItemsCount ? Number(a.mediaItemsCount) : null,
-                    appCreatedAt: metaMap[a.id],
-                };
-            })
-        );
-        all.push(...normalized);
-        pageToken = nextPageToken;
-    } while (pageToken);
-    return all;
+// Albums live in the MVT-owned account and are read through the backend proxy,
+// so every volunteer sees the same list. The creation date comes from our own
+// Firestore record — Google Photos does not report one.
+async function fetchAllAlbums(): Promise<NormalizedAlbum[]> {
+    const [albums, createdAtMap] = await Promise.all([
+        listAllAlbums(),
+        getAlbumCreatedAtMap(),
+    ]);
+    return albums.map((album) => ({
+        ...album,
+        mediaItemsCount:
+            album.mediaItemsCount != null ? Number(album.mediaItemsCount) : null,
+        appCreatedAt: createdAtMap[album.id],
+    }));
 }
 
 function formatDate(value?: string | number): string {
@@ -146,7 +123,11 @@ function AlbumCard({ album }: { album: NormalizedAlbum }) {
                             </Text>
                         </View>
                     </View>
-                    {photoCount && (
+                    {/* Explicit > 0, not truthiness: a count of 0 (which every
+                        new album has) would otherwise render a bare `0` and
+                        crash with "Text strings must be rendered within a
+                        <Text> component". */}
+                    {photoCount !== null && photoCount > 0 && (
                         <View style={styles.photoBadge}>
                             <Text style={styles.photoBadgeText}>
                                 {photoCount} photo{photoCount !== 1 ? "s" : ""}
@@ -169,17 +150,9 @@ export default function AlbumsScreen() {
     const loadAlbums = useCallback(async () => {
         setError(null);
         try {
-            const token = await getValidAccessToken();
-            if (!token) {
-                setError(
-                    "Not signed in or session expired. Please sign in again.",
-                );
-                return;
-            }
-            const data = await fetchAllAlbums(token);
-            setAlbums(data);
+            setAlbums(await fetchAllAlbums());
         } catch (e) {
-            setError((e as Error).message);
+            setError(getErrorMessage(e));
         }
     }, []);
 
