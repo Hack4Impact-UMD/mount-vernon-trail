@@ -5,37 +5,31 @@ import {
     signInWithCredential,
     User,
 } from "firebase/auth";
-import { Platform } from "react-native";
 import { auth } from "../config/firebase";
-import { deleteTokens, getStoredTokens, storeTokens } from "./token-storage";
 
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || "";
 const GOOGLE_ANDROID_CLIENT_ID =
     process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || "";
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || "";
 
+// Identity only. Google Photos is reached through the backend proxy using the
+// MVT account's own credentials, and the Sheets integration was removed, so the
+// app no longer needs photoslibrary.* or spreadsheets access from volunteers.
 export const googleAuthConfig = {
     webClientId: GOOGLE_WEB_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     iosClientId: GOOGLE_IOS_CLIENT_ID,
-    scopes: [
-        "openid",
-        "profile",
-        "email",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/photoslibrary.appendonly",
-        "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
-    ],
+    scopes: ["openid", "profile", "email"],
 };
 
-export interface AuthResult {
+export type AuthResult = {
     user: User;
     accessToken: string;
-}
+};
 
-// AuthError
 export class AuthError extends Error {
     code: string;
+
     constructor(code: string, message: string) {
         super(message.toString());
         this.code = code;
@@ -43,9 +37,19 @@ export class AuthError extends Error {
     }
 }
 
-// handle Auth response
+// Structurally matches expo-auth-session's AuthSessionResult union without
+// depending on it, so this module stays testable without the Expo runtime.
+type GoogleAuthResponse = {
+    type: string;
+    error?: { message?: string } | null;
+    authentication?: {
+        accessToken?: string | null;
+        idToken?: string | null;
+    } | null;
+};
+
 export async function handleGoogleAuthResponse(
-    response: any,
+    response: GoogleAuthResponse | null,
 ): Promise<AuthResult | null> {
     if (!response) {
         return null;
@@ -67,20 +71,17 @@ export async function handleGoogleAuthResponse(
     }
 
     const { authentication } = response;
-
     if (!authentication?.accessToken) {
         throw new AuthError("NO_ACCESS_TOKEN", "no access token received");
     }
 
     try {
+        // The Google token is only ever used to mint the Firebase credential.
+        // Nothing else in the app needs it, so it is never persisted — which is
+        // what removed the whole SecureStore/localStorage token layer.
         const credential = GoogleAuthProvider.credential(
             authentication.idToken,
             authentication.accessToken,
-        );
-        await storeTokens(
-            authentication.accessToken,
-            authentication.refreshToken,
-            authentication.expiresIn,
         );
         const userCredential = await signInWithCredential(auth, credential);
 
@@ -88,89 +89,20 @@ export async function handleGoogleAuthResponse(
             user: userCredential.user,
             accessToken: authentication.accessToken,
         };
-    } catch (error: any) {
+    } catch (error) {
         throw new AuthError(
             "SIGN_IN_FAILED",
-            error.message ?? "sign in failed",
+            error instanceof Error ? error.message : "sign in failed",
         );
     }
 }
 
-// token refresh
-export async function refreshAccessToken(): Promise<string> {
-    const { refreshToken } = await getStoredTokens();
-    if (!refreshToken) {
-        throw new AuthError(
-            "TOKEN_REFRESH_FAILED",
-            "no refresh token available",
-        );
-    }
-
-    try {
-        const res = await fetch("https://oauth2.googleapis.com/token", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-                client_id: Platform.OS === "ios"
-                    ? GOOGLE_IOS_CLIENT_ID
-                    : Platform.OS === "android"
-                      ? GOOGLE_ANDROID_CLIENT_ID
-                      : GOOGLE_WEB_CLIENT_ID,
-                grant_type: "refresh_token",
-                refresh_token: refreshToken,
-            }).toString(),
-        });
-
-        if (!res.ok) {
-            const err = await res.text();
-            throw new Error(`token refresh failed: ${err}`);
-        }
-
-        const data = await res.json();
-        await storeTokens(data.access_token, null, data.expires_in);
-        return data.access_token;
-    } catch (error: any) {
-        throw new AuthError(
-            "TOKEN_REFRESH_FAILED",
-            error.message ?? "failed to refresh token",
-        );
-    }
-}
-
-// get access token
-export async function getValidAccessToken(): Promise<string | null> {
-    try {
-        const { accessToken, refreshToken, tokenExpiry } =
-            await getStoredTokens();
-
-        // 5 minute buffer
-        if (
-            accessToken &&
-            tokenExpiry &&
-            Date.now() < tokenExpiry - 5 * 60 * 1000
-        ) {
-            return accessToken;
-        }
-        if (refreshToken) {
-            return await refreshAccessToken();
-        }
-        return null;
-    } catch (error) {
-        console.error("Error getting valid access token:", error);
-        return null;
-    }
-}
-
-// sign out
 export async function signOut(): Promise<void> {
     await firebaseSignOut(auth);
-    await deleteTokens();
 }
 
-// listen for auth state change
 export function subscribeToAuthState(
     callback: (user: User | null) => void,
 ): () => void {
-    const unsubscribe = onAuthStateChanged(auth, callback);
-    return () => unsubscribe();
+    return onAuthStateChanged(auth, callback);
 }
