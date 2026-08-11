@@ -32,8 +32,10 @@ users out of their own existing events.
 cd backend && npm run snapshot -- backup
 
 # 1. Indexes, and wait until every one reports READY.
+#    --pretty is required: without it the output omits `state`, so a
+#    still-building index looks exactly like a ready one.
 npx firebase deploy --only firestore:indexes
-npx firebase firestore:indexes
+npx firebase firestore:indexes --pretty
 
 # 2. Backfill. Dry-run prints the exact plan and writes nothing.
 cd backend
