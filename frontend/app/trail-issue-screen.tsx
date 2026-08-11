@@ -1,9 +1,13 @@
 import HomeHeader from "@/components/ui/header";
-import { getEventById } from "@/services/event-service";
+import { usePhotoQueue } from "@/hooks/use-photo-queue";
+import { getEventById, type Event } from "@/services/event-service";
+import type { PhotoSlot } from "@/services/photo-queue";
+import { getTrelloClient } from "@/services/trello-config";
 import { createIssueCard, updateIssueCard } from "@/services/trello-service";
+import { getErrorMessage } from "@/utils/errors";
 import { Feather } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -18,7 +22,71 @@ import {
 } from "react-native";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-type PhotoSlot = "before" | "after";
+const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
+
+// Notes and metrics share one Trello card description, so reopening a card
+// means splitting them back apart in the same shape createIssueCard writes.
+function parseDescription(desc: string): { notes: string; metrics: string } {
+    const notesMatch = /Notes:\n([\s\S]*?)(?:\n\nMetrics:|$)/.exec(desc);
+    const metricsMatch = /Metrics:\n([\s\S]*)$/.exec(desc);
+    return {
+        notes: notesMatch?.[1]?.trim() ?? "",
+        metrics: metricsMatch?.[1]?.trim() ?? "",
+    };
+}
+
+function PhotoCard({
+    label,
+    uri,
+    caption,
+    locked,
+    onPress,
+}: {
+    label: string;
+    uri?: string;
+    caption?: string;
+    locked: boolean;
+    onPress: () => void;
+}) {
+    const content = uri ? (
+        <>
+            <Image
+                source={{ uri }}
+                style={styles.photoImage}
+                resizeMode="cover"
+            />
+            {caption ? (
+                <View style={styles.photoStatus}>
+                    <Text style={styles.photoStatusText}>{caption}</Text>
+                </View>
+            ) : null}
+        </>
+    ) : (
+        <View style={styles.photoPlaceholder}>
+            <Image
+                source={require("../assets/images/camera-purple.png")}
+                style={[styles.cameraIcon, locked && { opacity: 0.4 }]}
+            />
+            <Text style={[styles.photoLabel, locked && { color: "#bbb" }]}>
+                {label}
+            </Text>
+        </View>
+    );
+
+    // A published draft is a record of a finished event: nothing left to shoot.
+    if (locked) return <View style={styles.photoCard}>{content}</View>;
+
+    return (
+        <TouchableOpacity
+            style={styles.photoCard}
+            onPress={onPress}
+            activeOpacity={0.75}
+            accessibilityLabel={`${label} photo`}
+            accessibilityRole="button">
+            {content}
+        </TouchableOpacity>
+    );
+}
 
 export default function TrailIssueDetailScreen() {
     const router = useRouter();
@@ -44,203 +112,240 @@ export default function TrailIssueDetailScreen() {
         afterImageUri?: string;
     }>();
 
-    function parseDescription(desc: string) {
-        const notesMatch = /Notes:\n([\s\S]*?)(?:\n\nMetrics:|$)/.exec(desc);
-        const metricsMatch = /Metrics:\n([\s\S]*)$/.exec(desc);
-        return {
-            notes: notesMatch?.[1]?.trim() ?? "",
-            metrics: metricsMatch?.[1]?.trim() ?? "",
-        };
-    }
+    // A brand new issue carries a placeholder id until its Trello card exists.
+    const initialCardId = isNew === "true" ? null : (issueId ?? null);
+    const initial = parseDescription(description ?? "");
 
-    const parsed = description
-        ? parseDescription(description)
-        : { notes: "", metrics: "" };
-    const initialNotes = parsed.notes;
-    const initialMetrics = parsed.metrics;
+    const [event, setEvent] = useState<Event | null>(null);
+    const [cardId, setCardId] = useState<string | null>(initialCardId);
     const [name, setName] = useState(issueName ?? "");
-    const [notes, setNotes] = useState(initialNotes);
-    const [metrics, setMetrics] = useState(initialMetrics);
-    const [trelloCardId, setTrelloCardId] = useState<string | null>(null);
-    const [savedCardId, setSavedCardId] = useState<string | null>(null);
+    const [notes, setNotes] = useState(initial.notes);
+    const [metrics, setMetrics] = useState(initial.metrics);
+    const [savedName, setSavedName] = useState(issueName ?? "");
+    const [savedNotes, setSavedNotes] = useState(initial.notes);
+    const [savedMetrics, setSavedMetrics] = useState(initial.metrics);
+    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
+    const { issuePhotos, flush } = usePhotoQueue(eventId);
+    const queued = issuePhotos[cardId ?? issueId ?? ""] ?? {};
+    const isUnsaved = cardId === null;
+    const photosLocked = isDraft === "true";
+
+    // The upload queue is the source of truth for photos taken during an
+    // event; the uri params stay supported for callers that still hand a
+    // local uri over directly.
+    const photoUri = (slot: PhotoSlot): string | undefined => {
+        if (queued[slot]) return queued[slot].uri;
+        const param = slot === "before" ? beforeImageUri : afterImageUri;
+        return param || undefined;
+    };
+
+    // Uploads are useless without the proxy, so probe it once on open rather
+    // than letting a misconfigured build fail silently at upload time.
     useEffect(() => {
         const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
-        console.log("[ping] EXPO_PUBLIC_BACKEND_URL =", backendUrl);
-        if (backendUrl) {
-            fetch(backendUrl)
-                .then((res) => console.log("[ping] success", res.status))
-                .catch((err) => console.log("[ping] failed", err.message));
+        if (!backendUrl) {
+            console.warn(
+                "EXPO_PUBLIC_BACKEND_URL is not set; photo uploads will fail.",
+            );
+            return;
         }
+        fetch(backendUrl).catch((e: unknown) =>
+            console.warn("Backend unreachable:", getErrorMessage(e)),
+        );
     }, []);
 
     useEffect(() => {
-        if (!eventId) return;
-        getEventById(eventId)
-            .then((ev) => {
-                if (ev) {
-                    if (isNew === "true") setTrelloCardId(ev.trelloCardId);
+        let cancelled = false;
+        async function load() {
+            try {
+                if (eventId) {
+                    const loadedEvent = await getEventById(eventId);
+                    if (cancelled) return;
+                    if (!loadedEvent) throw new Error("Event not found.");
+                    setEvent(loadedEvent);
                 }
-            })
-            .catch((e) => console.error("Failed to load event:", e));
-    }, [eventId, isNew]);
+                // The drafts screen already hands over the card description;
+                // from anywhere else read it back so previously saved notes
+                // and metrics show up instead of an empty form.
+                if (!description && initialCardId && API_KEY) {
+                    const card =
+                        await getTrelloClient(API_KEY).getCard(initialCardId);
+                    if (cancelled) return;
+                    const existing = parseDescription(card.desc ?? "");
+                    setNotes(existing.notes);
+                    setMetrics(existing.metrics);
+                    setSavedNotes(existing.notes);
+                    setSavedMetrics(existing.metrics);
+                    setName(card.name);
+                    setSavedName(card.name);
+                }
+            } catch (e) {
+                if (!cancelled) setError(getErrorMessage(e));
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [eventId, initialCardId, description]);
 
-    const saveReady =
-        isNew === "true"
-            ? !!(name.trim() && trelloCardId)
-            : !!(name.trim() && issueId);
-
-    const handleSave = async () => {
-        const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
+    // Photos attach to a card, so an unsaved issue has to become one first.
+    // Shared by Save and by the camera so either entry point can create it.
+    const ensureIssueCard = useCallback(async (): Promise<string | null> => {
+        if (cardId) return cardId;
         if (!API_KEY) {
-            Alert.alert("Configuration error", "Trello API key is missing.");
+            setError("Trello API key is missing.");
+            return null;
+        }
+        if (!name.trim() || !event) {
+            setError("Event data is still loading. Please try again.");
+            return null;
+        }
+        const newCardId = await createIssueCard(
+            name.trim(),
+            notes,
+            metrics,
+            event.trelloCardId,
+            API_KEY,
+        );
+        setCardId(newCardId);
+        setSavedName(name.trim());
+        setSavedNotes(notes);
+        setSavedMetrics(metrics);
+        return newCardId;
+    }, [cardId, event, name, notes, metrics]);
+
+    const handleSave = useCallback(async () => {
+        if (!API_KEY) {
+            setError("Trello API key is missing.");
             return;
         }
         setSaving(true);
+        setError(null);
         try {
-            if (isNew === "true" && !savedCardId) {
-                if (!name.trim() || !trelloCardId) {
-                    Alert.alert("Not ready", "Event data is still loading");
-                    return;
-                }
-                const newCardId = await createIssueCard(
-                    name.trim(),
-                    notes,
-                    metrics,
-                    trelloCardId,
-                    API_KEY,
-                );
-                setSavedCardId(newCardId);
-            } else {
-                const targetId = savedCardId ?? issueId;
-                if (!targetId) {
-                    Alert.alert("Not ready", "Issue ID is missing");
-                    return;
-                }
-                const notesChanged =
-                    notes !== initialNotes || metrics !== initialMetrics;
+            if (isUnsaved) {
+                if (!(await ensureIssueCard())) return;
+            } else if (cardId) {
+                // Only send the description when it actually changed, so a
+                // rename cannot wipe notes written on the Trello card itself.
+                const descriptionChanged =
+                    notes !== savedNotes || metrics !== savedMetrics;
                 await updateIssueCard(
-                    targetId,
+                    cardId,
                     name,
                     API_KEY,
-                    notesChanged ? notes : undefined,
-                    notesChanged ? metrics : undefined,
+                    descriptionChanged ? notes : undefined,
+                    descriptionChanged ? metrics : undefined,
                 );
+                setSavedName(name);
+                setSavedNotes(notes);
+                setSavedMetrics(metrics);
             }
             router.back();
         } catch (e) {
-            Alert.alert("Failed to save issue", (e as Error).message);
+            setError(getErrorMessage(e));
         } finally {
             setSaving(false);
         }
-    };
-
-    const status = "In Progress"; // hardcoded for now
-    const [photoUris, setPhotoUris] = useState({
-        before: beforeImageUri ?? null,
-        after: afterImageUri ?? null,
-    });
+    }, [
+        isUnsaved,
+        ensureIssueCard,
+        cardId,
+        name,
+        notes,
+        metrics,
+        savedNotes,
+        savedMetrics,
+        router,
+    ]);
 
     const handlePhotoPress = async (slot: PhotoSlot) => {
-        let activeId = savedCardId ?? issueId;
-
-        if (isNew === "true" && !savedCardId) {
-            const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
-            if (!API_KEY) {
-                Alert.alert(
-                    "Configuration error",
-                    "Trello API key is missing.",
-                );
-                return;
-            }
-            if (!name.trim() || !trelloCardId) {
-                Alert.alert(
-                    "Not ready",
-                    "Event data is still loading. Please try again.",
-                );
-                return;
-            }
-            try {
-                const newCardId = await createIssueCard(
-                    name.trim(),
-                    notes,
-                    metrics,
-                    trelloCardId,
-                    API_KEY,
-                );
-                setSavedCardId(newCardId);
-                activeId = newCardId;
-            } catch (e) {
-                Alert.alert("Failed to save issue", (e as Error).message);
-                return;
-            }
+        if (!event) {
+            Alert.alert("Not ready", "Event data is still loading.");
+            return;
+        }
+        let activeId: string | null;
+        try {
+            activeId = await ensureIssueCard();
+        } catch (e) {
+            Alert.alert("Failed to save issue", getErrorMessage(e));
+            return;
+        }
+        if (!activeId) {
+            Alert.alert(
+                "Name this issue first",
+                "Add a name so the photo has somewhere to attach.",
+            );
+            return;
         }
 
         router.push({
             pathname: "/camera-view",
             params: {
                 activeIssueId: activeId,
+                issueName: name,
                 mode: slot,
-                beforeImageUri: photoUris.before ?? "",
-                eventId: eventId,
-                source: "issue",
+                beforeImageUri: photoUri("before") ?? "",
+                eventId: event.eventId,
+                albumId: event.albumId,
             },
         });
     };
 
-    const PhotoCard = ({ slot, label }: { slot: PhotoSlot; label: string }) => {
-        const photosLocked = isDraft === "true";
-        const content = photoUris[slot] ? (
-            <Image
-                source={{ uri: photoUris[slot] as string }}
-                style={styles.photoImage}
-                resizeMode="cover"
-            />
-        ) : (
-            <View style={styles.photoPlaceholder}>
-                <Image
-                    source={require("../assets/images/camera-purple.png")}
-                    style={[
-                        styles.cameraIcon,
-                        photosLocked && { opacity: 0.4 },
-                    ]}
-                />
-                <Text
-                    style={[
-                        styles.photoLabel,
-                        photosLocked && { color: "#bbb" },
-                    ]}>
-                    {label}
-                </Text>
+    const photoCaption = (slot: PhotoSlot): string | undefined => {
+        const photo = queued[slot];
+        if (!photo) return undefined;
+        if (photo.status === "uploaded") return "Uploaded";
+        if (photo.status === "failed") return "Upload failed — tap Retry";
+        return "Waiting to upload";
+    };
+
+    // Derived rather than hardcoded: an issue is done once both photos exist.
+    const status = isUnsaved
+        ? "Not saved"
+        : photoUri("before") && photoUri("after")
+          ? "Complete"
+          : photoUri("before")
+            ? "In Progress"
+            : "Not started";
+
+    const failedPhotos = [queued.before, queued.after].filter(
+        (photo) => photo?.status === "failed",
+    ).length;
+
+    const dirty =
+        isUnsaved ||
+        name !== savedName ||
+        notes !== savedNotes ||
+        metrics !== savedMetrics;
+    const saveReady = isUnsaved
+        ? !!(name.trim() && event)
+        : !!(name.trim() && cardId);
+
+    if (loading) {
+        return (
+            <View style={styles.screen}>
+                <Stack.Screen options={{ headerShown: false }} />
+                <HomeHeader />
+                <ActivityIndicator style={styles.loader} />
             </View>
         );
-
-        if (photosLocked) {
-            return <View style={styles.photoCard}>{content}</View>;
-        }
-
-        return (
-            <TouchableOpacity
-                style={styles.photoCard}
-                onPress={() => handlePhotoPress(slot)}
-                activeOpacity={0.75}
-                accessibilityLabel={`${label} photo`}
-                accessibilityRole="button">
-                {content}
-            </TouchableOpacity>
-        );
-    };
+    }
 
     return (
         <View style={styles.screen}>
             <Stack.Screen options={{ headerShown: false }} />
+            {/* App Header — outside the ScrollView so it stays put */}
             <HomeHeader />
             <ScrollView
                 style={styles.scroll}
                 contentContainerStyle={{ paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}>
-                {/* App Header */}
                 {/* Cover Image */}
                 <View style={styles.coverContainer}>
                     {imageUrl ? (
@@ -288,16 +393,50 @@ export default function TrailIssueDetailScreen() {
                     <Text style={styles.sectionLabel}>PHOTOS</Text>
                     <View style={styles.photoRow}>
                         <PhotoCard
-                            slot="before"
                             label="Before"
+                            uri={photoUri("before")}
+                            caption={photoCaption("before")}
+                            locked={photosLocked}
+                            onPress={() => {
+                                handlePhotoPress("before").catch(
+                                    (e: unknown) => setError(getErrorMessage(e)),
+                                );
+                            }}
                         />
                         <PhotoCard
-                            slot="after"
                             label="After"
+                            uri={photoUri("after")}
+                            caption={photoCaption("after")}
+                            locked={photosLocked}
+                            onPress={() => {
+                                handlePhotoPress("after").catch((e: unknown) =>
+                                    setError(getErrorMessage(e)),
+                                );
+                            }}
                         />
                     </View>
 
-                    {/* NOTEPAD */}
+                    {failedPhotos > 0 && (
+                        <TouchableOpacity
+                            style={styles.retryButton}
+                            onPress={() => {
+                                flush().catch((e: unknown) =>
+                                    setError(getErrorMessage(e)),
+                                );
+                            }}>
+                            <Feather
+                                name="upload-cloud"
+                                size={16}
+                                color="#fff"
+                            />
+                            <Text style={styles.retryButtonText}>
+                                Retry {failedPhotos} failed upload
+                                {failedPhotos === 1 ? "" : "s"}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {/* NOTES */}
                     <Text style={styles.sectionLabel}>NOTES</Text>
                     <TextInput
                         style={styles.textInput}
@@ -321,20 +460,26 @@ export default function TrailIssueDetailScreen() {
                         textAlignVertical="top"
                     />
 
+                    {error && <Text style={styles.errorText}>{error}</Text>}
+
                     {(isNew === "true" || issueId) && (
                         <TouchableOpacity
                             style={[
                                 styles.saveButton,
-                                (!saveReady || saving) &&
+                                (!saveReady || !dirty || saving) &&
                                     styles.saveButtonDisabled,
                             ]}
-                            onPress={handleSave}
-                            disabled={!saveReady || saving}>
+                            onPress={() => {
+                                handleSave().catch((e: unknown) =>
+                                    setError(getErrorMessage(e)),
+                                );
+                            }}
+                            disabled={!saveReady || !dirty || saving}>
                             {saving ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
                                 <Text style={styles.saveButtonText}>
-                                    Save Issue
+                                    {isUnsaved ? "Create issue" : "Save Issue"}
                                 </Text>
                             )}
                         </TouchableOpacity>
@@ -399,13 +544,6 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: "#E67E00",
     },
-    issueTitle: {
-        fontSize: 22,
-        fontWeight: "700",
-        color: "#1A1A2E",
-        marginBottom: 24,
-        lineHeight: 28,
-    },
     issueTitleInput: {
         fontSize: 22,
         fontWeight: "700",
@@ -452,6 +590,20 @@ const styles = StyleSheet.create({
         width: "100%",
         height: "100%",
     },
+    photoStatus: {
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "#00000099",
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+    },
+    photoStatusText: {
+        color: "#fff",
+        fontSize: 11,
+        textAlign: "center",
+    },
     cameraIcon: {
         width: 28,
         height: 28,
@@ -470,6 +622,21 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         marginBottom: 24,
     },
+    retryButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        backgroundColor: "#B3261E",
+        borderRadius: 12,
+        paddingVertical: 12,
+        marginBottom: 24,
+    },
+    retryButtonText: {
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 14,
+    },
     saveButton: {
         backgroundColor: PURPLE,
         borderRadius: 14,
@@ -484,5 +651,13 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontWeight: "700",
         fontSize: 16,
+    },
+    errorText: {
+        color: "#B3261E",
+        fontSize: 14,
+        marginBottom: 12,
+    },
+    loader: {
+        flex: 1,
     },
 });
