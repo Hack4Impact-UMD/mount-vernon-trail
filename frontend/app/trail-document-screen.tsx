@@ -2,13 +2,14 @@ import HomeHeader from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import TrailMetricsSection from "@/components/ui/trail-metrics-section";
+import { usePhotoQueue } from "@/hooks/use-photo-queue";
 import type { Event } from "@/services/event-service";
-import { getActiveEvent, getEventById } from "@/services/event-service";
-import { uploadBeforeAndAfterImages } from "@/services/google-photos-api-service";
-import { TrelloClient } from "@/services/trello-funcs";
+import { getEventById } from "@/services/event-service";
+import { clearUploadedPhotos } from "@/services/photo-queue";
+import { getTrelloClient } from "@/services/trello-config";
 import { fetchDocumentTrailIssues } from "@/services/trello-service";
-import { useIssueImageStore } from "@/store/issue-image-store";
 import { TrailDocumentIssueItem } from "@/types/trail-types";
+import { getErrorMessage } from "@/utils/errors";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -31,24 +32,24 @@ export default function TrailDocumentScreen() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
     const pressedTrailIssueRef = useRef<boolean>(false);
-    // Trail issue, state, and camera state
-    const { beforeImageUri, afterImageUri, activeIssueId, eventId } =
-        useLocalSearchParams<{
-            beforeImageUri?: string;
-            afterImageUri?: string;
-            activeIssueId?: string;
-            eventId?: string;
-        }>();
+    // Captured images no longer travel back through route params: camera-view
+    // enqueues them and returns with router.back(), so this screen only needs
+    // the event it is documenting.
+    const { eventId } = useLocalSearchParams<{ eventId?: string }>();
     const [issuesData, setIssuesData] = useState(
         [] as TrailDocumentIssueItem[],
     );
-    const { issueImages, setIssueImage, clearIssueImages } = useIssueImageStore();
     const [loadError, setLoadError] = useState<string | null>(null);
     const [notes, setNotes] = useState("");
-    const [activeEventId, setActiveEventId] = useState<string | null>(null);
     const [issuesError, setIssuesError] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
 
+    // Photos are read from the persisted queue rather than component state, so
+    // they survive navigating into an issue, backgrounding, and app restarts.
+    const { pendingCount, failedCount, uploading, flush } =
+        usePhotoQueue(eventId);
+
+    // Refetching on focus picks up issues created or edited on the issue screen.
     useFocusEffect(
         useCallback(() => {
             pressedTrailIssueRef.current = false;
@@ -56,18 +57,6 @@ export default function TrailDocumentScreen() {
             return undefined;
         }, []),
     );
-
-    useEffect(() => {
-        async function loadActiveEvent() {
-            try {
-                const ev = await getActiveEvent();
-                if (ev) setActiveEventId(ev.eventId);
-            } catch (err) {
-                console.error("Failed to fetch active event:", err);
-            }
-        }
-        loadActiveEvent();
-    }, []);
 
     useEffect(() => {
         if (!eventId) {
@@ -80,7 +69,7 @@ export default function TrailDocumentScreen() {
                 if (e) {
                     setEvent(e);
                     // load existing notes from event creation
-                    setNotes(e.notes || "");
+                    setNotes(e.notes ?? "");
                 } else {
                     setError("Event not found.");
                 }
@@ -101,7 +90,7 @@ export default function TrailDocumentScreen() {
             }
             try {
                 setLoadError(null);
-                const trello = new TrelloClient(API_KEY);
+                const trello = getTrelloClient(API_KEY);
                 const eventCard = await trello.getEventCardByID(
                     currentEvent.trelloCardId,
                     true,
@@ -128,22 +117,6 @@ export default function TrailDocumentScreen() {
         };
     }, [event, refreshKey]);
 
-    // when the user returns from camera-view, store the captured image under the correct issue
-    useEffect(() => {
-        if (activeIssueId && (beforeImageUri || afterImageUri)) {
-            setIssueImage(activeIssueId, beforeImageUri, afterImageUri);
-
-            if (!event) return;
-
-            uploadBeforeAndAfterImages(
-                event.albumId,
-                activeIssueId,
-                afterImageUri ? undefined : beforeImageUri,
-                afterImageUri,
-            );
-        }
-    }, [activeIssueId, beforeImageUri, afterImageUri, event]); // don't add setIssueImage
-
     function handleAddIssue() {
         if (!event) return;
         router.push({
@@ -154,6 +127,30 @@ export default function TrailDocumentScreen() {
                 isNew: "true",
                 eventId: event.eventId,
             },
+        });
+    }
+
+    // Photos upload opportunistically during the event; this is the last chance
+    // to clear the backlog before the summary screen. Uploaded entries are then
+    // dropped so the local queue does not grow across events (failed ones stay
+    // for a later retry).
+    async function handleStop() {
+        if (!event) return;
+        if (pendingCount > 0) {
+            await flush().catch((err: unknown) => {
+                console.error(
+                    "Photo upload failed on stop:",
+                    getErrorMessage(err),
+                );
+                return null;
+            });
+        }
+        await clearUploadedPhotos(event.eventId).catch((err: unknown) => {
+            console.error("Could not prune photo queue:", getErrorMessage(err));
+        });
+        router.replace({
+            pathname: "/event-summary",
+            params: { eventId: event.eventId, notes },
         });
     }
 
@@ -169,26 +166,19 @@ export default function TrailDocumentScreen() {
     return (
         <>
             <View style={styles.screen}>
+                {/* App Header — outside the ScrollView so it stays sticky */}
                 <HomeHeader />
                 <ScrollView
                     style={styles.container}
                     showsVerticalScrollIndicator={false}>
-                    {/* App Header */}
-
                     <TrailEventHeader
                         event={event}
                         variant="document"
                         notes={notes}
                         onStop={() => {
-							clearIssueImages();
-
-                            router.replace({
-                                pathname: "/event-summary",
-                                params: {
-                                    eventId: event.eventId,
-                                    notes: notes,
-                                },
-                            });
+                            handleStop().catch((err: unknown) =>
+                                setIssuesError(getErrorMessage(err)),
+                            );
                         }}
                     />
                     <View style={styles.contentContainer}>
@@ -239,6 +229,32 @@ export default function TrailDocumentScreen() {
                                 {loadError}
                             </Text>
                         )}
+                        {(pendingCount > 0 || uploading) && (
+                            <View style={styles.uploadBanner}>
+                                <Text style={styles.uploadBannerText}>
+                                    {uploading
+                                        ? "Uploading photos…"
+                                        : `${pendingCount} photo${pendingCount === 1 ? "" : "s"} waiting to upload`}
+                                    {failedCount > 0
+                                        ? ` · ${failedCount} failed`
+                                        : ""}
+                                </Text>
+                                {!uploading && (
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            flush().catch((err: unknown) =>
+                                                setIssuesError(
+                                                    getErrorMessage(err),
+                                                ),
+                                            );
+                                        }}>
+                                        <Text style={styles.uploadBannerAction}>
+                                            Upload now
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        )}
                         <View style={styles.listContainer}>
                             {issuesData.map((issue) => (
                                 <TrailDocIssuesCard
@@ -260,12 +276,6 @@ export default function TrailDocumentScreen() {
                                                 issueName: issue.name,
                                                 imageUrl: issue.imageUrl,
                                                 eventId: event.eventId,
-                                                beforeImageUri:
-                                                    issueImages[issue.id]
-                                                        ?.before,
-                                                afterImageUri:
-                                                    issueImages[issue.id]
-                                                        ?.after,
                                             },
                                         });
                                     }}
@@ -346,5 +356,28 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: "#888",
         textAlign: "center",
+    },
+    uploadBanner: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        backgroundColor: "#FAF7FF",
+        borderWidth: 1,
+        borderColor: "#5B2D8E",
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        marginBottom: 16,
+        gap: 12,
+    },
+    uploadBannerText: {
+        flex: 1,
+        fontSize: 13,
+        color: "#5B2D8E",
+    },
+    uploadBannerAction: {
+        fontSize: 13,
+        fontWeight: "700",
+        color: "#5B2D8E",
     },
 });
