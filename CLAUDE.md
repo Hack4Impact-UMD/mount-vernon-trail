@@ -141,7 +141,7 @@ still-building index indistinguishably from a ready one.
 | [README.md](README.md) | Current — setup, migration runbook, git procedures |
 | [backend/README.md](backend/README.md) | Current — endpoint table, OAuth linking, deployment |
 | [MANUAL_TEST_PLAN.md](MANUAL_TEST_PLAN.md) | Current — the flows needing real credentials |
-| [PROJECT_AUDIT.md](PROJECT_AUDIT.md) | **Historical (2026-08-06)** — describes the pre-refactor code |
+| [audits/2026-08-06-project-audit.md](audits/2026-08-06-project-audit.md) | **Historical (2026-08-06)** — describes the pre-refactor code |
 | [FEATURE_PROPOSALS.md](FEATURE_PROPOSALS.md) | **Historical (2026-08-06)** — premises partly obsolete |
 
 The audit and the proposals were written before the `stack/01`–`stack/15` refactor

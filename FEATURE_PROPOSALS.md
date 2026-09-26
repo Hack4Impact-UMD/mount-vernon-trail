@@ -5,7 +5,7 @@
 > since been deleted (notably the Google Sheets client). Re-check feasibility
 > against the current code before picking anything up.
 
-**Date:** 2026-08-06 · Companion to [PROJECT_AUDIT.md](PROJECT_AUDIT.md). Features proposed from research into the real organization's operations plus a full codebase inventory, generated through four lenses (field volunteer, event leader, admin/impact, integrations & automation) and then deduplicated, feasibility-checked, and ranked. Every "builds on" claim below was verified against the actual code.
+**Date:** 2026-08-06 · Companion to [the project audit](audits/2026-08-06-project-audit.md). Features proposed from research into the real organization's operations plus a full codebase inventory, generated through four lenses (field volunteer, event leader, admin/impact, integrations & automation) and then deduplicated, feasibility-checked, and ranked. Every "builds on" claim below was verified against the actual code.
 
 ## How to read this
 
