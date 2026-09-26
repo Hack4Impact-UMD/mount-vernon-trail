@@ -146,7 +146,7 @@ still-building index indistinguishably from a ready one.
 
 The audit and the proposals were written before the `stack/01`–`stack/15` refactor
 series. Most of the audit's findings are fixed, and the proposals' top-ranked
-feature is built on a Google Sheets client that has since been deleted. Both carry
+feature is built on a Google Sheets client that is kept but not wired up. Both carry
 a banner saying so. **Do not treat either as a current to-do list** — check the
 code before acting on anything in them.
 
