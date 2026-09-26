@@ -142,7 +142,7 @@ still-building index indistinguishably from a ready one.
 | [backend/README.md](backend/README.md) | Current — endpoint table, OAuth linking, deployment |
 | [MANUAL_TEST_PLAN.md](MANUAL_TEST_PLAN.md) | Current — the flows needing real credentials |
 | [audits/2026-08-06-project-audit.md](audits/2026-08-06-project-audit.md) | **Historical (2026-08-06)** — describes the pre-refactor code |
-| [FEATURE_PROPOSALS.md](FEATURE_PROPOSALS.md) | **Historical (2026-08-06)** — premises partly obsolete |
+| [Feature Proposals (Google Doc)](https://docs.google.com/document/d/1DfmFrSI6qNeEN60E3PMVdfsyXaQmNKZsC4z6P3O_Ynk/edit) | **Historical (2026-08-06)** — premises partly obsolete; kept outside the repo |
 
 The audit and the proposals were written before the `stack/01`–`stack/15` refactor
 series. Most of the audit's findings are fixed, and the proposals' top-ranked
