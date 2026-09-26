@@ -78,8 +78,7 @@ export async function handleGoogleAuthResponse(
 
     try {
         // The Google token is only ever used to mint the Firebase credential.
-        // Nothing else in the app needs it, so it is never persisted — which is
-        // what removed the whole SecureStore/localStorage token layer.
+        // Nothing else in the app needs it, so it is never persisted.
         const credential = GoogleAuthProvider.credential(
             authentication.idToken,
             authentication.accessToken,

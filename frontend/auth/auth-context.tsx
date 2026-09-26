@@ -9,9 +9,9 @@ export type AuthState = {
 
 const AuthContext = createContext<AuthState>({ user: undefined });
 
-// One subscription for the whole app. Previously every component that called
-// useGoogleAuth() — including the header, which is on nearly every screen —
-// opened its own onAuthStateChanged listener and its own OAuth request object.
+// One onAuthStateChanged subscription and one OAuth request object for the
+// whole app; components read auth state from this context rather than each
+// subscribing on their own.
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null | undefined>(undefined);
 
