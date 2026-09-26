@@ -80,7 +80,8 @@ emulator — `@firebase/rules-unit-testing` mints auth contexts locally). The
 ## Deploying
 
 From the repo root, indexes first and only then rules — rules deployed ahead of a
-backfill can lock users out of their own existing events:
+backfill can lock users out of their own existing events (see the
+[ownership migration runbook](../docs/runbooks/2026-08-ownership-migration.md)):
 
 ```bash
 npx firebase deploy --only firestore:indexes

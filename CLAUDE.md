@@ -138,15 +138,16 @@ still-building index indistinguishably from a ready one.
 
 | Doc | Status |
 |---|---|
-| [README.md](README.md) | Current — setup, migration runbook, git procedures |
+| [README.md](README.md) | Current — setup, admin setup, git procedures |
+| [docs/runbooks/2026-08-ownership-migration.md](docs/runbooks/2026-08-ownership-migration.md) | Current — one-time data migration for the ownership refactor |
 | [backend/README.md](backend/README.md) | Current — endpoint table, OAuth linking, deployment |
 | [MANUAL_TEST_PLAN.md](MANUAL_TEST_PLAN.md) | Current — the flows needing real credentials |
-| [PROJECT_AUDIT.md](PROJECT_AUDIT.md) | **Historical (2026-08-06)** — describes the pre-refactor code |
-| [FEATURE_PROPOSALS.md](FEATURE_PROPOSALS.md) | **Historical (2026-08-06)** — premises partly obsolete |
+| [audits/2026-08-06-project-audit.md](audits/2026-08-06-project-audit.md) | **Historical (2026-08-06)** — describes the pre-refactor code |
+| [Feature Proposals (Google Doc)](https://docs.google.com/document/d/1DfmFrSI6qNeEN60E3PMVdfsyXaQmNKZsC4z6P3O_Ynk/edit) | **Historical (2026-08-06)** — premises partly obsolete; kept outside the repo |
 
 The audit and the proposals were written before the `stack/01`–`stack/15` refactor
 series. Most of the audit's findings are fixed, and the proposals' top-ranked
-feature is built on a Google Sheets client that has since been deleted. Both carry
+feature is built on a Google Sheets client that is kept but not wired up. Both carry
 a banner saying so. **Do not treat either as a current to-do list** — check the
 code before acting on anything in them.
 
