@@ -37,7 +37,7 @@ Photos itself rejects the request.
 | `GET` | `/api/photos/:photoId` | ID token | — | `200` media item · `404` if absent |
 
 Uploads are bounded-concurrency and **partial-failure tolerant**: a single bad
-photo no longer aborts the batch and strand the rest. Per-file failures come
+photo no longer aborts the batch and strands the rest. Per-file failures come
 back in `failed[]` so the client can retry just those.
 
 Limits default to 10 files × 10 MB. Raise via `MAX_UPLOAD_FILES` /

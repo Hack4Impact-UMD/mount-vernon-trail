@@ -140,6 +140,81 @@ git merge main
 
 ## Meet the engineers!
 
+### Fall 2026
+<table align="center">
+  <tr>
+    <td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+	<td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+	<td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+	<td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+	<td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+	<td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+	<td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+  </tr>
+</table>
+
+### Spring 2026
+
 <table align="center">
   <tr>
     <td align="center" width="150">
