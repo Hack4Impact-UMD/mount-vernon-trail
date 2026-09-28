@@ -27,15 +27,17 @@ const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
 export default function TrailDocumentScreen() {
     const router = useRouter();
-    // Event loading state
-    const [event, setEvent] = useState<Event>();
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string>();
-    const pressedTrailIssueRef = useRef<boolean>(false);
     // Captured images no longer travel back through route params: camera-view
     // enqueues them and returns with router.back(), so this screen only needs
     // the event it is documenting.
     const { eventId } = useLocalSearchParams<{ eventId?: string }>();
+    // Event loading state
+    const [event, setEvent] = useState<Event>();
+    const [loading, setLoading] = useState(Boolean(eventId));
+    const [error, setError] = useState<string | undefined>(() =>
+        eventId ? undefined : "No event ID provided.",
+    );
+    const pressedTrailIssueRef = useRef<boolean>(false);
     const [issuesData, setIssuesData] = useState(
         [] as TrailDocumentIssueItem[],
     );
@@ -59,11 +61,7 @@ export default function TrailDocumentScreen() {
     );
 
     useEffect(() => {
-        if (!eventId) {
-            setError("No event ID provided.");
-            setLoading(false);
-            return;
-        }
+        if (!eventId) return;
         getEventById(eventId)
             .then((e) => {
                 if (e) {

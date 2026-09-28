@@ -8,6 +8,7 @@ import { enqueuePhoto, flushInBackground } from '@/services/photo-queue';
 import { getErrorMessage } from '@/utils/errors';
 import Slider from '@react-native-community/slider';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSharedValue } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Palette } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,12 +30,14 @@ export default function CameraViewScreen() {
     });
     const [recentPhoto, setRecentPhoto] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
-    const flashAnim = useRef(new Animated.Value(0)).current;
+    const [flashAnim] = useState(() => new Animated.Value(0));
     const cameraRef = useRef<CameraView | null>(null);
     const [overlayOpacity, setOverlayOpacity] = useState(0.3);
     const [zoom, setZoom] = useState(0);
-    const currentZoomRef = useRef(0);
-    const startZoomRef = useRef(0);
+    // Shared values rather than refs: the gesture callbacks are handed to the
+    // builder during render, and the React Compiler rejects ref reads there.
+    const currentZoom = useSharedValue(0);
+    const startZoom = useSharedValue(0);
     const [flash, setFlash] = useState<'off' | 'on'>('off');
     // when navigated from the trail document screen
     const router = useRouter();
@@ -78,12 +81,12 @@ export default function CameraViewScreen() {
         setFlash(current => (current === 'off' ? 'on' : 'off'));
     }
     const pinchGesture = Gesture.Pinch().runOnJS(true).onStart(() => {
-        startZoomRef.current = currentZoomRef.current;
-    }).onUpdate((e:any) => {
-        const target = Math.min(1, Math.max(0, startZoomRef.current + (e.scale - 1) * 0.12));
-        const smoothed = currentZoomRef.current + (target - currentZoomRef.current) * 0.25;
-        if (Math.abs(smoothed - currentZoomRef.current) > 0.003) {
-            currentZoomRef.current = smoothed;
+        startZoom.set(currentZoom.get());
+    }).onUpdate((e) => {
+        const target = Math.min(1, Math.max(0, startZoom.get() + (e.scale - 1) * 0.12));
+        const smoothed = currentZoom.get() + (target - currentZoom.get()) * 0.25;
+        if (Math.abs(smoothed - currentZoom.get()) > 0.003) {
+            currentZoom.set(smoothed);
             setZoom(smoothed);
         }
     });

@@ -11,7 +11,7 @@ import {
 import { getErrorMessage } from "@/utils/errors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -161,8 +161,8 @@ interface MetricGridCardProps {
 }
 
 function MetricGridCard({ def, value, delay }: MetricGridCardProps) {
-    const opacity = useRef(new Animated.Value(0)).current;
-    const translateY = useRef(new Animated.Value(18)).current;
+    const [opacity] = useState(() => new Animated.Value(0));
+    const [translateY] = useState(() => new Animated.Value(18));
 
     useEffect(() => {
         Animated.parallel([
@@ -226,15 +226,13 @@ export default function EventSummaryScreen() {
     const [saving, setSaving] = useState(false);
     const [savedDraft, setSavedDraft] = useState(false);
     const [event, setEvent] = useState<Event>();
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string>();
+    const [loading, setLoading] = useState(Boolean(eventId));
+    const [error, setError] = useState<string | undefined>(() =>
+        eventId ? undefined : "No event ID provided.",
+    );
 
     useEffect(() => {
-        if (!eventId) {
-            setError("No event ID provided.");
-            setLoading(false);
-            return;
-        }
+        if (!eventId) return;
         getEventById(eventId)
             .then((e) => {
                 if (e) setEvent(e);
@@ -290,7 +288,10 @@ export default function EventSummaryScreen() {
             );
             router.replace({ pathname: "/edit-draft", params: { eventId } });
         } catch {
-            Alert.alert("Error", "Could not save your notes. Please try again.");
+            Alert.alert(
+                "Error",
+                "Could not save your notes. Please try again.",
+            );
         } finally {
             setSaving(false);
         }

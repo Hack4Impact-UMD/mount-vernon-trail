@@ -37,7 +37,9 @@ async function fetchAllAlbums(): Promise<NormalizedAlbum[]> {
     return albums.map((album) => ({
         ...album,
         mediaItemsCount:
-            album.mediaItemsCount != null ? Number(album.mediaItemsCount) : null,
+            album.mediaItemsCount != null
+                ? Number(album.mediaItemsCount)
+                : null,
         appCreatedAt: createdAtMap[album.id],
     }));
 }
@@ -83,21 +85,25 @@ function AlbumCard({ album }: { album: NormalizedAlbum }) {
                             resizeMode="cover"
                         />
                     ) : (
-                        <View style={[styles.coverImage, styles.coverPlaceholder]}>
+                        <View
+                            style={[
+                                styles.coverImage,
+                                styles.coverPlaceholder,
+                            ]}>
                             <Text style={styles.coverPlaceholderCount}>
                                 {photoCount ?? ""}
                             </Text>
                         </View>
                     )}
                     <Pressable
-                    style={[
-                        styles.starBadge,
-                        favorited
-                            ? styles.starBadgeFavorited
-                            : styles.starBadgeUnfavorited,
-                    ]}
-                    onPress={toggleFavorite}
-                    hitSlop={8}>
+                        style={[
+                            styles.starBadge,
+                            favorited
+                                ? styles.starBadgeFavorited
+                                : styles.starBadgeUnfavorited,
+                        ]}
+                        onPress={toggleFavorite}
+                        hitSlop={8}>
                         <MaterialIcons
                             name="star"
                             size={favorited ? 22 : 18}
@@ -119,7 +125,9 @@ function AlbumCard({ album }: { album: NormalizedAlbum }) {
                                 color="#6D6E71"
                             />
                             <Text style={styles.albumDate}>
-                                {album.appCreatedAt ? formatDate(album.appCreatedAt) : ""}
+                                {album.appCreatedAt
+                                    ? formatDate(album.appCreatedAt)
+                                    : ""}
                             </Text>
                         </View>
                     </View>
@@ -148,25 +156,33 @@ export default function AlbumsScreen() {
     const [error, setError] = useState<string | null>(null);
 
     const loadAlbums = useCallback(async () => {
-        setError(null);
         try {
             setAlbums(await fetchAllAlbums());
+            setError(null);
         } catch (e) {
             setError(getErrorMessage(e));
         }
     }, []);
 
     useEffect(() => {
-        // check if admin status undetermined
-        if (isAdmin === null) return; 
-        if (!isAdmin) {
-            setLoading(false);
-            return;
-        }
-        // start loading albums
-        setLoading(true);
-        loadAlbums().finally(() => setLoading(false));
-    }, [loadAlbums, isAdmin]);
+        // Only an admin loads albums; a non-admin gets the locked message
+        // below, and `loading` stays true only while it can still matter.
+        if (!isAdmin) return;
+        let cancelled = false;
+        fetchAllAlbums()
+            .then((next) => {
+                if (!cancelled) setAlbums(next);
+            })
+            .catch((e: unknown) => {
+                if (!cancelled) setError(getErrorMessage(e));
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [isAdmin]);
 
     const handleRefresh = useCallback(async () => {
         if (!isAdmin) return;
@@ -176,7 +192,7 @@ export default function AlbumsScreen() {
     }, [loadAlbums, isAdmin]);
 
     const renderContent = () => {
-        if (loading) {
+        if (isAdmin === null || (isAdmin && loading)) {
             return (
                 <View style={styles.centered}>
                     <ActivityIndicator

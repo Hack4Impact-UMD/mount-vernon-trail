@@ -6,7 +6,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library/legacy";
 import { useRouter } from "expo-router";
 import { Check, Download, House, Plus, X } from "lucide-react-native";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
     Alert,
     Image,
@@ -33,10 +33,6 @@ export default function BeforeAfterGraphicScreen() {
     const previewRef = useRef<View>(null);
     const scrollRef = useRef<ScrollView>(null);
 
-    useEffect(() => {
-        if (step === "select" && beforeUri && afterUri) setStep("preview");
-    }, [beforeUri, afterUri, step]);
-
     const pickImage = async (slot: "before" | "after") => {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -48,6 +44,10 @@ export default function BeforeAfterGraphicScreen() {
             const uri = result.assets[0].uri;
             if (slot === "before") setBeforeUri(uri);
             else setAfterUri(uri);
+            // Advance once both photos exist, here rather than in an effect
+            // watching them.
+            const other = slot === "before" ? afterUri : beforeUri;
+            if (step === "select" && other) setStep("preview");
         } catch (e) {
             console.error("Error picking image:", e);
             Alert.alert(

@@ -6,7 +6,11 @@ import TrailEventHeader from "@/components/ui/trail-event-header";
 import TrailMetricsSection from "@/components/ui/trail-metrics-section";
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
-import { getEventById, publishEvent, saveDraft } from "@/services/event-service";
+import {
+    getEventById,
+    publishEvent,
+    saveDraft,
+} from "@/services/event-service";
 import { getTrelloClient } from "@/services/trello-config";
 import {
     addNotesToCard,
@@ -58,8 +62,10 @@ export default function EditDraftScreen() {
     );
 
     const [event, setEvent] = useState<Event>();
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string>();
+    const [loading, setLoading] = useState(Boolean(eventId));
+    const [error, setError] = useState<string | undefined>(() =>
+        eventId ? undefined : "No event ID provided.",
+    );
     const [issues, setIssues] = useState<TrailDocumentIssueItem[]>([]);
     const [issuesError, setIssuesError] = useState<string | null>(null);
     const [notes, setNotes] = useState("");
@@ -68,11 +74,7 @@ export default function EditDraftScreen() {
     const [publishModalVisible, setPublishModalVisible] = useState(false);
 
     useEffect(() => {
-        if (!eventId) {
-            setError("No event ID provided.");
-            setLoading(false);
-            return;
-        }
+        if (!eventId) return;
         getEventById(eventId)
             .then((e) => {
                 if (!e) {
@@ -170,7 +172,10 @@ export default function EditDraftScreen() {
                 style={styles.container}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}>
-                <TrailEventHeader event={event} variant="summary" />
+                <TrailEventHeader
+                    event={event}
+                    variant="summary"
+                />
 
                 <View style={styles.contentContainer}>
                     <Text style={styles.sectionTitle}>Trail Issues</Text>
@@ -195,9 +200,8 @@ export default function EditDraftScreen() {
                                             issueName: issue.name,
                                             imageUrl:
                                                 issue.imageUrl ?? undefined,
-                                            description: issueDescription(
-                                                issue,
-                                            ),
+                                            description:
+                                                issueDescription(issue),
                                             eventId: event.eventId,
                                             isDraft: "true",
                                         },
@@ -269,7 +273,9 @@ export default function EditDraftScreen() {
                             size={18}
                             color={Palette.primaryPurple100}
                         />
-                        <Text style={styles.publishBtnText}>Post to Trello</Text>
+                        <Text style={styles.publishBtnText}>
+                            Post to Trello
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
