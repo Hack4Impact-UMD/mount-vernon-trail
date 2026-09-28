@@ -1,7 +1,7 @@
 import HomeHeader from "@/components/ui/header";
 import { usePhotoQueue } from "@/hooks/use-photo-queue";
 import { getEventById, type Event } from "@/services/event-service";
-import type { PhotoSlot } from "@/services/photo-queue";
+import type { PhotoSlot, QueuedPhoto } from "@/services/photo-queue";
 import { getTrelloClient } from "@/services/trello-config";
 import { createIssueCard, updateIssueCard } from "@/services/trello-service";
 import { getErrorMessage } from "@/utils/errors";
@@ -314,9 +314,15 @@ export default function TrailIssueDetailScreen() {
             ? "In Progress"
             : "Not started";
 
-    const failedPhotos = [queued.before, queued.after].filter(
-        (photo) => photo?.status === "failed",
-    ).length;
+    const failed = [queued.before, queued.after].filter(
+        (photo): photo is QueuedPhoto => photo?.status === "failed",
+    );
+    const failedPhotos = failed.length;
+    // The thumbnail caption has no room for the reason, and without it every
+    // failure — offline, signed out, Google rejecting the album — looked alike.
+    const uploadErrors = [
+        ...new Set(failed.map((photo) => photo.error ?? "Upload failed")),
+    ];
 
     const dirty =
         isUnsaved ||
@@ -398,8 +404,8 @@ export default function TrailIssueDetailScreen() {
                             caption={photoCaption("before")}
                             locked={photosLocked}
                             onPress={() => {
-                                handlePhotoPress("before").catch(
-                                    (e: unknown) => setError(getErrorMessage(e)),
+                                handlePhotoPress("before").catch((e: unknown) =>
+                                    setError(getErrorMessage(e)),
                                 );
                             }}
                         />
@@ -435,6 +441,13 @@ export default function TrailIssueDetailScreen() {
                             </Text>
                         </TouchableOpacity>
                     )}
+                    {uploadErrors.map((message) => (
+                        <Text
+                            key={message}
+                            style={styles.errorText}>
+                            {message}
+                        </Text>
+                    ))}
 
                     {/* NOTES */}
                     <Text style={styles.sectionLabel}>NOTES</Text>

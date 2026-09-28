@@ -37,7 +37,11 @@ beforeEach(() => {
 describe("enqueuePhoto", () => {
     it("persists a captured photo as pending", async () => {
         const queue = await freshModule();
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
 
         const photos = await queue.getPhotosForEvent("event-1");
         expect(photos).toHaveLength(1);
@@ -46,8 +50,16 @@ describe("enqueuePhoto", () => {
 
     it("replaces rather than accumulates when a photo is retaken", async () => {
         const queue = await freshModule();
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///1.jpg" });
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///2.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///1.jpg",
+        });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///2.jpg",
+        });
 
         const photos = await queue.getPhotosForEvent("event-1");
         expect(photos).toHaveLength(1);
@@ -56,8 +68,16 @@ describe("enqueuePhoto", () => {
 
     it("keeps before and after as separate slots", async () => {
         const queue = await freshModule();
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
-        await queue.enqueuePhoto({ ...BASE, slot: "after", uri: "file:///a.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "after",
+            uri: "file:///a.jpg",
+        });
 
         const byIssue = await queue.getIssuePhotos("event-1");
         expect(byIssue["issue-1"].before?.uri).toBe("file:///b.jpg");
@@ -66,7 +86,11 @@ describe("enqueuePhoto", () => {
 
     it("survives a reload, which component state never did", async () => {
         const queue = await freshModule();
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
 
         const reloaded = loadModule();
         expect(await reloaded.getPhotosForEvent("event-1")).toHaveLength(1);
@@ -74,7 +98,11 @@ describe("enqueuePhoto", () => {
 
     it("keeps events separate", async () => {
         const queue = await freshModule();
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
         await queue.enqueuePhoto({
             ...BASE,
             eventId: "event-2",
@@ -89,7 +117,11 @@ describe("enqueuePhoto", () => {
 describe("flushEventPhotos", () => {
     it("uploads pending photos and marks them uploaded", async () => {
         const queue = await freshModule();
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
 
         await expect(queue.flushEventPhotos("event-1")).resolves.toEqual({
             uploaded: 1,
@@ -102,8 +134,16 @@ describe("flushEventPhotos", () => {
 
     it("groups an album's photos into a single request", async () => {
         const queue = await freshModule();
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
-        await queue.enqueuePhoto({ ...BASE, slot: "after", uri: "file:///a.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "after",
+            uri: "file:///a.jpg",
+        });
 
         await queue.flushEventPhotos("event-1");
         expect(mockUpload).toHaveBeenCalledTimes(1);
@@ -112,7 +152,11 @@ describe("flushEventPhotos", () => {
 
     it("leaves a photo queued when the upload throws", async () => {
         const queue = await freshModule();
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
         mockUpload.mockRejectedValue(new Error("offline"));
 
         await expect(queue.flushEventPhotos("event-1")).resolves.toEqual({
@@ -124,9 +168,37 @@ describe("flushEventPhotos", () => {
         expect(photo.error).toBe("offline");
     });
 
+    it("keeps the backend's reason for a per-file failure", async () => {
+        const queue = await freshModule();
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
+        mockUpload.mockImplementation(async (_albumId, photos) => ({
+            created: 0,
+            failed: [
+                {
+                    fileName: photos[0].fileName,
+                    error: "Google Photos API error (400)",
+                },
+            ],
+        }));
+
+        await queue.flushEventPhotos("event-1");
+
+        const [photo] = await queue.getPhotosForEvent("event-1");
+        expect(photo.status).toBe("failed");
+        expect(photo.error).toBe("Google Photos API error (400)");
+    });
+
     it("a failed photo can be retried and succeed", async () => {
         const queue = await freshModule();
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
         mockUpload.mockRejectedValueOnce(new Error("offline"));
         await queue.flushEventPhotos("event-1");
 
@@ -139,7 +211,11 @@ describe("flushEventPhotos", () => {
 
     it("skips photos that already uploaded", async () => {
         const queue = await freshModule();
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
         await queue.flushEventPhotos("event-1");
         mockUpload.mockClear();
 
@@ -163,12 +239,20 @@ describe("subscribers", () => {
         const listener = jest.fn();
         const unsubscribe = queue.subscribeToPhotoQueue(listener);
 
-        await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
         expect(listener).toHaveBeenCalled();
 
         unsubscribe();
         listener.mockClear();
-        await queue.enqueuePhoto({ ...BASE, slot: "after", uri: "file:///a.jpg" });
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "after",
+            uri: "file:///a.jpg",
+        });
         expect(listener).not.toHaveBeenCalled();
     });
 });

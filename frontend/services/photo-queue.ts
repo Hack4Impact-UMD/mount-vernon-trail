@@ -27,7 +27,10 @@ export type QueuedPhoto = {
     error?: string;
 };
 
-export type IssuePhotos = Record<string, { before?: QueuedPhoto; after?: QueuedPhoto }>;
+export type IssuePhotos = Record<
+    string,
+    { before?: QueuedPhoto; after?: QueuedPhoto }
+>;
 
 type Listener = () => void;
 
@@ -52,7 +55,10 @@ async function readAll(): Promise<QueuedPhoto[]> {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         cache = raw ? (JSON.parse(raw) as QueuedPhoto[]) : [];
     } catch (error) {
-        console.error("Could not read the photo queue:", getErrorMessage(error));
+        console.error(
+            "Could not read the photo queue:",
+            getErrorMessage(error),
+        );
         cache = [];
     }
     return cache;
@@ -65,7 +71,10 @@ async function writeAll(photos: QueuedPhoto[]): Promise<void> {
     } catch (error) {
         // The in-memory cache still holds the photo, so the current session
         // keeps working; only persistence across a restart is lost.
-        console.error("Could not persist the photo queue:", getErrorMessage(error));
+        console.error(
+            "Could not persist the photo queue:",
+            getErrorMessage(error),
+        );
     }
     notify();
 }
@@ -92,7 +101,9 @@ export async function enqueuePhoto(input: EnqueueInput): Promise<QueuedPhoto> {
     return photo;
 }
 
-export async function getPhotosForEvent(eventId: string): Promise<QueuedPhoto[]> {
+export async function getPhotosForEvent(
+    eventId: string,
+): Promise<QueuedPhoto[]> {
     return (await readAll()).filter((photo) => photo.eventId === eventId);
 }
 
@@ -100,7 +111,10 @@ export async function getIssuePhotos(eventId: string): Promise<IssuePhotos> {
     const photos = await getPhotosForEvent(eventId);
     const byIssue: IssuePhotos = {};
     for (const photo of photos) {
-        byIssue[photo.issueId] = { ...byIssue[photo.issueId], [photo.slot]: photo };
+        byIssue[photo.issueId] = {
+            ...byIssue[photo.issueId],
+            [photo.slot]: photo,
+        };
     }
     return byIssue;
 }
@@ -117,7 +131,9 @@ export async function removePhoto(photoId: string): Promise<void> {
 }
 
 function fileNameFor(photo: QueuedPhoto): string {
-    const safeIssue = photo.issueName.replace(/[^a-zA-Z0-9-_]+/g, "-").slice(0, 40);
+    const safeIssue = photo.issueName
+        .replace(/[^a-zA-Z0-9-_]+/g, "-")
+        .slice(0, 40);
     const extension = photo.uri.split(".").pop()?.toLowerCase();
     const suffix = extension && extension.length <= 4 ? extension : "jpg";
     return `${safeIssue || "issue"}-${photo.slot}.${suffix}`;
@@ -148,7 +164,10 @@ export async function flushEventPhotos(eventId: string): Promise<FlushResult> {
 
         const byAlbum = new Map<string, QueuedPhoto[]>();
         for (const photo of pending) {
-            byAlbum.set(photo.albumId, [...(byAlbum.get(photo.albumId) ?? []), photo]);
+            byAlbum.set(photo.albumId, [
+                ...(byAlbum.get(photo.albumId) ?? []),
+                photo,
+            ]);
         }
 
         const updates = new Map<string, QueuedPhoto>();
@@ -161,13 +180,20 @@ export async function flushEventPhotos(eventId: string): Promise<FlushResult> {
             }));
             try {
                 const { failed } = await uploadPhotos(albumId, payload);
-                const failedNames = new Set(failed.map((entry) => entry.fileName));
+                // Keep the backend's per-file reason: a bare "Upload failed"
+                // left nothing to diagnose a partial failure with.
+                const failures = new Map(
+                    failed.map((entry) => [entry.fileName, entry.error]),
+                );
                 for (const photo of albumPhotos) {
-                    const failure = failedNames.has(fileNameFor(photo));
+                    const failure = failures.get(fileNameFor(photo));
                     updates.set(photo.id, {
                         ...photo,
-                        status: failure ? "failed" : "uploaded",
-                        error: failure ? "Upload failed" : undefined,
+                        status: failure !== undefined ? "failed" : "uploaded",
+                        error:
+                            failure !== undefined
+                                ? failure || "Upload failed"
+                                : undefined,
                     });
                     if (failure) result.failed++;
                     else result.uploaded++;
@@ -202,7 +228,10 @@ export async function flushEventPhotos(eventId: string): Promise<FlushResult> {
 // stays queued.
 export function flushInBackground(eventId: string): void {
     flushEventPhotos(eventId).catch((error: unknown) => {
-        console.error("Background photo upload failed:", getErrorMessage(error));
+        console.error(
+            "Background photo upload failed:",
+            getErrorMessage(error),
+        );
     });
 }
 
@@ -210,7 +239,8 @@ export async function clearUploadedPhotos(eventId: string): Promise<void> {
     const photos = await readAll();
     await writeAll(
         photos.filter(
-            (photo) => !(photo.eventId === eventId && photo.status === "uploaded"),
+            (photo) =>
+                !(photo.eventId === eventId && photo.status === "uploaded"),
         ),
     );
 }
