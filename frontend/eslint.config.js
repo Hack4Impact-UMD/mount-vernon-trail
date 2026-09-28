@@ -27,4 +27,14 @@ module.exports = defineConfig([
       'import/first': 'off',
     },
   },
+  {
+    // eslint-config-expo 57 enables the React Compiler's hooks rules. The code
+    // predates them, so they are warnings here to keep the SDK bump on its own;
+    // the next layer fixes every hit and makes them errors again.
+    rules: {
+      'react-hooks/refs': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/purity': 'warn',
+    },
+  },
 ]);

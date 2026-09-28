@@ -2,7 +2,8 @@ import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
 import * as ImagePicker from "expo-image-picker";
-import * as MediaLibrary from "expo-media-library";
+// SDK 56 moved these calls to /legacy; the root import now throws at runtime.
+import * as MediaLibrary from "expo-media-library/legacy";
 import { useRouter } from "expo-router";
 import { Check, Download, House, Plus, X } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";

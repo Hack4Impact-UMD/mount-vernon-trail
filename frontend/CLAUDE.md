@@ -10,7 +10,7 @@ npm run ios        # expo run:ios
 npm run android    # expo run:android
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint .
-npm test           # jest — 66 tests, ~1s
+npm test           # jest — 69 tests, ~1s
 npm run format     # prettier --write .
 ```
 

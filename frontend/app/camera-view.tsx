@@ -1,6 +1,7 @@
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
+// SDK 56 moved these calls to /legacy; the root import now throws at runtime.
+import * as MediaLibrary from 'expo-media-library/legacy';
 import React, { useRef, useState } from 'react';
 import { Alert, Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
 import { enqueuePhoto, flushInBackground } from '@/services/photo-queue';
@@ -247,7 +248,7 @@ export default function CameraViewScreen() {
                         zoom={zoom}
                     />
                     {resolveMode === 'after' && overlayUri && (
-                        <View style={[ StyleSheet.absoluteFillObject, { opacity: overlayOpacity }]} pointerEvents="none">
+                        <View style={[ StyleSheet.absoluteFill, { opacity: overlayOpacity }]} pointerEvents="none">
                             <Image
                                 source={{ uri: overlayUri }}
                                 resizeMode="cover"

@@ -7,6 +7,14 @@ import {
     uploadPhotos,
 } from "../backend-client";
 
+// Uris containing "missing" stand in for a queued photo whose file is gone.
+jest.mock("expo-file-system", () => ({
+    File: jest.fn().mockImplementation((uri: string) => ({
+        exists: !uri.includes("missing"),
+        bytes: async () => new Uint8Array([0xff, 0xd8, 0xff]),
+    })),
+}));
+
 const mutableAuth = auth as {
     currentUser: { getIdToken: jest.Mock } | null;
 };
@@ -53,7 +61,9 @@ describe("configuration and sign-in guards", () => {
         process.env.EXPO_PUBLIC_BACKEND_URL = "https://api.example/";
         fetchMock.mockResolvedValue(json({ id: "a1", title: "Cleanup" }, 201));
         await createAlbum("Cleanup");
-        expect(fetchMock.mock.calls[0][0]).toBe("https://api.example/api/albums");
+        expect(fetchMock.mock.calls[0][0]).toBe(
+            "https://api.example/api/albums",
+        );
     });
 });
 
@@ -63,9 +73,9 @@ describe("authorization", () => {
         await createAlbum("Cleanup");
 
         const init = fetchMock.mock.calls[0][1] as RequestInit;
-        expect(
-            (init.headers as Record<string, string>).Authorization,
-        ).toBe("Bearer id-token");
+        expect((init.headers as Record<string, string>).Authorization).toBe(
+            "Bearer id-token",
+        );
     });
 
     it("retries once with a force-refreshed token on 401", async () => {
@@ -126,9 +136,14 @@ describe("pagination", () => {
     it("follows nextPageToken until exhausted", async () => {
         fetchMock
             .mockResolvedValueOnce(
-                json({ albums: [{ id: "a1", title: "One" }], nextPageToken: "t2" }),
+                json({
+                    albums: [{ id: "a1", title: "One" }],
+                    nextPageToken: "t2",
+                }),
             )
-            .mockResolvedValueOnce(json({ albums: [{ id: "a2", title: "Two" }] }));
+            .mockResolvedValueOnce(
+                json({ albums: [{ id: "a2", title: "Two" }] }),
+            );
 
         await expect(listAllAlbums()).resolves.toHaveLength(2);
         expect(fetchMock.mock.calls[1][0]).toContain("pageToken=t2");
@@ -157,12 +172,84 @@ describe("uploadPhotos", () => {
 
         await expect(
             uploadPhotos("album-1", [
-                { uri: "file:///a.jpg", fileName: "a.jpg", mimeType: "image/jpeg" },
+                {
+                    uri: "file:///a.jpg",
+                    fileName: "a.jpg",
+                    mimeType: "image/jpeg",
+                },
             ]),
         ).resolves.toEqual({
             created: 1,
             failed: [{ fileName: "after.jpg", error: "boom" }],
         });
+    });
+
+    it("sends a hand-built multipart body that keeps the chosen filename", async () => {
+        fetchMock.mockResolvedValue(json({ newMediaItemResults: [{}] }, 201));
+
+        await uploadPhotos("album-1", [
+            {
+                uri: "file:///cache/ABC123.jpg",
+                fileName: "Fallen-tree-before.jpg",
+                mimeType: "image/jpeg",
+                description: "Fallen tree — before",
+            },
+        ]);
+
+        const init = fetchMock.mock.calls[0][1] as RequestInit;
+        const contentType = (init.headers as Record<string, string>)[
+            "Content-Type"
+        ];
+        const boundary = contentType.match(/boundary=(.+)$/)?.[1];
+        expect(boundary).toBeTruthy();
+        const text = new TextDecoder().decode(init.body as Uint8Array);
+        expect(text).toContain('name="albumId"\r\n\r\nalbum-1\r\n');
+        expect(text).toContain(
+            'name="photos"; filename="Fallen-tree-before.jpg"\r\nContent-Type: image/jpeg',
+        );
+        expect(text).toContain(
+            'name="descriptions"\r\n\r\nFallen tree — before\r\n',
+        );
+        expect(text.endsWith(`--${boundary}--\r\n`)).toBe(true);
+    });
+
+    it("reports a photo whose file is gone without failing the rest", async () => {
+        fetchMock.mockResolvedValue(json({ newMediaItemResults: [{}] }, 201));
+
+        const result = await uploadPhotos("album-1", [
+            {
+                uri: "file:///missing.jpg",
+                fileName: "gone.jpg",
+                mimeType: "image/jpeg",
+            },
+            { uri: "file:///a.jpg", fileName: "a.jpg", mimeType: "image/jpeg" },
+        ]);
+
+        expect(result.created).toBe(1);
+        expect(result.failed).toEqual([
+            {
+                fileName: "gone.jpg",
+                error: expect.stringContaining("no longer on this device"),
+            },
+        ]);
+        const text = new TextDecoder().decode(
+            (fetchMock.mock.calls[0][1] as RequestInit).body as Uint8Array,
+        );
+        expect(text).not.toContain("gone.jpg");
+    });
+
+    it("does not call the backend when every photo file is gone", async () => {
+        const result = await uploadPhotos("album-1", [
+            {
+                uri: "file:///missing.jpg",
+                fileName: "gone.jpg",
+                mimeType: "image/jpeg",
+            },
+        ]);
+
+        expect(result.created).toBe(0);
+        expect(result.failed).toHaveLength(1);
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("rebuilds the body on the 401 retry so it is not a consumed stream", async () => {

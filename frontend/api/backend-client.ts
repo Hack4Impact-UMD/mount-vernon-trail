@@ -1,4 +1,5 @@
 import { auth } from "@/config/firebase";
+import { File } from "expo-file-system";
 
 // Photos live in the MVT-owned Google account, reachable only through our
 // backend proxy. The app holds no Google Photos credentials of its own — it
@@ -62,7 +63,11 @@ export class BackendError extends Error {
     readonly code: BackendErrorCode;
     readonly status: number | null;
 
-    constructor(code: BackendErrorCode, message: string, status: number | null = null) {
+    constructor(
+        code: BackendErrorCode,
+        message: string,
+        status: number | null = null,
+    ) {
         super(message);
         this.name = "BackendError";
         this.code = code;
@@ -95,7 +100,9 @@ async function idToken(forceRefresh: boolean): Promise<string> {
     } catch (error) {
         throw new BackendError(
             "NOT_SIGNED_IN",
-            error instanceof Error ? error.message : "Could not get an ID token.",
+            error instanceof Error
+                ? error.message
+                : "Could not get an ID token.",
         );
     }
 }
@@ -105,7 +112,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function readErrorMessage(payload: unknown, fallback: string): string {
-    if (isRecord(payload) && typeof payload.error === "string") return payload.error;
+    if (isRecord(payload) && typeof payload.error === "string")
+        return payload.error;
     return fallback;
 }
 
@@ -115,8 +123,10 @@ async function toError(response: Response): Promise<BackendError> {
         payload,
         `Request failed with status ${response.status}`,
     );
-    if (response.status === 403) return new BackendError("FORBIDDEN", message, 403);
-    if (response.status === 404) return new BackendError("NOT_FOUND", message, 404);
+    if (response.status === 403)
+        return new BackendError("FORBIDDEN", message, 403);
+    if (response.status === 404)
+        return new BackendError("NOT_FOUND", message, 404);
     if (response.status === 502) {
         return new BackendError(
             "UPSTREAM",
@@ -194,7 +204,9 @@ export async function getAlbum(albumId: string): Promise<GooglePhotosAlbum> {
 export async function listAlbumsPage(
     pageToken?: string,
 ): Promise<GooglePhotosAlbumsPage> {
-    const query = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : "";
+    const query = pageToken
+        ? `?pageToken=${encodeURIComponent(pageToken)}`
+        : "";
     const page = await getJson<Partial<GooglePhotosAlbumsPage>>(
         `/api/albums${query}`,
     );
@@ -216,14 +228,21 @@ export async function listAlbumPhotos(
     albumId: string,
     pageToken?: string,
 ): Promise<GooglePhotosMediaPage> {
-    const query = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : "";
+    const query = pageToken
+        ? `?pageToken=${encodeURIComponent(pageToken)}`
+        : "";
     const page = await getJson<Partial<GooglePhotosMediaPage>>(
         `/api/albums/${encodeURIComponent(albumId)}/photos${query}`,
     );
-    return { mediaItems: page.mediaItems ?? [], nextPageToken: page.nextPageToken };
+    return {
+        mediaItems: page.mediaItems ?? [],
+        nextPageToken: page.nextPageToken,
+    };
 }
 
-export async function getPhoto(photoId: string): Promise<GooglePhotosMediaItem> {
+export async function getPhoto(
+    photoId: string,
+): Promise<GooglePhotosMediaItem> {
     return getJson<GooglePhotosMediaItem>(
         `/api/photos/${encodeURIComponent(photoId)}`,
     );
@@ -234,36 +253,104 @@ type UploadResponse = {
     failed?: UploadFailure[];
 };
 
-// React Native's FormData accepts a {uri, name, type} part and streams the file
-// from disk, so a multi-megabyte photo never has to be based64'd into JS memory.
+type MultipartPart =
+    | { name: string; value: string }
+    | { name: string; fileName: string; mimeType: string; bytes: Uint8Array };
+
+// Quotes, CR and LF would break out of the Content-Disposition header.
+function headerSafe(value: string): string {
+    return value.replace(/["\r\n]/g, "_");
+}
+
+function encodeMultipart(parts: MultipartPart[], boundary: string): Uint8Array {
+    const encoder = new TextEncoder();
+    const chunks: Uint8Array[] = [];
+    for (const part of parts) {
+        let head = `--${boundary}\r\nContent-Disposition: form-data; name="${headerSafe(part.name)}"`;
+        if ("bytes" in part) {
+            head +=
+                `; filename="${headerSafe(part.fileName)}"\r\n` +
+                `Content-Type: ${part.mimeType}`;
+        }
+        chunks.push(encoder.encode(`${head}\r\n\r\n`));
+        chunks.push("bytes" in part ? part.bytes : encoder.encode(part.value));
+        chunks.push(encoder.encode("\r\n"));
+    }
+    chunks.push(encoder.encode(`--${boundary}--\r\n`));
+
+    const body = new Uint8Array(
+        chunks.reduce((sum, chunk) => sum + chunk.length, 0),
+    );
+    let offset = 0;
+    for (const chunk of chunks) {
+        body.set(chunk, offset);
+        offset += chunk.length;
+    }
+    return body;
+}
+
+// Expo SDK 57 installs expo/fetch as the global fetch, and it rejects React
+// Native's {uri, name, type} FormData part ("Unsupported FormDataPart
+// implementation"). So the body is built by hand from the file's bytes. That
+// holds each photo in JS memory for the request (bounded by the backend's
+// MAX_UPLOAD_FILES x MAX_UPLOAD_BYTES_PER_FILE), but it also keeps the
+// filename we choose — the backend reports per-file failures by that name, and
+// an expo-file-system File part would send the on-disk name instead.
 export async function uploadPhotos(
     albumId: string,
     photos: PhotoUpload[],
 ): Promise<UploadResult> {
     if (photos.length === 0) return { created: 0, failed: [] };
 
-    const buildBody = (): BodyInit => {
-        const form = new FormData();
-        form.append("albumId", albumId);
-        for (const photo of photos) {
-            form.append("photos", {
-                uri: photo.uri,
-                name: photo.fileName,
-                type: photo.mimeType,
-            } as unknown as Blob);
-            form.append("descriptions", photo.description ?? "");
+    const missing: UploadFailure[] = [];
+    const readable: (PhotoUpload & { bytes: Uint8Array })[] = [];
+    for (const photo of photos) {
+        const file = new File(photo.uri);
+        // A queued uri can outlive its file: iOS clears the cache directory and
+        // moves the app container on reinstall. Report it per photo instead of
+        // failing the whole batch as a "network" error.
+        if (!file.exists) {
+            missing.push({
+                fileName: photo.fileName,
+                error: "The photo file is no longer on this device. Retake the photo.",
+            });
+            continue;
         }
-        return form as unknown as BodyInit;
-    };
+        readable.push({ ...photo, bytes: await file.bytes() });
+    }
+    if (readable.length === 0) return { created: 0, failed: missing };
 
-    // Body is rebuilt per attempt: a FormData consumed by a failed request
-    // cannot be replayed on the 401 retry.
-    const response = await send("/api/upload", { method: "POST" }, buildBody);
+    const parts: MultipartPart[] = [{ name: "albumId", value: albumId }];
+    for (const photo of readable) {
+        parts.push({
+            name: "photos",
+            fileName: photo.fileName,
+            mimeType: photo.mimeType,
+            bytes: photo.bytes,
+        });
+        parts.push({ name: "descriptions", value: photo.description ?? "" });
+    }
+    const boundary = `----MVTUploadBoundary${Date.now().toString(16)}${Math.random()
+        .toString(16)
+        .slice(2)}`;
+
+    // Body is rebuilt per attempt so a request that consumed it cannot leave
+    // the 401 retry with nothing to send.
+    const response = await send(
+        "/api/upload",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": `multipart/form-data; boundary=${boundary}`,
+            },
+        },
+        () => encodeMultipart(parts, boundary) as unknown as BodyInit,
+    );
     if (!response.ok && response.status !== 207) throw await toError(response);
 
     const payload = (await response.json()) as UploadResponse;
     return {
         created: payload.newMediaItemResults?.length ?? 0,
-        failed: payload.failed ?? [],
+        failed: [...missing, ...(payload.failed ?? [])],
     };
 }

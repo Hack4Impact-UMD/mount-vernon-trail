@@ -34,7 +34,7 @@ Cross-package flows (event setup saga, photo pipeline, event lifecycle) are in
 Run every gate the package actually has, exactly as CI does on each PR.
 
 ```bash
-cd frontend  && npm run typecheck && npm run lint && npm test   # 66 tests, ~1s
+cd frontend  && npm run typecheck && npm run lint && npm test   # 69 tests, ~1s
 cd backend   && npm run typecheck && npm run lint && npm test   # 91 tests, minutes on a cold cache
 cd firestore && npm run typecheck && npm test                   # 35 tests, ~3s + emulator boot
 ```
