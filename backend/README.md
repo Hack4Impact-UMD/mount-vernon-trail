@@ -66,7 +66,9 @@ the token store falls back to memory, with a warning. It is mandatory when
 
 ### Linking the MVT Google account (once per environment)
 
-1. Sign in to the app as a user holding the `admin` claim and copy their ID token.
+1. Get an ID token for a user holding the `admin` claim. Locally, the easiest
+   way is `npm run -s mint-token -- you@example.com`, which prints one (valid
+   for an hour) using the service account — no device needed.
 2. `curl -H "Authorization: Bearer <ID token>" http://localhost:8080/auth/url`
 3. Open the returned `url` in a browser and consent as the **MVT** Google account.
 4. Google redirects to `/auth/callback`, which stores the refresh token in Redis.
@@ -75,6 +77,12 @@ the token store falls back to memory, with a warning. It is mandatory when
 
 Copy the refresh token into `GOOGLE_REFRESH_TOKEN` as a backup so a wiped
 free-tier Redis does not force you to repeat this.
+
+**Locally without Upstash**, the token lives only in memory and is lost on every
+restart (`tsx watch` restarts on each save). After step 4 the server prints a
+`GOOGLE_REFRESH_TOKEN=...` line — paste it into `backend/.env` and restart, and
+you will not need to link again. It is printed only when using the in-memory
+store, so never in production.
 
 ## Commands
 

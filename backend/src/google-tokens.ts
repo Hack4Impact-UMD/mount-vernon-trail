@@ -33,8 +33,14 @@ export type TokenStore = {
 // server runs locally before anyone has provisioned Redis. env.ts refuses that
 // fallback in production, where losing the refresh token on restart — or
 // diverging between replicas — would be a real outage.
+// env.ts refuses to boot in production without Upstash, so this is only ever
+// true on a developer's machine.
+export function usesInMemoryStore(env: Env): boolean {
+    return !env.upstashRedisUrl || !env.upstashRedisToken;
+}
+
 export function createTokenKeyValueStore(env: Env): KeyValueStore {
-    if (!env.upstashRedisUrl || !env.upstashRedisToken) {
+    if (usesInMemoryStore(env)) {
         console.warn(
             "Upstash is not configured — using an in-memory token store. " +
                 "Tokens are lost on restart and not shared between processes. " +
@@ -164,6 +170,17 @@ export function createTokenStore(
             const { tokens } = await oauth2Client.getToken(code);
             if (tokens.refresh_token) {
                 await redis.set(REFRESH_TOKEN_KEY, tokens.refresh_token);
+                // The in-memory store forgets this on the next restart, and
+                // `tsx watch` restarts on every save. Print it so it can go
+                // into GOOGLE_REFRESH_TOKEN; there is nowhere else to read it
+                // from. Never reached with Upstash, so never in production.
+                if (usesInMemoryStore(env)) {
+                    console.warn(
+                        "\nGoogle refresh token (in-memory store — lost on restart).\n" +
+                            "Add this line to backend/.env to keep the link:\n\n" +
+                            `GOOGLE_REFRESH_TOKEN=${tokens.refresh_token}\n`,
+                    );
+                }
             }
             if (tokens.access_token) {
                 await cacheAccessToken(

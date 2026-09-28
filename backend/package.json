@@ -13,6 +13,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "set-admin": "tsx scripts/set-admin-claim.ts",
+    "mint-token": "tsx scripts/mint-id-token.ts",
     "backfill": "tsx scripts/backfill-firestore.ts",
     "snapshot": "tsx scripts/firestore-snapshot.ts",
     "triage": "tsx scripts/triage-test-data.ts"

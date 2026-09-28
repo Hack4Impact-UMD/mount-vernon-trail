@@ -25,7 +25,7 @@ npm run build      # tsc -> dist/
 npm start          # run the build
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint .
-npm test           # jest + supertest — 91 tests, minutes on a cold cache
+npm test           # jest + supertest — 93 tests, minutes on a cold cache
 ```
 
 **The suite is slow but never hung.** Nothing in it sleeps — TTL and expiry
