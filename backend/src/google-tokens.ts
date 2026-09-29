@@ -33,8 +33,14 @@ export type TokenStore = {
 // server runs locally before anyone has provisioned Redis. env.ts refuses that
 // fallback in production, where losing the refresh token on restart — or
 // diverging between replicas — would be a real outage.
+// env.ts refuses to boot in production without Upstash, so this is only ever
+// true on a developer's machine.
+export function usesInMemoryStore(env: Env): boolean {
+    return !env.upstashRedisUrl || !env.upstashRedisToken;
+}
+
 export function createTokenKeyValueStore(env: Env): KeyValueStore {
-    if (!env.upstashRedisUrl || !env.upstashRedisToken) {
+    if (usesInMemoryStore(env)) {
         console.warn(
             "Upstash is not configured — using an in-memory token store. " +
                 "Tokens are lost on restart and not shared between processes. " +

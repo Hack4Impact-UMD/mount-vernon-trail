@@ -13,6 +13,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "set-admin": "tsx scripts/set-admin-claim.ts",
+    "mint-token": "tsx scripts/mint-id-token.ts",
     "backfill": "tsx scripts/backfill-firestore.ts",
     "snapshot": "tsx scripts/firestore-snapshot.ts",
     "triage": "tsx scripts/triage-test-data.ts"
@@ -30,7 +31,7 @@
     "@eslint/js": "^9.39.5",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/jest": "^30.0.0",
+    "@types/jest": "29.5.14",
     "@types/multer": "^2.1.0",
     "@types/node": "^22.0.0",
     "@types/supertest": "^7.2.1",
