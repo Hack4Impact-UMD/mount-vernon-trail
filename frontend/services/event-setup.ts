@@ -2,10 +2,9 @@ import { createAlbum, getAlbum } from "@/api/backend-client";
 import { getDateString } from "@/utils/date";
 import { getErrorMessage } from "@/utils/errors";
 import {
-    finalizeAlbum,
-    markAlbumCreated,
     releaseAlbumTitle,
     reserveAlbumTitle,
+    stageAlbum,
 } from "./album-service";
 import { createEvent } from "./event-service";
 import { addAlbumLinkToCard, archiveCard, createEventCard } from "./trello-service";
@@ -78,12 +77,9 @@ export async function setupEvent(
             : await createAlbum(title);
         const albumUrl = album.productUrl ?? "";
 
-        if (!reservation.existingAlbumId) {
-            await markAlbumCreated(reservation.titleKey, album.id);
-        }
-
-        // Must precede createEvent, whose batch updates this album document.
-        await finalizeAlbum({
+        // Keep the reservation pending until createEvent atomically finalizes
+        // it. If a later Trello step fails, a retry reuses this remote album.
+        await stageAlbum({
             titleKey: reservation.titleKey,
             albumId: album.id,
             title,
@@ -102,6 +98,7 @@ export async function setupEvent(
         await addAlbumLinkToCard(cardId, albumUrl, trelloKey);
 
         const eventId = await createEvent({
+            titleKey: reservation.titleKey,
             title,
             description: input.description,
             eventDate: input.eventDate,

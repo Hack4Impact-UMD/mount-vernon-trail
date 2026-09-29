@@ -31,7 +31,11 @@ async function freshModule(): Promise<PhotoQueueModule> {
 }
 
 beforeEach(() => {
-    mockUpload.mockResolvedValue({ created: 1, failed: [] });
+    mockUpload.mockImplementation(async (_albumId, photos) => ({
+        created: photos.length,
+        succeeded: photos.map((photo) => photo.fileName),
+        failed: [],
+    }));
 });
 
 describe("enqueuePhoto", () => {
@@ -132,7 +136,7 @@ describe("flushEventPhotos", () => {
         );
     });
 
-    it("groups an album's photos into a single request", async () => {
+    it("passes an album's pending photos to the bounded uploader", async () => {
         const queue = await freshModule();
         await queue.enqueuePhoto({
             ...BASE,
@@ -177,6 +181,7 @@ describe("flushEventPhotos", () => {
         });
         mockUpload.mockImplementation(async (_albumId, photos) => ({
             created: 0,
+            succeeded: [],
             failed: [
                 {
                     fileName: photos[0].fileName,
@@ -202,7 +207,11 @@ describe("flushEventPhotos", () => {
         mockUpload.mockRejectedValueOnce(new Error("offline"));
         await queue.flushEventPhotos("event-1");
 
-        mockUpload.mockResolvedValue({ created: 1, failed: [] });
+        mockUpload.mockImplementation(async (_albumId, photos) => ({
+            created: photos.length,
+            succeeded: photos.map((photo) => photo.fileName),
+            failed: [],
+        }));
         await expect(queue.flushEventPhotos("event-1")).resolves.toEqual({
             uploaded: 1,
             failed: 0,
@@ -230,6 +239,68 @@ describe("flushEventPhotos", () => {
             failed: 0,
         });
         expect(mockUpload).not.toHaveBeenCalled();
+    });
+
+    it("keeps a retaken photo pending when an older upload finishes", async () => {
+        const queue = await freshModule();
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///old.jpg",
+        });
+
+        let resolveUpload!: (value: {
+            created: number;
+            succeeded: string[];
+            failed: [];
+        }) => void;
+        mockUpload.mockImplementationOnce(
+            async (_albumId, photos) =>
+                new Promise((resolve) => {
+                    resolveUpload = () =>
+                        resolve({
+                            created: 1,
+                            succeeded: [photos[0].fileName],
+                            failed: [],
+                        });
+                }),
+        );
+
+        const flushing = queue.flushEventPhotos("event-1");
+        await Promise.resolve();
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///new.jpg",
+        });
+        resolveUpload({ created: 1, succeeded: [], failed: [] });
+        await flushing;
+
+        const [photo] = await queue.getPhotosForEvent("event-1");
+        expect(photo.uri).toBe("file:///new.jpg");
+        expect(photo.status).toBe("pending");
+    });
+
+    it("uses distinct filenames for issue names that sanitize the same way", async () => {
+        const queue = await freshModule();
+        await queue.enqueuePhoto({
+            ...BASE,
+            issueId: "issue-a",
+            issueName: "Drain / bridge",
+            slot: "before",
+            uri: "file:///a.jpg",
+        });
+        await queue.enqueuePhoto({
+            ...BASE,
+            issueId: "issue-b",
+            issueName: "Drain   bridge",
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
+
+        await queue.flushEventPhotos("event-1");
+        const names = mockUpload.mock.calls[0][1].map((photo) => photo.fileName);
+        expect(new Set(names).size).toBe(2);
     });
 });
 

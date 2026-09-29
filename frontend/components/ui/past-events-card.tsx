@@ -2,6 +2,7 @@ import React from "react";
 import {
     ActivityIndicator,
     Image,
+    Pressable,
     StyleSheet,
     Text,
     View,
@@ -68,11 +69,15 @@ export function PastEventsCard({
                 ))}
 
             {!loading && !error && hasMore && (
-                <Text
+                <Pressable
                     onPress={() => setExpanded((prev) => !prev)}
-                    style={styles.showMoreText}>
-                    {expanded ? "Show less" : "Show more"}
-                </Text>
+                    style={styles.showMoreButton}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded }}>
+                    <Text style={styles.showMoreText}>
+                        {expanded ? "Show less" : "Show more"}
+                    </Text>
+                </Pressable>
             )}
         </View>
     );
@@ -139,6 +144,11 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#c0392b",
     },
+    showMoreButton: {
+        minHeight: 44,
+        justifyContent: "center",
+        alignSelf: "flex-start",
+    },
     showMoreText: {
         fontSize: 13,
         fontWeight: "600",
@@ -146,6 +156,5 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: "#000",
         paddingBottom: 0.5,
-        alignSelf: "flex-start",
     },
 });

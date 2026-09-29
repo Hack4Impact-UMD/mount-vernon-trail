@@ -313,6 +313,21 @@ describe("albums", () => {
             updateDoc(doc(admin(OTHER_ADMIN), "albums", "album-1"), { eventId: "event-1" }),
         );
     });
+
+    it("denies rewriting immutable album fields", async () => {
+        await seed("albums", "album-1", album());
+        await assertFails(
+            updateDoc(doc(admin(), "albums", "album-1"), {
+                createdBy: OTHER_ADMIN,
+                title: "Hijacked",
+            }),
+        );
+    });
+
+    it("denies deleting an album after it is linked to an event", async () => {
+        await seed("albums", "album-1", album({ eventId: "event-1" }));
+        await assertFails(deleteDoc(doc(admin(), "albums", "album-1")));
+    });
 });
 
 describe("albumTitles — the duplicate-name reservation", () => {
@@ -366,6 +381,29 @@ describe("albumTitles — the duplicate-name reservation", () => {
     it("denies deleting a finished reservation, so titles stay permanent", async () => {
         await seed("albumTitles", "t_x", reservation({ status: "created" }));
         await assertFails(deleteDoc(doc(admin(), "albumTitles", "t_x")));
+    });
+
+    it("denies reverting a finished reservation to pending", async () => {
+        await seed(
+            "albumTitles",
+            "t_x",
+            reservation({ albumId: "album-1", status: "created" }),
+        );
+        await assertFails(
+            updateDoc(doc(admin(), "albumTitles", "t_x"), {
+                status: "pending",
+            }),
+        );
+    });
+
+    it("denies rewriting reservation ownership or title fields", async () => {
+        await seed("albumTitles", "t_x", reservation());
+        await assertFails(
+            updateDoc(doc(admin(), "albumTitles", "t_x"), {
+                reservedBy: OTHER_ADMIN,
+                title: "Hijacked",
+            }),
+        );
     });
 
     it("denies releasing a reservation held by someone else", async () => {

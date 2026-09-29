@@ -46,6 +46,7 @@ export type UploadFailure = { fileName: string; error: string };
 
 export type UploadResult = {
     created: number;
+    succeeded: string[];
     failed: UploadFailure[];
 };
 
@@ -249,7 +250,8 @@ export async function getPhoto(
 }
 
 type UploadResponse = {
-    newMediaItemResults?: unknown[];
+    created?: number;
+    succeeded?: string[];
     failed?: UploadFailure[];
 };
 
@@ -289,47 +291,34 @@ function encodeMultipart(parts: MultipartPart[], boundary: string): Uint8Array {
     return body;
 }
 
-// Expo SDK 57 installs expo/fetch as the global fetch, and it rejects React
-// Native's {uri, name, type} FormData part ("Unsupported FormDataPart
-// implementation"). So the body is built by hand from the file's bytes. That
-// holds each photo in JS memory for the request (bounded by the backend's
-// MAX_UPLOAD_FILES x MAX_UPLOAD_BYTES_PER_FILE), but it also keeps the
-// filename we choose — the backend reports per-file failures by that name, and
-// an expo-file-system File part would send the on-disk name instead.
-export async function uploadPhotos(
+async function uploadPhoto(
     albumId: string,
-    photos: PhotoUpload[],
+    photo: PhotoUpload,
 ): Promise<UploadResult> {
-    if (photos.length === 0) return { created: 0, failed: [] };
-
-    const missing: UploadFailure[] = [];
-    const readable: (PhotoUpload & { bytes: Uint8Array })[] = [];
-    for (const photo of photos) {
-        const file = new File(photo.uri);
-        // A queued uri can outlive its file: iOS clears the cache directory and
-        // moves the app container on reinstall. Report it per photo instead of
-        // failing the whole batch as a "network" error.
-        if (!file.exists) {
-            missing.push({
-                fileName: photo.fileName,
-                error: "The photo file is no longer on this device. Retake the photo.",
-            });
-            continue;
-        }
-        readable.push({ ...photo, bytes: await file.bytes() });
+    const file = new File(photo.uri);
+    if (!file.exists) {
+        return {
+            created: 0,
+            succeeded: [],
+            failed: [
+                {
+                    fileName: photo.fileName,
+                    error: "The photo file is no longer on this device. Retake the photo.",
+                },
+            ],
+        };
     }
-    if (readable.length === 0) return { created: 0, failed: missing };
 
-    const parts: MultipartPart[] = [{ name: "albumId", value: albumId }];
-    for (const photo of readable) {
-        parts.push({
+    const parts: MultipartPart[] = [
+        { name: "albumId", value: albumId },
+        {
             name: "photos",
             fileName: photo.fileName,
             mimeType: photo.mimeType,
-            bytes: photo.bytes,
-        });
-        parts.push({ name: "descriptions", value: photo.description ?? "" });
-    }
+            bytes: await file.bytes(),
+        },
+        { name: "descriptions", value: photo.description ?? "" },
+    ];
     const boundary = `----MVTUploadBoundary${Date.now().toString(16)}${Math.random()
         .toString(16)
         .slice(2)}`;
@@ -349,8 +338,45 @@ export async function uploadPhotos(
     if (!response.ok && response.status !== 207) throw await toError(response);
 
     const payload = (await response.json()) as UploadResponse;
+    const succeeded = payload.succeeded?.includes(photo.fileName)
+        ? [photo.fileName]
+        : [];
+    const failed = payload.failed ?? [];
+    if (succeeded.length === 0 && failed.length === 0) {
+        failed.push({
+            fileName: photo.fileName,
+            error: "The server did not confirm that this photo was created",
+        });
+    }
     return {
-        created: payload.newMediaItemResults?.length ?? 0,
-        failed: [...missing, ...(payload.failed ?? [])],
+        created: succeeded.length,
+        succeeded,
+        failed,
     };
+}
+
+// A request holds one file plus one encoded copy in JS memory. Sending photos
+// one at a time avoids both the backend's file-count limit and mobile OOMs.
+export async function uploadPhotos(
+    albumId: string,
+    photos: PhotoUpload[],
+): Promise<UploadResult> {
+    const result: UploadResult = { created: 0, succeeded: [], failed: [] };
+    for (const photo of photos) {
+        try {
+            const uploaded = await uploadPhoto(albumId, photo);
+            result.created += uploaded.created;
+            result.succeeded.push(...uploaded.succeeded);
+            result.failed.push(...uploaded.failed);
+        } catch (error) {
+            result.failed.push({
+                fileName: photo.fileName,
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Photo upload failed",
+            });
+        }
+    }
+    return result;
 }

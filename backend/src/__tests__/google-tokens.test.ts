@@ -212,7 +212,7 @@ describe("exchangeCode", () => {
     });
     afterEach(() => warn.mockRestore());
 
-    it("prints the refresh token when it would otherwise be lost on restart", async () => {
+    it("never prints the refresh token when using the local in-memory store", async () => {
         const { store, redis } = build({
             upstashRedisUrl: "",
             upstashRedisToken: "",
@@ -221,9 +221,7 @@ describe("exchangeCode", () => {
         await store.exchangeCode("code");
 
         expect(redis.set).toHaveBeenCalledWith("refresh_token", "new-refresh");
-        expect(warn).toHaveBeenCalledWith(
-            expect.stringContaining("GOOGLE_REFRESH_TOKEN=new-refresh"),
-        );
+        expect(warn).not.toHaveBeenCalled();
     });
 
     it("never prints the refresh token when Upstash holds it", async () => {

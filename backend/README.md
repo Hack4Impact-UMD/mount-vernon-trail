@@ -79,10 +79,8 @@ Copy the refresh token into `GOOGLE_REFRESH_TOKEN` as a backup so a wiped
 free-tier Redis does not force you to repeat this.
 
 **Locally without Upstash**, the token lives only in memory and is lost on every
-restart (`tsx watch` restarts on each save). After step 4 the server prints a
-`GOOGLE_REFRESH_TOKEN=...` line — paste it into `backend/.env` and restart, and
-you will not need to link again. It is printed only when using the in-memory
-store, so never in production.
+restart (`tsx watch` restarts on each save). Refresh tokens are never printed to
+logs. Use a private Upstash instance for persistence, or re-link after a restart.
 
 ## Commands
 

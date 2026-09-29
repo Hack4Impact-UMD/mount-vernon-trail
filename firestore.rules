@@ -64,8 +64,13 @@ service cloud.firestore {
             allow create: if isAdmin()
                 && request.resource.data.createdBy == request.auth.uid;
             // Linking an album to its event on event creation, and rollback.
-            allow update, delete: if isAdmin()
-                && resource.data.createdBy == request.auth.uid;
+            allow update: if isAdmin()
+                && resource.data.createdBy == request.auth.uid
+                && request.resource.data.createdBy == resource.data.createdBy
+                && changed().hasOnly(['eventId', 'albumUrl']);
+            allow delete: if isAdmin()
+                && resource.data.createdBy == request.auth.uid
+                && resource.data.eventId == null;
         }
 
         // Title reservations backing the atomic duplicate-album check.
@@ -75,7 +80,14 @@ service cloud.firestore {
                 && request.resource.data.reservedBy == request.auth.uid
                 && request.resource.data.status == 'pending';
             allow update: if isAdmin()
-                && resource.data.reservedBy == request.auth.uid;
+                && resource.data.reservedBy == request.auth.uid
+                && resource.data.status == 'pending'
+                && request.resource.data.reservedBy == resource.data.reservedBy
+                && request.resource.data.titleKey == resource.data.titleKey
+                && request.resource.data.title == resource.data.title
+                && request.resource.data.titleLower == resource.data.titleLower
+                && request.resource.data.status in ['pending', 'created']
+                && changed().hasOnly(['albumId', 'status']);
             // A finished reservation is permanent; only a pending one can be
             // rolled back, and only by the admin holding it.
             allow delete: if isAdmin()

@@ -93,48 +93,42 @@ export async function reserveAlbumTitle(
 // Records the remote album id while the reservation is still pending. Google
 // Photos has no album-delete endpoint, so an album created before a later step
 // fails cannot be undone — recording it here lets a retry reuse it.
-export async function markAlbumCreated(
-    titleKey: string,
-    albumId: string,
-): Promise<void> {
-    requireUser("create an album");
-    await runTransaction(db, async (transaction) => {
-        const ref = doc(db, ALBUM_TITLES_COLLECTION, titleKey);
-        const snapshot = await transaction.get(ref);
-        if (!snapshot.exists()) {
-            throw new Error("Album title reservation disappeared.");
-        }
-        transaction.update(ref, { albumId });
-    });
-}
-
-export async function finalizeAlbum(args: {
+export async function stageAlbum(args: {
     titleKey: string;
     albumId: string;
     title: string;
     albumUrl: string;
 }): Promise<void> {
     const currentUser = requireUser("create an album");
-    const batch = writeBatch(db);
-    const album: AlbumDoc = {
-        albumId: args.albumId,
-        title: args.title.trim(),
-        titleLower: normalizeAlbumTitle(args.title),
-        albumUrl: args.albumUrl,
-        eventId: null,
-        createdBy: currentUser.uid,
-        createdAt: Timestamp.now(),
-    };
-    batch.set(doc(db, ALBUMS_COLLECTION, args.albumId), album);
-    batch.update(doc(db, ALBUM_TITLES_COLLECTION, args.titleKey), {
-        albumId: args.albumId,
-        status: "created",
+    await runTransaction(db, async (transaction) => {
+        const ref = doc(db, ALBUM_TITLES_COLLECTION, args.titleKey);
+        const snapshot = await transaction.get(ref);
+        if (!snapshot.exists()) {
+            throw new Error("Album title reservation disappeared.");
+        }
+        const reservation = snapshot.data() as AlbumReservation;
+        if (reservation.status !== "pending") {
+            throw new Error("Album title reservation is already finalized.");
+        }
+        if (reservation.reservedBy !== currentUser.uid) {
+            throw new Error("Cannot stage an album reserved by someone else.");
+        }
+        const album: AlbumDoc = {
+            albumId: args.albumId,
+            title: args.title.trim(),
+            titleLower: normalizeAlbumTitle(args.title),
+            albumUrl: args.albumUrl,
+            eventId: null,
+            createdBy: currentUser.uid,
+            createdAt: Timestamp.now(),
+        };
+        transaction.set(doc(db, ALBUMS_COLLECTION, args.albumId), album);
+        transaction.update(ref, { albumId: args.albumId });
     });
-    await batch.commit();
 }
 
-// Compensation for a failed setup. Only ever releases our own still-pending
-// reservation, so it can never delete a title someone else finished with.
+// A reservation with no remote album can be released. Once Google created an
+// album, keep the pending reservation so the next attempt reuses that album.
 export async function releaseAlbumTitle(titleKey: string): Promise<void> {
     const currentUser = requireUser("create an album");
     await runTransaction(db, async (transaction) => {
@@ -143,12 +137,9 @@ export async function releaseAlbumTitle(titleKey: string): Promise<void> {
         if (!snapshot.exists()) return;
 
         const reservation = snapshot.data() as AlbumReservation;
-        if (reservation.status === "created") return;
+        if (reservation.status === "created" || reservation.albumId) return;
         if (reservation.reservedBy !== currentUser.uid) {
             throw new Error("Cannot release an album title reserved by someone else.");
-        }
-        if (reservation.albumId) {
-            transaction.delete(doc(db, ALBUMS_COLLECTION, reservation.albumId));
         }
         transaction.delete(ref);
     });

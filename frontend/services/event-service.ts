@@ -14,7 +14,10 @@ import {
     where,
     writeBatch,
 } from "firebase/firestore";
-import { ALBUMS_COLLECTION } from "./album-service";
+import {
+    ALBUMS_COLLECTION,
+    ALBUM_TITLES_COLLECTION,
+} from "./album-service";
 import { requireUser } from "./require-user";
 
 // Per-event metrics collected during a trail event. Every key here must have a
@@ -87,6 +90,7 @@ export type Event = {
 };
 
 export type CreateEventInput = {
+    titleKey: string;
     title: string;
     description: string;
     eventDate: Date;
@@ -140,6 +144,10 @@ export async function createEvent(input: CreateEventInput): Promise<string> {
     batch.update(doc(db, ALBUMS_COLLECTION, input.albumId), {
         eventId: eventRef.id,
         albumUrl: input.albumUrl,
+    });
+    batch.update(doc(db, ALBUM_TITLES_COLLECTION, input.titleKey), {
+        albumId: input.albumId,
+        status: "created",
     });
     await batch.commit();
 

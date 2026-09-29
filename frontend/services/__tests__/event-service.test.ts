@@ -82,6 +82,7 @@ afterEach(() => {
 });
 
 const BASE_INPUT = {
+    titleKey: "t_cleanup",
     title: "Cleanup",
     description: "Pick up litter",
     eventDate: new Date("2026-05-01T00:00:00Z"),
@@ -102,7 +103,7 @@ describe("createEvent", () => {
 
         // A set() here would erase title/titleLower/createdBy/createdAt that
         // album-service wrote, which is what broke duplicate detection.
-        expect(mockBatchUpdate).toHaveBeenCalledTimes(1);
+        expect(mockBatchUpdate).toHaveBeenCalledTimes(2);
         const [, payload] = mockBatchUpdate.mock.calls[0];
         expect(payload).toEqual({
             eventId: "generated-id",
@@ -110,6 +111,10 @@ describe("createEvent", () => {
         });
         expect(payload).not.toHaveProperty("title");
         expect(payload).not.toHaveProperty("createdBy");
+        expect(mockBatchUpdate.mock.calls[1][1]).toEqual({
+            albumId: BASE_INPUT.albumId,
+            status: "created",
+        });
     });
 
     it("stamps ownership and leaves lifecycle fields unset", async () => {

@@ -133,10 +133,11 @@ export async function removePhoto(photoId: string): Promise<void> {
 function fileNameFor(photo: QueuedPhoto): string {
     const safeIssue = photo.issueName
         .replace(/[^a-zA-Z0-9-_]+/g, "-")
-        .slice(0, 40);
+        .slice(0, 24);
+    const safeId = photo.issueId.replace(/[^a-zA-Z0-9-_]+/g, "-").slice(0, 32);
     const extension = photo.uri.split(".").pop()?.toLowerCase();
     const suffix = extension && extension.length <= 4 ? extension : "jpg";
-    return `${safeIssue || "issue"}-${photo.slot}.${suffix}`;
+    return `${safeIssue || "issue"}-${safeId || "unknown"}-${photo.slot}.${suffix}`;
 }
 
 function mimeTypeFor(uri: string): string {
@@ -161,6 +162,7 @@ export async function flushEventPhotos(eventId: string): Promise<FlushResult> {
             (photo) => photo.eventId === eventId && photo.status !== "uploaded",
         );
         if (pending.length === 0) return;
+        const pendingById = new Map(pending.map((photo) => [photo.id, photo]));
 
         const byAlbum = new Map<string, QueuedPhoto[]>();
         for (const photo of pending) {
@@ -179,24 +181,27 @@ export async function flushEventPhotos(eventId: string): Promise<FlushResult> {
                 description: `${photo.issueName} — ${photo.slot}`,
             }));
             try {
-                const { failed } = await uploadPhotos(albumId, payload);
+                const { failed, succeeded } = await uploadPhotos(albumId, payload);
                 // Keep the backend's per-file reason: a bare "Upload failed"
                 // left nothing to diagnose a partial failure with.
                 const failures = new Map(
                     failed.map((entry) => [entry.fileName, entry.error]),
                 );
+                const successes = new Set(succeeded);
                 for (const photo of albumPhotos) {
-                    const failure = failures.get(fileNameFor(photo));
+                    const fileName = fileNameFor(photo);
+                    const failure = failures.get(fileName);
+                    const uploaded = successes.has(fileName);
                     updates.set(photo.id, {
                         ...photo,
-                        status: failure !== undefined ? "failed" : "uploaded",
+                        status: uploaded ? "uploaded" : "failed",
                         error:
-                            failure !== undefined
+                            !uploaded
                                 ? failure || "Upload failed"
                                 : undefined,
                     });
-                    if (failure) result.failed++;
-                    else result.uploaded++;
+                    if (uploaded) result.uploaded++;
+                    else result.failed++;
                 }
             } catch (error) {
                 const message = getErrorMessage(error);
@@ -212,7 +217,21 @@ export async function flushEventPhotos(eventId: string): Promise<FlushResult> {
         }
 
         const latest = await readAll();
-        await writeAll(latest.map((photo) => updates.get(photo.id) ?? photo));
+        await writeAll(
+            latest.map((photo) => {
+                const original = pendingById.get(photo.id);
+                const update = updates.get(photo.id);
+                if (
+                    !original ||
+                    !update ||
+                    original.createdAt !== photo.createdAt ||
+                    original.uri !== photo.uri
+                ) {
+                    return photo;
+                }
+                return update;
+            }),
+        );
     })();
 
     try {

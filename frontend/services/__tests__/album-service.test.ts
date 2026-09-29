@@ -1,16 +1,47 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { albumTitleKey, normalizeAlbumTitle } from "../album-service";
+import { auth } from "@/config/firebase";
+
+const mockTransaction = {
+    get: jest.fn(),
+    set: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+};
+const mockRunTransaction = jest.fn(
+    async (_db: unknown, callback: (transaction: typeof mockTransaction) => unknown) =>
+        callback(mockTransaction),
+);
+const mockDoc = jest.fn((...path: unknown[]) => ({ path }));
 
 jest.mock("firebase/firestore", () => ({
     collection: jest.fn(),
-    doc: jest.fn(),
+    doc: (...args: unknown[]) => mockDoc(...args),
     getDoc: jest.fn(),
     getDocs: jest.fn(),
-    runTransaction: jest.fn(),
+    runTransaction: (...args: Parameters<typeof mockRunTransaction>) =>
+        mockRunTransaction(...args),
     writeBatch: jest.fn(),
     Timestamp: { now: () => ({ toMillis: () => 0 }) },
 }));
+
+import {
+    albumTitleKey,
+    normalizeAlbumTitle,
+    releaseAlbumTitle,
+    stageAlbum,
+} from "../album-service";
+
+const mutableAuth = auth as { currentUser: { uid: string } | null };
+
+beforeEach(() => {
+    mutableAuth.currentUser = { uid: "admin-uid" };
+    jest.clearAllMocks();
+});
+
+afterEach(() => {
+    mutableAuth.currentUser = null;
+});
 
 describe("normalizeAlbumTitle", () => {
     it("collapses case, surrounding space, and internal runs", () => {
@@ -48,6 +79,63 @@ describe("albumTitleKey", () => {
 
     it("distinguishes genuinely different titles", () => {
         expect(albumTitleKey("Cleanup A")).not.toBe(albumTitleKey("Cleanup B"));
+    });
+});
+
+describe("album setup lifecycle", () => {
+    it("stages the album without finalizing its title reservation", async () => {
+        mockTransaction.get.mockResolvedValue({
+            exists: () => true,
+            data: () => ({
+                reservedBy: "admin-uid",
+                status: "pending",
+            }),
+        });
+
+        await stageAlbum({
+            titleKey: "t_cleanup",
+            albumId: "album-1",
+            title: "Cleanup",
+            albumUrl: "https://photos.example/album-1",
+        });
+
+        expect(mockTransaction.set).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ albumId: "album-1", eventId: null }),
+        );
+        expect(mockTransaction.update).toHaveBeenCalledWith(expect.anything(), {
+            albumId: "album-1",
+        });
+    });
+
+    it("keeps a pending reservation once a remote album exists", async () => {
+        mockTransaction.get.mockResolvedValue({
+            exists: () => true,
+            data: () => ({
+                albumId: "album-1",
+                reservedBy: "admin-uid",
+                status: "pending",
+            }),
+        });
+
+        await releaseAlbumTitle("t_cleanup");
+
+        expect(mockTransaction.delete).not.toHaveBeenCalled();
+    });
+
+    it("releases a pending reservation before a remote album exists", async () => {
+        mockTransaction.get.mockResolvedValue({
+            exists: () => true,
+            data: () => ({
+                albumId: null,
+                reservedBy: "admin-uid",
+                status: "pending",
+            }),
+        });
+
+        await releaseAlbumTitle("t_cleanup");
+
+        expect(mockTransaction.delete).toHaveBeenCalledTimes(1);
     });
 });
 

@@ -41,6 +41,7 @@ export default function SetupEventScreen() {
 
     const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
     const [creating, setCreating] = useState(false);
+    const creatingRef = useRef(false);
     const [canceling, setCanceling] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +65,7 @@ export default function SetupEventScreen() {
     }
 
     const handleCreate = async () => {
+        if (creatingRef.current) return;
         // The volunteer roster is often unknown when an event is scheduled, and
         // every read path already defaults these to "", so only the title, date
         // and the accountable event leader are required.
@@ -83,6 +85,7 @@ export default function SetupEventScreen() {
             return;
         }
 
+        creatingRef.current = true;
         setCreating(true);
         setError(null);
 
@@ -143,6 +146,7 @@ export default function SetupEventScreen() {
         } catch (e) {
             setError(getErrorMessage(e));
         } finally {
+            creatingRef.current = false;
             setCreating(false);
         }
     };

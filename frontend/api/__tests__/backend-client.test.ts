@@ -154,6 +154,7 @@ describe("uploadPhotos", () => {
     it("short-circuits with no photos", async () => {
         await expect(uploadPhotos("album-1", [])).resolves.toEqual({
             created: 0,
+            succeeded: [],
             failed: [],
         });
         expect(fetchMock).not.toHaveBeenCalled();
@@ -163,7 +164,8 @@ describe("uploadPhotos", () => {
         fetchMock.mockResolvedValue(
             json(
                 {
-                    newMediaItemResults: [{}],
+                    created: 1,
+                    succeeded: ["a.jpg"],
                     failed: [{ fileName: "after.jpg", error: "boom" }],
                 },
                 207,
@@ -180,12 +182,15 @@ describe("uploadPhotos", () => {
             ]),
         ).resolves.toEqual({
             created: 1,
+            succeeded: ["a.jpg"],
             failed: [{ fileName: "after.jpg", error: "boom" }],
         });
     });
 
     it("sends a hand-built multipart body that keeps the chosen filename", async () => {
-        fetchMock.mockResolvedValue(json({ newMediaItemResults: [{}] }, 201));
+        fetchMock.mockResolvedValue(
+            json({ created: 1, succeeded: ["Fallen-tree-before.jpg"], failed: [] }, 201),
+        );
 
         await uploadPhotos("album-1", [
             {
@@ -214,7 +219,9 @@ describe("uploadPhotos", () => {
     });
 
     it("reports a photo whose file is gone without failing the rest", async () => {
-        fetchMock.mockResolvedValue(json({ newMediaItemResults: [{}] }, 201));
+        fetchMock.mockResolvedValue(
+            json({ created: 1, succeeded: ["a.jpg"], failed: [] }, 201),
+        );
 
         const result = await uploadPhotos("album-1", [
             {
@@ -226,6 +233,7 @@ describe("uploadPhotos", () => {
         ]);
 
         expect(result.created).toBe(1);
+        expect(result.succeeded).toEqual(["a.jpg"]);
         expect(result.failed).toEqual([
             {
                 fileName: "gone.jpg",
@@ -248,6 +256,7 @@ describe("uploadPhotos", () => {
         ]);
 
         expect(result.created).toBe(0);
+        expect(result.succeeded).toEqual([]);
         expect(result.failed).toHaveLength(1);
         expect(fetchMock).not.toHaveBeenCalled();
     });
@@ -255,7 +264,9 @@ describe("uploadPhotos", () => {
     it("rebuilds the body on the 401 retry so it is not a consumed stream", async () => {
         fetchMock
             .mockResolvedValueOnce(json({ error: "expired" }, 401))
-            .mockResolvedValueOnce(json({ newMediaItemResults: [{}] }, 201));
+            .mockResolvedValueOnce(
+                json({ created: 1, succeeded: ["a.jpg"], failed: [] }, 201),
+            );
 
         await uploadPhotos("album-1", [
             { uri: "file:///a.jpg", fileName: "a.jpg", mimeType: "image/jpeg" },
@@ -266,5 +277,25 @@ describe("uploadPhotos", () => {
         expect(firstBody).toBeDefined();
         expect(secondBody).toBeDefined();
         expect(firstBody).not.toBe(secondBody);
+    });
+
+    it("uploads one file per request to bound memory and avoid file-count limits", async () => {
+        fetchMock.mockImplementation(async (_url, init: RequestInit) => {
+            const text = new TextDecoder().decode(init.body as Uint8Array);
+            const fileName = /filename="([^"]+)"/.exec(text)?.[1] ?? "";
+            return json({ created: 1, succeeded: [fileName], failed: [] }, 201);
+        });
+        const photos = Array.from({ length: 11 }, (_, index) => ({
+            uri: `file:///${index}.jpg`,
+            fileName: `${index}.jpg`,
+            mimeType: "image/jpeg",
+        }));
+
+        await expect(uploadPhotos("album-1", photos)).resolves.toEqual({
+            created: 11,
+            succeeded: photos.map((photo) => photo.fileName),
+            failed: [],
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(11);
     });
 });

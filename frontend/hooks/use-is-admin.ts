@@ -12,11 +12,14 @@ export function useIsAdmin(): boolean | null {
 
     useEffect(() => {
         let cancelled = false;
+        let authGeneration = 0;
         const unsubscribe = onAuthStateChanged(auth, (user) => {
+            const generation = ++authGeneration;
             if (!user) {
                 if (!cancelled) setIsAdmin(false);
                 return;
             }
+            setIsAdmin(null);
             // The cached ID token can be up to an hour old, so a freshly
             // granted claim would otherwise stay invisible with no explanation.
             // Check the cached token first (free), and only force a refresh
@@ -31,11 +34,15 @@ export function useIsAdmin(): boolean | null {
                               .then((fresh) => fresh.claims.admin === true),
                 )
                 .then((admin) => {
-                    if (!cancelled) setIsAdmin(admin);
+                    if (!cancelled && generation === authGeneration) {
+                        setIsAdmin(admin);
+                    }
                 })
                 .catch((error: unknown) => {
                     console.error("Failed to read admin claim:", error);
-                    if (!cancelled) setIsAdmin(false);
+                    if (!cancelled && generation === authGeneration) {
+                        setIsAdmin(false);
+                    }
                 });
         });
         return () => {

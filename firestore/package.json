@@ -8,6 +8,11 @@
     "test:watch": "firebase emulators:exec --project mvt-rules-test --only firestore --config ../firebase.json \"jest --watch\"",
     "typecheck": "tsc --noEmit"
   },
+  "overrides": {
+    "universal-analytics": {
+      "uuid": "11.1.0"
+    }
+  },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",
     "@types/jest": "^29.5.14",
