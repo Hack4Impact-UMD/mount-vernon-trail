@@ -35,7 +35,7 @@ Run every gate the package actually has, exactly as CI does on each PR.
 
 ```bash
 cd frontend  && npm run typecheck && npm run lint && npm test   # 70 tests, ~1s
-cd backend   && npm run typecheck && npm run lint && npm test   # 93 tests, minutes on a cold cache
+cd backend   && npm run typecheck && npm run lint && npm test   # 93 tests, ~3s
 cd firestore && npm run typecheck && npm test                   # 35 tests, ~3s + emulator boot
 ```
 
@@ -43,11 +43,11 @@ cd firestore && npm run typecheck && npm test                   # 35 tests, ~3s 
 
 Two things that will otherwise waste your time:
 
-- **The backend suite can take several minutes.** It is CPU-bound, not waiting on
-  anything: `jest.config.js` uses the `ts-jest` preset, so every suite is
-  typechecked as it is transformed. The first run after a fresh clone or a cleared
-  jest cache is the slow one; later runs are far quicker. It is not hung — do not
-  kill it.
+- **Do not add `googleapis` to the backend.** `jest.config.js` uses the `ts-jest`
+  preset, so every suite is typechecked as it is transformed, and googleapis'
+  types cover every Google API: with it, `npm test` ran out of memory. The OAuth
+  client comes from `google-auth-library`; call Google APIs with `fetch`, as
+  `backend/src/google-photos.ts` does.
 - **The rules suite starts and stops its own emulator** via
   `firebase emulators:exec`. Do not launch an emulator by hand; you will get a
   port conflict. It needs Java, no credentials, and no live Firebase project.

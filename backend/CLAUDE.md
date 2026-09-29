@@ -25,14 +25,17 @@ npm run build      # tsc -> dist/
 npm start          # run the build
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint .
-npm test           # jest + supertest — 93 tests, minutes on a cold cache
+npm test           # jest + supertest — 93 tests, ~3s
 ```
 
-**The suite is slow but never hung.** Nothing in it sleeps — TTL and expiry
-behavior is exercised through injected clocks (`createInMemoryStore(() => now)`),
-not real timers. The cost is `ts-jest`: `jest.config.js` uses that preset, so every
-suite is typechecked as it is transformed. A fresh clone or a cleared jest cache
-pays that in full; later runs reuse it and finish far quicker. Do not kill it.
+**Nothing in the suite sleeps** — TTL and expiry behavior is exercised through
+injected clocks (`createInMemoryStore(() => now)`), not real timers.
+
+**Keep `googleapis` out.** `jest.config.js` uses the `ts-jest` preset, so every
+suite is typechecked as it is transformed. googleapis' declarations cover every
+Google API; importing it for one OAuth class ran `npm test` out of memory. Take
+`OAuth2Client` from `google-auth-library` and call Google APIs with `fetch`, as
+[src/google-photos.ts](src/google-photos.ts) does.
 
 ## Shape to preserve
 
