@@ -39,11 +39,12 @@ per engineer:
   Wait for every index to report `READY` before deploying rules; `--pretty` is
   what makes the output show each index's state.
 
-  ```bash
-  npx firebase deploy --only firestore:indexes
-  npx firebase firestore:indexes --pretty
-  npx firebase deploy --only firestore:rules
-  ```
+    ```bash
+    npx firebase deploy --only firestore:indexes
+    npx firebase firestore:indexes --pretty
+    npx firebase deploy --only firestore:rules
+    ```
+
 - **Grant the `admin` claim** to the people who need it:
   `cd backend && npm run set-admin -- someone@example.com`. They sign out and
   back in for it to take effect.
@@ -112,9 +113,10 @@ git merge main
 # open github and make PR
 ```
 
-## Meet the engineers!
+## Meet the engineers
 
 ### Fall 2026
+
 <table align="center">
   <tr>
     <td align="center" width="150">
@@ -124,14 +126,37 @@ git merge main
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
-	<td align="center" width="150">
+ <td align="center" width="150">
       <a href="#">
         <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Name</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
-	<td align="center" width="150">
+ <td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="150">
+      <a href="https://www.linkedin.com/in/aaryankpatel/">
+        <img src="/frontend/profile-pictures/aaryan_patel.png" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Aaryan Patel</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+ <td align="center" width="150">
+      <a href="#">
+        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Name</b><br/><br/>
+        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
+      </a>
+    </td>
+ <td align="center" width="150">
       <a href="#">
         <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Name</b><br/><br/>
@@ -147,37 +172,14 @@ git merge main
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
-	<td align="center" width="150">
+ <td align="center" width="150">
       <a href="#">
         <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Name</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
-	<td align="center" width="150">
-      <a href="#">
-        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
-        <b>Name</b><br/><br/>
-        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="150">
-      <a href="#">
-        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
-        <b>Name</b><br/><br/>
-        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
-      </a>
-    </td>
-	<td align="center" width="150">
-      <a href="#">
-        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
-        <b>Name</b><br/><br/>
-        <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
-      </a>
-    </td>
-	<td align="center" width="150">
+ <td align="center" width="150">
       <a href="#">
         <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
         <b>Name</b><br/><br/>
