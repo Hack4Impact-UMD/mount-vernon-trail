@@ -1,9 +1,7 @@
 import { useGoogleAuth } from "@/auth";
-import { subscribeToAuthState } from "@/auth/google-auth";
 import { Palette } from "@/constants/theme";
 import { Stack } from "expo-router";
-import { User } from "firebase/auth";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
     ActivityIndicator,
     Dimensions,

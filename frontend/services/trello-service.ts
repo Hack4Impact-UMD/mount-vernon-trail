@@ -1,15 +1,11 @@
 // service layer between TrelloClient func and the UI
-import type { TrailIssueItem } from "@/components/ui/trail-issues-card";
 import type { UpcomingEventItem } from "@/components/ui/upcoming-events-card";
-import { TrailDocumentIssueItem } from "@/types/trail-types";
-import { TrelloClient } from "./trello-funcs";
+import type {
+    TrailDocumentIssueItem,
+    TrailIssueItem,
+} from "@/types/trail-types";
+import { getListId, getTrelloClient } from "./trello-config";
 import { EventCard, TrelloAttachment } from "./trello-types";
-
-const BOARD_NAME = "MVT Mock Board";
-const TRAIL_ISSUES_LIST = "Trail Issues and Problems - Intake";
-const UPCOMING_EVENTS_LIST = "Scheduled Events";
-const COMPLETED_EVENTS_LIST = "Completed Events (From App)";
-const COMPLETED_ISSUES_LIST = "Completed Issues";
 
 // parses trello description into structured fields
 function parseEventDescription(desc: string) {
@@ -39,17 +35,9 @@ function parseEventDescription(desc: string) {
 // fetches trail issues by most recent
 // key and token are passed as parameters so auth can be swapped later
 export async function fetchTrailIssues(key: string): Promise<TrailIssueItem[]> {
-    const trello = new TrelloClient(key);
-    // find target board and list
-    const boards = await trello.getBoards();
-    const board = boards.find((b) => b.name === BOARD_NAME);
-    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
-
-    const lists = await trello.getLists(board.id);
-    const list = lists.find((l) => l.name === TRAIL_ISSUES_LIST);
-    if (!list) throw new Error(`List "${TRAIL_ISSUES_LIST}" not found`);
-
-    const cards = await trello.getCards(list.id, true, "cover");
+    const trello = getTrelloClient(key);
+    const listId = await getListId("trailIssues", key);
+    const cards = await trello.getCards(listId, true, "cover");
     return await Promise.all(
         cards.map(async (card) => {
             const imageUrl =
@@ -72,7 +60,7 @@ export async function fetchDocumentTrailIssues(
     key: string,
     eventCard: EventCard,
 ): Promise<TrailDocumentIssueItem[]> {
-    const trello = new TrelloClient(key);
+    const trello = getTrelloClient(key);
     const attachmentIDs = await trello.getEventCardAttachmentIDs(eventCard);
     return await Promise.all(
         attachmentIDs.map(async (id) => {
@@ -95,23 +83,24 @@ export async function fetchDocumentTrailIssues(
     );
 }
 
-// fetches upcoming event cards within the next 30 days
+// fetches event cards within 30 days of today: either the upcoming ones still
+// scheduled, or the already published ones sitting in Completed Events
 export async function fetchEventCards(
     key: string,
     filter: "upcoming" | "past",
 ): Promise<UpcomingEventItem[]> {
-    const trello = new TrelloClient(key);
-    // find target board and list
-    const boards = await trello.getBoards();
-    const board = boards.find((b) => b.name === BOARD_NAME);
-    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
-
-    const lists = await trello.getLists(board.id);
-    const listName = filter === "past" ? COMPLETED_EVENTS_LIST : UPCOMING_EVENTS_LIST;
-    const list = lists.find((l) => l.name === listName);
-    if (!list) throw new Error(`List "${listName}" not found`);
-
-    const cards = await trello.getEventCardsFiltered(list.id, filter, 30, true, true);
+    const trello = getTrelloClient(key);
+    const listId = await getListId(
+        filter === "past" ? "completedEvents" : "upcomingEvents",
+        key,
+    );
+    const cards = await trello.getEventCardsFiltered(
+        listId,
+        filter,
+        30,
+        true,
+        true,
+    );
     return Promise.all(
         cards.map(async (card) => {
             const imgAttachmentUrl = getFirstImageAttachment(card.attachments);
@@ -151,17 +140,10 @@ export async function createEventCard(
     description: string,
     key: string,
 ): Promise<{ cardId: string; cardUrl: string }> {
-    const trello = new TrelloClient(key);
-    const boards = await trello.getBoards();
-    const board = boards.find((b) => b.name === BOARD_NAME);
-    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
-
-    const lists = await trello.getLists(board.id);
-    const list = lists.find((l) => l.name === UPCOMING_EVENTS_LIST);
-    if (!list) throw new Error(`List "${UPCOMING_EVENTS_LIST}" not found`);
-
+    const trello = getTrelloClient(key);
+    const listId = await getListId("upcomingEvents", key);
     const card = await trello.createCard(
-        list.id,
+        listId,
         `${dateStr} ${title}`,
         description,
     );
@@ -174,7 +156,7 @@ export async function fetchCardUrl(
     cardId: string,
     key: string,
 ): Promise<string> {
-    const trello = new TrelloClient(key);
+    const trello = getTrelloClient(key);
     const card = await trello.getCard(cardId);
     if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
     return card.shortUrl;
@@ -185,16 +167,15 @@ export async function moveCardToCompleted(
     cardId: string,
     key: string,
 ): Promise<void> {
-    const trello = new TrelloClient(key);
-    const boards = await trello.getBoards();
-    const board = boards.find((b) => b.name === BOARD_NAME);
-    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
+    const trello = getTrelloClient(key);
+    const listId = await getListId("completedEvents", key);
+    await trello.moveCardToList(cardId, listId);
+}
 
-    const lists = await trello.getLists(board.id);
-    const list = lists.find((l) => l.name === COMPLETED_EVENTS_LIST);
-    if (!list) throw new Error(`List "${COMPLETED_EVENTS_LIST}" not found`);
-
-    await trello.moveCardToList(cardId, list.id);
+// Compensation for a failed event setup. An event card may already be visible
+// to the team, so archiving is the safer undo than a hard delete.
+export async function archiveCard(cardId: string, key: string): Promise<void> {
+    await getTrelloClient(key).archiveCard(cardId);
 }
 
 // moves all attachments from a card to completed issues list
@@ -202,14 +183,8 @@ export async function moveCardAttachmentsToCompleted(
     cardId: string,
     key: string,
 ): Promise<void> {
-    const trello = new TrelloClient(key);
-    const boards = await trello.getBoards();
-    const board = boards.find((b) => b.name === BOARD_NAME);
-    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
-
-    const lists = await trello.getLists(board.id);
-    const list = lists.find((l) => l.name === COMPLETED_ISSUES_LIST);
-    if (!list) throw new Error(`List "${COMPLETED_ISSUES_LIST}" not found`);
+    const trello = getTrelloClient(key);
+    const listId = await getListId("completedIssues", key);
 
     // get all attachments on the card
     const eventCard = await trello.getEventCardByID(cardId, true);
@@ -218,7 +193,7 @@ export async function moveCardAttachmentsToCompleted(
     // move each attachment (issue card) to completed issues list
     const results = await Promise.allSettled(
         attachments.map((attachmentId) =>
-            trello.moveCardToList(attachmentId, list.id),
+            trello.moveCardToList(attachmentId, listId),
         ),
     );
     const failedAttachments = results
@@ -233,7 +208,73 @@ export async function moveCardAttachmentsToCompleted(
     }
 }
 
+// Field notes live in a marked section of the issue card's description so they
+// can be rewritten without destroying the original issue text.
+const FIELD_NOTES_PATTERN = /\n\n📝 Field Notes:\n[\s\S]*$/;
+
+export function extractIssueNotes(description: string): string {
+    const match = FIELD_NOTES_PATTERN.exec(description);
+    return match ? match[0].replace("\n\n📝 Field Notes:\n", "") : "";
+}
+
+export async function saveIssueNotes(
+    cardId: string,
+    notes: string,
+    key: string,
+): Promise<void> {
+    const trello = getTrelloClient(key);
+    const card = await trello.getCard(cardId);
+    const current = card.desc ?? "";
+    const base = current.replace(FIELD_NOTES_PATTERN, "");
+    const trimmed = notes.trim();
+    const next = trimmed ? `${base}\n\n📝 Field Notes:\n${trimmed}` : base;
+    if (next === current) return;
+    await trello.replaceCardDescription(cardId, next);
+}
+
+// Creates a trail issue and links it to the event card, which is how
+// fetchDocumentTrailIssues discovers the issues belonging to an event.
+export async function createTrailIssue(
+    eventCardId: string,
+    name: string,
+    description: string,
+    key: string,
+): Promise<{ cardId: string; cardUrl: string }> {
+    const trello = getTrelloClient(key);
+    const listId = await getListId("trailIssues", key);
+    const card = await trello.createCard(listId, name, description);
+
+    try {
+        if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
+        await trello.addAttachmentToCard(eventCardId, card.shortUrl);
+        return { cardId: card.id, cardUrl: card.shortUrl };
+    } catch (attachErr) {
+        // compensate: delete the orphaned card so a retry won't create duplicates
+        try {
+            await trello.deleteCard(card.id);
+        } catch (deleteErr) {
+            console.error(
+                "Failed to clean up orphaned issue card:",
+                card.id,
+                deleteErr,
+            );
+        }
+        throw attachErr;
+    }
+}
+
+// The Notes/Metrics layout the issue screen writes into a card description.
+function buildIssueDescription(notes: string, metrics: string): string {
+    return [
+        notes.trim() ? `Notes:\n${notes.trim()}` : "",
+        metrics.trim() ? `Metrics:\n${metrics.trim()}` : "",
+    ]
+        .filter(Boolean)
+        .join("\n\n");
+}
+
 // creates a new issue card in the Trail Issues list and attaches it to the event card
+// Delegates to createTrailIssue so the orphan rollback lives in exactly one place.
 export async function createIssueCard(
     name: string,
     notes: string,
@@ -241,39 +282,19 @@ export async function createIssueCard(
     eventTrelloCardId: string,
     key: string,
 ): Promise<string> {
-    const trello = new TrelloClient(key);
-    const boards = await trello.getBoards();
-    const board = boards.find((b) => b.name === BOARD_NAME);
-    if (!board) throw new Error(`Board "${BOARD_NAME}" not found`);
-
-    const lists = await trello.getLists(board.id);
-    const list = lists.find((l) => l.name === TRAIL_ISSUES_LIST);
-    if (!list) throw new Error(`List "${TRAIL_ISSUES_LIST}" not found`);
-
-    const descParts = [
-        notes.trim() ? `Notes:\n${notes.trim()}` : "",
-        metrics.trim() ? `Metrics:\n${metrics.trim()}` : "",
-    ].filter(Boolean);
-    const description = descParts.join("\n\n");
-
-    const card = await trello.createCard(list.id, name, description);
-
-    try {
-        if (!card.shortUrl) throw new Error("Trello did not return a card URL.");
-        await trello.addAttachmentToCard(eventTrelloCardId, card.shortUrl);
-    } catch (attachErr) {
-        // compensate: delete the orphaned card so a retry won't create duplicates
-        try {
-            await trello.deleteCard(card.id);
-        } catch (deleteErr) {
-            console.error("Failed to clean up orphaned issue card:", card.id, deleteErr);
-        }
-        throw attachErr;
-    }
-    return card.id;
+    const { cardId } = await createTrailIssue(
+        eventTrelloCardId,
+        name,
+        buildIssueDescription(notes, metrics),
+        key,
+    );
+    return cardId;
 }
 
 // updates the notes and metrics on an existing issue card
+// Note: this rewrites the whole description, whereas saveIssueNotes only
+// rewrites the "📝 Field Notes" section. A card edited through both paths keeps
+// both blocks; pick one path per screen.
 export async function updateIssueCard(
     issueCardId: string,
     name: string,
@@ -281,16 +302,11 @@ export async function updateIssueCard(
     notes?: string,
     metrics?: string,
 ): Promise<void> {
-    const trello = new TrelloClient(key);
     const fields: { name: string; desc?: string } = { name: name.trim() };
     if (notes !== undefined || metrics !== undefined) {
-        const descParts = [
-            (notes ?? "").trim() ? `Notes:\n${(notes ?? "").trim()}` : "",
-            (metrics ?? "").trim() ? `Metrics:\n${(metrics ?? "").trim()}` : "",
-        ].filter(Boolean);
-        fields.desc = descParts.join("\n\n");
+        fields.desc = buildIssueDescription(notes ?? "", metrics ?? "");
     }
-    await trello.updateCard(issueCardId, fields);
+    await getTrelloClient(key).updateCard(issueCardId, fields);
 }
 
 // adds album link to a trello event card description
@@ -299,7 +315,7 @@ export async function addAlbumLinkToCard(
     albumUrl: string,
     key: string,
 ): Promise<void> {
-    const trello = new TrelloClient(key);
+    const trello = getTrelloClient(key);
     const card = await trello.getCard(cardID);
     const currentDescription = card.desc ?? "";
 
@@ -328,7 +344,7 @@ export async function addNotesToCard(
     notes: string,
     key: string,
 ): Promise<void> {
-    const trello = new TrelloClient(key);
+    const trello = getTrelloClient(key);
     const card = await trello.getCard(cardID);
     const currentDescription = card.desc ?? "";
 

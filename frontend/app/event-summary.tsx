@@ -2,23 +2,25 @@ import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event, EventMetricsWithHours } from "@/services/event-service";
 import {
-	clearActiveEventLocally,
-	extractMetricsWithHours,
-	getEventById,
-	saveDraft,
+    clearActiveEventLocally,
+    extractMetricsWithHours,
+    getEventById,
+    saveDraft,
+    updateEventNotes,
 } from "@/services/event-service";
+import { getErrorMessage } from "@/utils/errors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-	ActivityIndicator,
-	Alert,
-	Animated,
-	Pressable,
-	ScrollView,
-	StyleSheet,
-	Text,
-	View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 
 const PURPLE = "#693894";
@@ -35,14 +37,9 @@ interface MetricDef {
     color: string;
 }
 
+// No "trailImprovements" entry: it is not a key of EventMetrics, so the card
+// only ever rendered undefined. Every key below must exist on the metrics type.
 const METRIC_DEFS: MetricDef[] = [
-    {
-        key: "trailImprovements",
-        label: "Trail Improvements",
-        sublabel: "in review",
-        icon: "trending-up",
-        color: PURPLE,
-    },
     {
         key: "drainageCleaned",
         label: "Drainage",
@@ -156,6 +153,7 @@ const METRIC_DEFS: MetricDef[] = [
         color: TEAL,
     },
 ];
+
 interface MetricGridCardProps {
     def: MetricDef;
     value: number | string;
@@ -163,8 +161,8 @@ interface MetricGridCardProps {
 }
 
 function MetricGridCard({ def, value, delay }: MetricGridCardProps) {
-    const opacity = useRef(new Animated.Value(0)).current;
-    const translateY = useRef(new Animated.Value(18)).current;
+    const [opacity] = useState(() => new Animated.Value(0));
+    const [translateY] = useState(() => new Animated.Value(18));
 
     useEffect(() => {
         Animated.parallel([
@@ -227,23 +225,20 @@ export default function EventSummaryScreen() {
 
     const [saving, setSaving] = useState(false);
     const [savedDraft, setSavedDraft] = useState(false);
-    const [savedTrello, setSavedTrello] = useState(false);
     const [event, setEvent] = useState<Event>();
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string>();
+    const [loading, setLoading] = useState(Boolean(eventId));
+    const [error, setError] = useState<string | undefined>(() =>
+        eventId ? undefined : "No event ID provided.",
+    );
 
     useEffect(() => {
-        if (!eventId) {
-            setError("No event ID provided.");
-            setLoading(false);
-            return;
-        }
+        if (!eventId) return;
         getEventById(eventId)
             .then((e) => {
                 if (e) setEvent(e);
                 else setError("Event not found.");
             })
-            .catch((e) => setError((e as Error).message))
+            .catch((e) => setError(getErrorMessage(e)))
             .finally(() => setLoading(false));
     }, [eventId]);
 
@@ -264,7 +259,7 @@ export default function EventSummaryScreen() {
         : [];
 
     const handleSaveDraft = async () => {
-        if (saving || savedDraft || savedTrello) return;
+        if (saving || savedDraft) return;
         setSaving(true);
         try {
             await saveDraft(eventId, notes ?? event.notes ?? "");
@@ -272,6 +267,31 @@ export default function EventSummaryScreen() {
             setSavedDraft(true);
         } catch {
             Alert.alert("Error", "Could not save event to drafts.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Persist the notes before navigating: this path used to replace straight to
+    // /edit-draft, silently discarding everything typed during the event. Notes
+    // only — the end-event modal already saved the draft and stamped endDate, so
+    // nothing here may write those fields a second time.
+    const handleEditNow = async () => {
+        if (saving || savedDraft) return;
+        setSaving(true);
+        try {
+            await updateEventNotes(eventId, notes ?? event.notes ?? "");
+            // A failed local clear must not strand the user on this screen;
+            // home-screen reconciles against Firestore on its next load.
+            await clearActiveEventLocally().catch((e: unknown) =>
+                setError(getErrorMessage(e)),
+            );
+            router.replace({ pathname: "/edit-draft", params: { eventId } });
+        } catch {
+            Alert.alert(
+                "Error",
+                "Could not save your notes. Please try again.",
+            );
         } finally {
             setSaving(false);
         }
@@ -338,7 +358,7 @@ export default function EventSummaryScreen() {
                         saving && styles.actionCardDisabled,
                     ]}
                     onPress={handleSaveDraft}
-                    disabled={saving || savedDraft || savedTrello}>
+                    disabled={saving || savedDraft}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
                             <ActivityIndicator color={PURPLE} />
@@ -371,33 +391,15 @@ export default function EventSummaryScreen() {
                 <Pressable
                     style={[
                         styles.actionCard,
-                        savedTrello && styles.actionCardSaved,
                         saving && styles.actionCardDisabled,
                     ]}
-                    onPress={async () => {
-                        try {
-                            await clearActiveEventLocally();
-                        } catch (error) {
-                            setError((error as Error).message);
-                        }
-                        router.replace({
-                            pathname: "/edit-draft",
-                            params: {
-                                eventId,
-                                notes: notes ?? event.notes ?? "",
-                            },
-                        });
+                    onPress={() => {
+                        handleEditNow().catch(() => undefined);
                     }}
-                    disabled={saving || savedDraft || savedTrello}>
+                    disabled={saving || savedDraft}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
                             <ActivityIndicator color={PURPLE} />
-                        ) : savedTrello ? (
-                            <MaterialCommunityIcons
-                                name="check"
-                                size={24}
-                                color="#3BA34C"
-                            />
                         ) : (
                             <MaterialCommunityIcons
                                 name="pencil-outline"
@@ -416,7 +418,7 @@ export default function EventSummaryScreen() {
                     </View>
                 </Pressable>
 
-                {(savedDraft || savedTrello) && (
+                {savedDraft && (
                     <Pressable
                         style={styles.actionCard}
                         onPress={() => router.replace("/home-screen")}>

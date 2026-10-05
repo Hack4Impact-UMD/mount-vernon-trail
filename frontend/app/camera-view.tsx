@@ -1,10 +1,14 @@
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
+// SDK 56 moved these calls to /legacy; the root import now throws at runtime.
+import * as MediaLibrary from 'expo-media-library/legacy';
 import React, { useRef, useState } from 'react';
-import { Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
+import { Alert, Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
+import { enqueuePhoto, flushInBackground } from '@/services/photo-queue';
+import { getErrorMessage } from '@/utils/errors';
 import Slider from '@react-native-community/slider';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSharedValue } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Palette } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,29 +30,33 @@ export default function CameraViewScreen() {
     });
     const [recentPhoto, setRecentPhoto] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
-    const flashAnim = useRef(new Animated.Value(0)).current;
+    const [flashAnim] = useState(() => new Animated.Value(0));
     const cameraRef = useRef<CameraView | null>(null);
     const [overlayOpacity, setOverlayOpacity] = useState(0.3);
     const [zoom, setZoom] = useState(0);
-    const currentZoomRef = useRef(0);
-    const startZoomRef = useRef(0);
+    // Shared values rather than refs: the gesture callbacks are handed to the
+    // builder during render, and the React Compiler rejects ref reads there.
+    const currentZoom = useSharedValue(0);
+    const startZoom = useSharedValue(0);
     const [flash, setFlash] = useState<'off' | 'on'>('off');
     // when navigated from the trail document screen
     const router = useRouter();
-    const { beforeImageUri, afterImageUri, activeIssueId, eventId, mode, source } = useLocalSearchParams<{
+    // The standalone "Take After Picture" entry point on the home screen passes
+    // only `mode`, so every issue-scoped param has to stay optional.
+    const { beforeImageUri, activeIssueId, issueName, eventId, albumId, mode } = useLocalSearchParams<{
         beforeImageUri?: string;
-        afterImageUri?: string;
         activeIssueId?: string; // keep track of issue card user pressed
+        issueName?: string;
         eventId?: string;
+        albumId?: string;
         mode?: 'before' | 'after';
-        source?: string;
     }>();
     const resolveMode = mode === 'after' ? 'after' : 'before';
     // overlay is set to before image, but user can still has option to choose from their gallary
     const [overlayUri, setOverlayUri] = useState<string | null>(
         resolveMode === 'after' ? (beforeImageUri ?? null) : null
     );
-    const [viewState, setViewState] = useState<'camera' | 'confirmation'>('camera'); 
+    const [viewState, setViewState] = useState<'camera' | 'confirmation'>('camera');
     const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
 
     if (!permission) {
@@ -73,12 +81,12 @@ export default function CameraViewScreen() {
         setFlash(current => (current === 'off' ? 'on' : 'off'));
     }
     const pinchGesture = Gesture.Pinch().runOnJS(true).onStart(() => {
-        startZoomRef.current = currentZoomRef.current;
-    }).onUpdate((e:any) => {
-        const target = Math.min(1, Math.max(0, startZoomRef.current + (e.scale - 1) * 0.12));
-        const smoothed = currentZoomRef.current + (target - currentZoomRef.current) * 0.25;
-        if (Math.abs(smoothed - currentZoomRef.current) > 0.003) {
-            currentZoomRef.current = smoothed;
+        startZoom.set(currentZoom.get());
+    }).onUpdate((e) => {
+        const target = Math.min(1, Math.max(0, startZoom.get() + (e.scale - 1) * 0.12));
+        const smoothed = currentZoom.get() + (target - currentZoom.get()) * 0.25;
+        if (Math.abs(smoothed - currentZoom.get()) > 0.003) {
+            currentZoom.set(smoothed);
             setZoom(smoothed);
         }
     });
@@ -86,7 +94,7 @@ export default function CameraViewScreen() {
     async function takePhoto() {
         try {
             setIsCapturing(true);
-            
+
             // white flash to indicate photo capture
             Animated.sequence([
                 Animated.timing(flashAnim, {
@@ -103,7 +111,7 @@ export default function CameraViewScreen() {
 
             const photo = await cameraRef.current?.takePictureAsync();
             if (!photo) return;
-            
+
             setCapturedPhotoUri(photo.uri);
             setRecentPhoto(photo.uri);
             setViewState('confirmation');
@@ -135,48 +143,72 @@ export default function CameraViewScreen() {
             console.error('Error opening photo library:', error);
         }
     }
+    // Best-effort copy into the device camera roll. A refusal here must not
+    // cost the volunteer the photo — the queued upload is the real destination.
+    async function saveToCameraRoll(uri: string) {
+        if (!mediaPermission?.granted) {
+            const permissionResponse = await requestMediaPermission();
+            if (!permissionResponse.granted) {
+                Alert.alert(
+                    'Photo not saved to your library',
+                    'Without photo permission the picture will not appear in your camera roll. It is still attached to this trail issue.',
+                );
+                return;
+            }
+        }
+        const asset = await MediaLibrary.createAssetAsync(uri);
+        const album = await MediaLibrary.getAlbumAsync('mount-vernon-trail');
+        // createAlbumAsync unconditionally would make a new album per photo.
+        if (album) {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+        } else {
+            await MediaLibrary.createAlbumAsync('mount-vernon-trail', asset);
+        }
+    }
+
     // Captured photo confirmation buttons
     async function handleDone() {
         if (!capturedPhotoUri) return;
-        // saves captured photo to media library
+
         try {
-            if (!mediaPermission?.granted) {
-                const permissionResponse = await requestMediaPermission();
-                if (!permissionResponse.granted) return;
-            }
-            const asset = await MediaLibrary.createAssetAsync(capturedPhotoUri);
-            await MediaLibrary.createAlbumAsync('mount-vernon-trail', asset);
+            await saveToCameraRoll(capturedPhotoUri);
         } catch (error) {
-            console.error('Error saving photo:', error);
+            // Non-fatal: keep going so the photo still reaches the album.
+            console.error('Error saving photo to camera roll:', getErrorMessage(error));
         }
-        if (source === 'issue') {
+
+        // Issue-scoped capture. The standalone "Take After Picture" flow has no
+        // event/album/issue, so it only lands in the camera roll above.
+        if (eventId && albumId && activeIssueId) {
+            try {
+                await enqueuePhoto({
+                    eventId,
+                    albumId,
+                    issueId: activeIssueId,
+                    issueName: issueName ?? 'Trail issue',
+                    slot: resolveMode,
+                    uri: capturedPhotoUri,
+                });
+                flushInBackground(eventId);
+            } catch (error) {
+                Alert.alert(
+                    'Could not attach photo',
+                    getErrorMessage(error),
+                );
+                return;
+            }
+        }
+
+        // back(), not replace(): the stack is trail-document -> trail-issue ->
+        // camera, so replacing would spawn a second trail-document behind this
+        // one, orphan the first (losing its notes), and re-fetch every issue.
+        // The screen that pushed us re-reads the photo queue on focus.
+        if (router.canGoBack()) {
             router.back();
-		}
-        // When user pressed TakeAfterPicture, no event id
-        if (!eventId) {
-            router.replace('/home-screen');
             return;
         }
-        if (resolveMode === 'before') {
-            router.replace({
-                pathname: '/trail-document-screen',
-                params: {
-                    activeIssueId,
-                    beforeImageUri: capturedPhotoUri,
-                    eventId
-                },
-            });
-        } else {
-            router.replace({
-                pathname: '/trail-document-screen',
-                params: {
-                    activeIssueId,
-                    beforeImageUri: beforeImageUri ?? "",
-                    afterImageUri: capturedPhotoUri,
-                    eventId
-                },
-            });
-        }
+        // Nothing to return to (e.g. camera opened as the entry screen).
+        router.replace('/home-screen');
     }
     function handleRetake() {
         setCapturedPhotoUri(null);
@@ -185,10 +217,10 @@ export default function CameraViewScreen() {
     if (viewState === 'confirmation' && capturedPhotoUri) {
         return (
             <View style={styles.container}>
-                <Image 
-                    source={{ uri: capturedPhotoUri }} 
-                    style={styles.camera} 
-                    resizeMode="cover" 
+                <Image
+                    source={{ uri: capturedPhotoUri }}
+                    style={styles.camera}
+                    resizeMode="cover"
                 />
                 <View style={[styles.confirmButtonRow, {bottom: insets.bottom + 20}]}>
                     <TouchableOpacity style={styles.confirmButton} onPress={handleDone}>
@@ -210,19 +242,19 @@ export default function CameraViewScreen() {
         <GestureHandlerRootView style={styles.container}>
             <GestureDetector gesture={pinchGesture}>
                 <View style={styles.container}>
-                    <CameraView 
-                        style={styles.camera} 
-                        facing={facing} 
+                    <CameraView
+                        style={styles.camera}
+                        facing={facing}
                         flash={flash}
                         // @ts-ignore
                         ref={cameraRef}
                         zoom={zoom}
                     />
                     {resolveMode === 'after' && overlayUri && (
-                        <View style={[ StyleSheet.absoluteFillObject, { opacity: overlayOpacity }]} pointerEvents="none">
-                            <Image 
-                                source={{ uri: overlayUri }} 
-                                resizeMode="cover" 
+                        <View style={[ StyleSheet.absoluteFill, { opacity: overlayOpacity }]} pointerEvents="none">
+                            <Image
+                                source={{ uri: overlayUri }}
+                                resizeMode="cover"
                                 style={{ flex : 1 }}
                             />
                         </View>
@@ -263,15 +295,17 @@ export default function CameraViewScreen() {
                                     <View style={styles.emptyPreview} />
                                 )}
                             </TouchableOpacity>
-                            <Text style={styles.previewLabel}>Before</Text>
+                            <Text style={styles.previewLabel}>
+                                {resolveMode === 'after' ? 'After' : 'Before'}
+                            </Text>
                         </View>
                         {/* take photo button (center position) */}
                         <View style={[styles.captureContainer, {bottom: insets.bottom} ]}>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={[
                                     styles.captureButton,
                                     isCapturing && styles.captureButtonActive,
-                                ]} 
+                                ]}
                                 onPress={takePhoto}
                                 disabled={isCapturing}
                             >
@@ -403,7 +437,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     slider: {
-        width: SCREEN_HEIGHT * 0.12, 
+        width: SCREEN_HEIGHT * 0.12,
         height: SCREEN_HEIGHT * 0.04,
         transform: [{ scale: 0.9 }]
     },
@@ -454,4 +488,4 @@ const styles = StyleSheet.create({
         fontFamily: 'Lato_400Regular',
         fontSize: 14,
     },
-}); 
+});

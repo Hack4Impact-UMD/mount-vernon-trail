@@ -4,12 +4,68 @@
 
 Hello and welcome to the Friends of the Mount Vernon Trail project!
 We'll be working, communicating, and logging bugs here, as well as in our other communication channels.
-Check back here for more on project and environment setup soon!
+
+Volunteers use the app to document trail issues during a work event: they photograph a problem before and after fixing it, record metrics, and publish a summary to Trello. The photos go into a **shared Google Photos album owned by the MVT account**, which is what the backend exists to make possible.
 
 ## Repo layout
 
-- [`frontend/`](frontend/) — the Expo (React Native) app. Run with `cd frontend && npm install && npm start`.
-- [`backend/`](backend/) — Node + TypeScript service that will proxy Google Photos uploads into the MVT-owned album. Deployed on Render. Currently a scaffold; no server code yet.
+- [`frontend/`](frontend/) — the Expo (React Native) app. `cd frontend && npm install && npm start`.
+- [`backend/`](backend/) — Node + TypeScript service that proxies Google Photos uploads into the MVT-owned album. Volunteers authenticate to it with their Firebase ID token; it holds the single Google refresh token. Deployed on Render. See [`backend/README.md`](backend/README.md) for the API and setup.
+- [`firestore.rules`](firestore.rules) / [`firestore.indexes.json`](firestore.indexes.json) — Firestore security rules and composite indexes. Deployed by a lead, indexes before rules — see [Admin setup](#admin-setup-once-per-firebase-project-leads-only).
+- [`firestore/`](firestore/) — emulator-backed tests for those rules.
+
+## Setup
+
+For every engineer. Ask a lead for the `.env` values; the app and backend both
+run against the shared `friends-of-mvt` Firebase project.
+
+1. `cd frontend && npm install`, then `cp .env.example .env` and fill it in.
+2. `cd backend && npm install`, then `cp .env.example .env` and fill it in.
+
+That is all a development machine needs. Don't run the admin steps below against
+the shared project unless you are the one doing them for the team.
+
+### Admin setup (once per Firebase project, leads only)
+
+These change shared state for everyone, so they are done once per project, not
+per engineer:
+
+- **If the project has data from before the ownership refactor** (true of
+  `friends-of-mvt` until the refactor is deployed), follow the
+  [ownership migration runbook](docs/runbooks/2026-08-ownership-migration.md)
+  instead of the deploy step below. It deploys indexes and rules itself, with a
+  backfill in between; deploying rules first locks users out of their events.
+- **Deploy Firestore indexes, then rules**, in that order, from the repo root.
+  Wait for every index to report `READY` before deploying rules; `--pretty` is
+  what makes the output show each index's state.
+
+  ```bash
+  npx firebase deploy --only firestore:indexes
+  npx firebase firestore:indexes --pretty
+  npx firebase deploy --only firestore:rules
+  ```
+- **Grant the `admin` claim** to the people who need it:
+  `cd backend && npm run set-admin -- someone@example.com`. They sign out and
+  back in for it to take effect.
+- **Link the MVT Google account** to the backend — see the
+  [backend README](backend/README.md).
+
+## Checks
+
+Both halves run the same three gates; CI enforces them on every PR.
+
+```bash
+cd frontend  && npm run typecheck && npm run lint && npm test
+cd backend   && npm run typecheck && npm run lint && npm test
+cd firestore && npm test   # boots the Firestore emulator, asserts firestore.rules
+```
+
+The rules suite needs Java (for the emulator) but no credentials and no live
+Firebase project — it runs `firestore.rules` against a throwaway emulator
+instance. `firebase-tools` is a local devDependency of `firestore/`, so use
+`npx firebase` rather than a global install.
+
+[`MANUAL_TEST_PLAN.md`](MANUAL_TEST_PLAN.md) covers the flows that need real Google/Trello credentials.
 
 ## Procedures
 

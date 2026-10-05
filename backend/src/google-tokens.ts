@@ -1,5 +1,5 @@
 import { Redis } from "@upstash/redis";
-import { google } from "googleapis";
+import { OAuth2Client as GoogleOAuth2Client } from "google-auth-library";
 import type { Env } from "./env";
 import { NotAuthenticatedError } from "./errors";
 import { createInMemoryStore, type KeyValueStore } from "./kv-store";
@@ -10,10 +10,11 @@ const STATE_PREFIX = "oauth_state:";
 const STATE_TTL_SECONDS = 600;
 const EXPIRY_SKEW_MS = 60_000;
 
-// Taken from googleapis rather than google-auth-library directly: the two
-// resolve to different nested copies of the package with incompatible private
-// fields, and this is the one google.auth.OAuth2 actually constructs.
-export type OAuth2Client = InstanceType<typeof google.auth.OAuth2>;
+// Imported from google-auth-library, not googleapis: googleapis' types cover
+// every Google API, and ts-jest typechecking them for each suite ran the
+// backend tests out of memory. Only the OAuth client is used; Photos calls go
+// through google-photos.ts, so no googleapis client ever receives it.
+export type OAuth2Client = GoogleOAuth2Client;
 
 export const GOOGLE_PHOTOS_SCOPES = [
     "https://www.googleapis.com/auth/photoslibrary.appendonly",
@@ -32,8 +33,14 @@ export type TokenStore = {
 // server runs locally before anyone has provisioned Redis. env.ts refuses that
 // fallback in production, where losing the refresh token on restart — or
 // diverging between replicas — would be a real outage.
+// env.ts refuses to boot in production without Upstash, so this is only ever
+// true on a developer's machine.
+export function usesInMemoryStore(env: Env): boolean {
+    return !env.upstashRedisUrl || !env.upstashRedisToken;
+}
+
 export function createTokenKeyValueStore(env: Env): KeyValueStore {
-    if (!env.upstashRedisUrl || !env.upstashRedisToken) {
+    if (usesInMemoryStore(env)) {
         console.warn(
             "Upstash is not configured — using an in-memory token store. " +
                 "Tokens are lost on restart and not shared between processes. " +
@@ -48,7 +55,7 @@ export function createTokenKeyValueStore(env: Env): KeyValueStore {
 }
 
 export function createOAuthClient(env: Env): OAuth2Client {
-    return new google.auth.OAuth2(
+    return new GoogleOAuth2Client(
         env.googleClientId,
         env.googleClientSecret,
         env.googleRedirectUri,
