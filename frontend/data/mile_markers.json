@@ -1,0 +1,101 @@
+[
+  {
+    "mile_marker": 0.0,
+    "location_name": "Mount Vernon Estate Trailhead",
+    "coordinates": {
+      "latitude": 38.7081,
+      "longitude": -77.0861
+    },
+    "description": "Southern terminus of the trail near the historic estate."
+  },
+  {
+    "mile_marker": 1.0,
+    "location_name": "Riverside Park / Little Hunting Creek",
+    "coordinates": {
+      "latitude": 38.7188,
+      "longitude": -77.0672
+    },
+    "description": "Scenic views of the Potomac River near Riverside Park."
+  },
+  {
+    "mile_marker": 3.0,
+    "location_name": "Fort Hunt Park (East Entrance)",
+    "coordinates": {
+      "latitude": 38.7153,
+      "longitude": -77.0398
+    },
+    "description": "Access point adjacent to the historic Fort Hunt grounds."
+  },
+  {
+    "mile_marker": 6.0,
+    "location_name": "Dyke Marsh Wildlife Preserve",
+    "coordinates": {
+      "latitude": 38.7615,
+      "longitude": -77.0494
+    },
+    "description": "Freshwater tidal wetlands and premier birdwatching area."
+  },
+  {
+    "mile_marker": 7.0,
+    "location_name": "Belle Haven Park & Marina",
+    "coordinates": {
+      "latitude": 38.7758,
+      "longitude": -77.0512
+    },
+    "description": "South of Old Town Alexandria, near the Woodrow Wilson Bridge."
+  },
+  {
+    "mile_marker": 8.0,
+    "location_name": "Jones Point Park / Woodrow Wilson Bridge",
+    "coordinates": {
+      "latitude": 38.7891,
+      "longitude": -77.0409
+    },
+    "description": "Trail passes directly underneath the Woodrow Wilson Bridge structures."
+  },
+  {
+    "mile_marker": 10.0,
+    "location_name": "Old Town Alexandria (Oronoco Bay Park)",
+    "coordinates": {
+      "latitude": 38.8115,
+      "longitude": -77.0378
+    },
+    "description": "Northern edge of Old Town Alexandria waterfront paths."
+  },
+  {
+    "mile_marker": 11.5,
+    "location_name": "Daingerfield Island / Washington Sailing Marina",
+    "coordinates": {
+      "latitude": 38.8319,
+      "longitude": -77.0411
+    },
+    "description": "Near the marina entrance and local sailing docks."
+  },
+  {
+    "mile_marker": 14.5,
+    "location_name": "Gravelly Point Park",
+    "coordinates": {
+      "latitude": 38.8647,
+      "longitude": -77.0392
+    },
+    "description": "Famous plane-spotting area just north of Reagan National Airport."
+  },
+  {
+    "mile_marker": 16.0,
+    "location_name": "Lady Bird Johnson Park / LBJ Grove",
+    "coordinates": {
+      "latitude": 38.8794,
+      "longitude": -77.0518
+    },
+    "description": "Columbia Island area featuring the Navy-Merchant Marine Memorial."
+  },
+  {
+    "mile_marker": 18.0,
+    "location_name": "Theodore Roosevelt Island Trailhead",
+    "coordinates": {
+      "latitude": 38.8953,
+      "longitude": -77.0633
+    },
+    "description": "Northern terminus connecting to the Custis Trail and Key Bridge."
+  }
+]
