@@ -69,7 +69,7 @@ const navItems: {
     },
     {
         key: "maps",
-        label: "Maps",
+        label: "Map",
         icon: (color) => <MapPin size={25} color={color} strokeWidth={1.8} />,
     },
     {

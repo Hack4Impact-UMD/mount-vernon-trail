@@ -2,6 +2,9 @@ import { Palette } from "@/constants/theme";
 import { Camera, Map } from "@maplibre/maplibre-react-native";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import MapOverlays from "@/components/map-overlays";
+import {demoPins} from "@/data/map-demo";
+import trail from "@/data/mount-vernon-trail.json";
 
 // Public basemap for the initial map screen; no provider key is required.
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
@@ -19,6 +22,7 @@ export default function TrailMap() {
                 onDidFinishLoadingMap={() => setStatus("loaded")}
                 onDidFailLoadingMap={() => setStatus("error")}>
                 <Camera initialViewState={{ center: [-77.06, 38.78], zoom: 10 }} />
+                <MapOverlays pins={demoPins} trail={JSON.stringify(trail)} />
             </Map>
             {status !== "loaded" && (
                 <View style={styles.notice} accessibilityLiveRegion="polite">
