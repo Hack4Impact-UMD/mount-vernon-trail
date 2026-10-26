@@ -12,7 +12,7 @@ import { CorsRejectedError } from "./errors";
 import type { TokenStore } from "./google-tokens";
 import { requireFirebaseAuth } from "./middleware/auth";
 import { createAdminAuthRouter } from "./routes/admin-auth";
-import { createApiRouter } from "./routes/api";
+import { createApiRouter, type EventReader } from "./routes/api";
 
 function corsOptions(env: Env): CorsOptions {
     return {
@@ -31,6 +31,7 @@ export function createApp(
     env: Env,
     auth: Auth,
     tokenStore: TokenStore,
+    readEvent: EventReader,
 ): Express {
     const app = express();
 
@@ -42,7 +43,11 @@ export function createApp(
     });
 
     app.use(createAdminAuthRouter(auth, tokenStore));
-    app.use("/api", requireFirebaseAuth(auth), createApiRouter(env, tokenStore));
+    app.use(
+        "/api",
+        requireFirebaseAuth(auth),
+        createApiRouter(env, tokenStore, readEvent),
+    );
 
     app.use(
         (

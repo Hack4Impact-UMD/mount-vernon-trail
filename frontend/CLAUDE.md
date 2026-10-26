@@ -10,7 +10,7 @@ npm run ios        # expo run:ios
 npm run android    # expo run:android
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint .
-npm test           # jest — 70 tests, ~1s
+npm test           # jest — 81 tests, ~1s
 npm run format     # prettier --write .
 ```
 
@@ -59,7 +59,7 @@ plus per-screen `useState`:
 | Signed-in guard | `requireUser` | [services/require-user.ts](services/require-user.ts) |
 | Colors | `Palette` | [constants/theme.ts](constants/theme.ts) |
 | Date parse / format | `parseAndValidateDate`, `getDateString` | [utils/date.ts](utils/date.ts) |
-| Anything Google Photos | the backend client | [api/backend-client.ts](api/backend-client.ts) |
+| Google Photos or Sheets | the backend client | [api/backend-client.ts](api/backend-client.ts) |
 
 [config/firebase.ts](config/firebase.ts) is the **only** place Firebase is
 initialized. Never call `getFirestore()` again — import `db`. Note that this
@@ -67,11 +67,10 @@ module **throws at import time** if any `EXPO_PUBLIC_FIREBASE_*` var is missing,
 which is why tests mock it and why CI passes dummy values.
 
 [api/backend-client.ts](api/backend-client.ts) is the **only** route to Google
-Photos. Never call `photoslibrary.googleapis.com` from the app — the whole point
-of the proxy is that photos land in the MVT account, not a volunteer's personal
-library. The client attaches the Firebase ID token and retries exactly once on a
-401 with a force-refreshed token, rebuilding the multipart body because a consumed
-stream cannot be replayed.
+Photos and Sheets. Never call their APIs from the app — Google Photos must use the
+MVT account, and Sheets access stays on the backend. The client attaches the
+Firebase ID token and retries exactly once on a 401 with a force-refreshed token,
+rebuilding the multipart body because a consumed stream cannot be replayed.
 
 `Palette` is the source of truth for color. Several screens still hardcode hex
 (`event-summary.tsx` has its own `PURPLE`); prefer `Palette` in new code.
@@ -127,6 +126,9 @@ contract with the backend. See [../backend/CLAUDE.md](../backend/CLAUDE.md).
 - [services/google-photos-api-service.ts](services/google-photos-api-service.ts)
   has **zero importers** and still uses the retired `x-api-key` scheme against an
   env var that is not in `.env.example`. It is a leftover, not the upload path.
+- [api/googleSheetsClient.ts](api/googleSheetsClient.ts) is a legacy unused client.
+  The live export is in the backend and called through
+  [api/backend-client.ts](api/backend-client.ts).
 - [profile-pictures/](profile-pictures/) is team headshots for the root README.
   No code references it; it is not an app asset directory.
 

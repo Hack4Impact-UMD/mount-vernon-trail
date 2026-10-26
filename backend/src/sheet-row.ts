@@ -177,6 +177,9 @@ function formatDate(date: Date): string {
 // if the event never started or ended there are no hours to count
 function getHours(startDate: Date | null, endDate: Date | null): number {
     if (!startDate || !endDate) return 0;
-    const hours = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+    const hours = Math.max(
+        0,
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60),
+    );
     return Math.round(hours * 10) / 10;
 }

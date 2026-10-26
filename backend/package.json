@@ -2,7 +2,7 @@
   "name": "mount-vernon-trail-backend",
   "version": "0.0.0",
   "private": true,
-  "description": "Backend service for Mount Vernon Trail — proxies Google Photos uploads into the MVT-owned album.",
+  "description": "Backend service for Mount Vernon Trail — proxies Google Photos uploads and exports event metrics to Google Sheets.",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

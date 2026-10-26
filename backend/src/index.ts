@@ -1,4 +1,5 @@
 import { createApp } from "./app";
+import { getFirestore } from "firebase-admin/firestore";
 import { loadEnv } from "./env";
 import { initFirebase } from "./firebase";
 import {
@@ -15,8 +16,20 @@ function main(): void {
         createTokenKeyValueStore(env),
         createOAuthClient(env),
     );
+    const firestore = getFirestore();
 
-    const server = createApp(env, auth, tokenStore).listen(env.port, () => {
+    const server = createApp(
+        env,
+        auth,
+        tokenStore,
+        async (eventId) => {
+            const snapshot = await firestore
+                .collection("events")
+                .doc(eventId)
+                .get();
+            return snapshot.exists ? snapshot.data() ?? null : null;
+        },
+    ).listen(env.port, () => {
         console.log(`mount-vernon-trail backend listening on port ${env.port}`);
     });
     // Node drops idle keep-alive sockets after 5s, well inside iOS's idle pool.

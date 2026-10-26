@@ -12,7 +12,7 @@ Two independent layers:
 | Layer | Who | Mechanism |
 |---|---|---|
 | Caller → this API | every volunteer | `Authorization: Bearer <Firebase ID token>` on all `/api/*` routes |
-| This API → Google Photos | the MVT account, once | admin OAuth flow, refresh token in Redis (+ optional env backup) |
+| This API → Google APIs | the MVT account, once | admin OAuth flow, refresh token in Redis (+ optional env backup) |
 
 Admin-only routes additionally require the `admin` custom claim. Grant it with
 `npm run set-admin -- someone@example.com`.
@@ -35,10 +35,46 @@ Photos itself rejects the request.
 | `GET` | `/api/albums/:albumId` | ID token | — | `200` album |
 | `GET` | `/api/albums/:albumId/photos` | ID token | `?pageToken` | `200 {mediaItems, nextPageToken}` |
 | `GET` | `/api/photos/:photoId` | ID token | — | `200` media item · `404` if absent |
+| `POST` | `/api/events/:eventId/sheets` | ID token + event owner/admin | — | `200 {synced, eventId}` |
 
 Uploads are bounded-concurrency and **partial-failure tolerant**: a single bad
 photo no longer aborts the batch and strands the rest. Per-file failures come
 back in `failed[]` so the client can retry just those.
+
+### Google Sheets event export
+
+When an event is published, the app asks the backend to sync the authoritative
+Firestore event to two tabs: `Events` (one readable row per event) and
+`Improvements` (one row per nonzero dashboard-supported metric). Event IDs and
+metric labels make retries update existing rows instead of duplicating them.
+Firestore remains the source of truth; the app does not complete publishing
+until the export succeeds.
+
+For [Looker Studio's Google Sheets connector](https://docs.cloud.google.com/data-studio/connect-to-google-sheets),
+connect each worksheet as a separate data source and use row 1 as field names.
+The Events tab is the human-readable event summary; the Improvements tab is the
+normalized metric table for charts.
+
+Set `GOOGLE_SHEETS_SPREADSHEET_ID` to the ID in the sheet URL, and optionally
+change `GOOGLE_SHEETS_EVENTS_TAB` / `GOOGLE_SHEETS_IMPROVEMENTS_TAB`. Create the
+two tabs first; the backend fills in the standard headers if a tab is empty and
+rejects a nonmatching header row. Share the spreadsheet with the MVT Google
+account used by the existing OAuth flow, and enable the Google Sheets API in
+that OAuth client's Cloud project. Configure these before deploying the app:
+when Sheets is unavailable, publishing deliberately stays retryable in Drafts
+instead of silently claiming the export succeeded.
+
+The OAuth consent flow requests the Google Sheets scope in addition to Photos.
+An admin must complete `/auth/url` and the Google consent flow once to grant the
+new scope to the stored refresh token. If `GOOGLE_REFRESH_TOKEN` is configured
+as a backup, replace it with the newly issued refresh token. The Firebase ID
+tokens used by the app do not gain Google API access.
+
+To let anyone with the link edit, configure that in the spreadsheet's Google
+Drive **Share** dialog (`General access` → `Anyone with the link` → `Editor`).
+This makes the sheet broadly editable; use an MVT volunteer Google Group or
+specific accounts instead if that access becomes too broad. The backend does
+not change Drive sharing permissions.
 
 Limits default to 10 files × 10 MB. Raise via `MAX_UPLOAD_FILES` /
 `MAX_UPLOAD_BYTES_PER_FILE`, but note the whole request is buffered in memory —
