@@ -1,29 +1,40 @@
-import { Palette } from "@/constants/theme";
+import { Colors, Palette } from "@/constants/theme";
 import {
     GeoJSONSource,
     Layer,
     ViewAnnotation,
 } from "@maplibre/maplibre-react-native";
-import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 export type MapPin = {
     id: string;
     coordinates: [number, number];
+    title?: string;
+    locationName?: string;
+    imageUrl?: string;
+    status?: "Not started" | "In Progress" | "Completed";
+    elapsedTime?: string;
 };
 
 type Props = {
     pins?: MapPin[];
+    selectedId?: string;
+    onSelectPin?: (pin: MapPin) => void;
     trail?: React.ComponentProps<typeof GeoJSONSource>["data"];
 };
 
-export default function MapOverlays({ pins = [], trail }: Props) {
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-
+export default function MapOverlays({
+    pins = [],
+    trail,
+    selectedId,
+    onSelectPin,
+}: Props) {
     return (
         <>
             {trail && (
-                <GeoJSONSource id="mount-vernon-trail" data={trail}>
+                <GeoJSONSource
+                    id="mount-vernon-trail"
+                    data={trail}>
                     <Layer
                         id="trail-outline"
                         type="line"
@@ -32,7 +43,7 @@ export default function MapOverlays({ pins = [], trail }: Props) {
                             "line-join": "round",
                         }}
                         paint={{
-                            "line-color": "#ffffff",
+                            "line-color": Colors.light.background,
                             "line-width": 8,
                         }}
                     />
@@ -60,9 +71,7 @@ export default function MapOverlays({ pins = [], trail }: Props) {
                         id={pin.id}
                         lngLat={pin.coordinates}
                         anchor="bottom"
-                        onPress={() =>
-                            setSelectedId(selected ? null : pin.id)
-                        }>
+                        onPress={() => onSelectPin?.(pin)}>
                         <View
                             collapsable={false}
                             style={[
@@ -78,7 +87,7 @@ export default function MapOverlays({ pins = [], trail }: Props) {
                                     styles.dot,
                                     {
                                         backgroundColor: selected
-                                            ? "#ffffff"
+                                            ? Colors.light.background
                                             : Palette.primaryPurple100,
                                     },
                                 ]}

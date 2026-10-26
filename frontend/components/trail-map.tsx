@@ -1,26 +1,34 @@
 import { Palette } from "@/constants/theme";
 import { Camera, Map } from "@maplibre/maplibre-react-native";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import MapOverlays from "@/components/map-overlays";
-import {demoPins} from "@/data/map-demo";
+import {
+    ActivityIndicator,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
+import MapOverlays, { type MapPin } from "@/components/map-overlays";
+import { demoPins } from "@/data/map-demo";
 import trail from "@/data/mount-vernon-trail.json";
 import MileMarkers from "@/components/mile-markers";
 import { MAP_STYLES, type MapMode } from "@/config/map-styles";
 
 const TRAIL_DATA = JSON.stringify(trail);
 
-export default function TrailMap() {
+export default function TrailMap({ selectedIssue, onSelectIssue }: {
+    selectedIssue: MapPin | null;
+    onSelectIssue: (issue: MapPin) => void;
+}) {
     const [mode, setMode] = useState<MapMode>("normal");
     const [attempt, setAttempt] = useState(0);
-    const [status, setStatus] =
-        useState<"loading" | "loaded" | "error">("loading");
+    const [status, setStatus] = useState<"loading" | "loaded" | "error">(
+        "loading",
+    );
 
     function toggleMap() {
         setStatus("loading");
-        setMode((current) =>
-            current === "normal" ? "satellite" : "normal",
-        );
+        setMode((current) => (current === "normal" ? "satellite" : "normal"));
     }
 
     return (
@@ -41,6 +49,8 @@ export default function TrailMap() {
 
                 <MapOverlays
                     pins={demoPins}
+                    selectedId={selectedIssue?.id}
+                    onSelectPin={onSelectIssue}
                     trail={TRAIL_DATA}
                 />
 
@@ -70,9 +80,7 @@ export default function TrailMap() {
                             <ActivityIndicator
                                 color={Palette.primaryPurple100}
                             />
-                            <Text style={styles.text}>
-                                Loading map…
-                            </Text>
+                            <Text style={styles.text}>Loading map…</Text>
                         </>
                     ) : (
                         <>
