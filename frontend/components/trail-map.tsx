@@ -3,6 +3,7 @@ import { Camera, Map } from "@maplibre/maplibre-react-native";
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { fetchMapIssues } from "@/services/map-service";
+import { X } from "lucide-react-native";
 import {
     ActivityIndicator,
     Pressable,
@@ -29,9 +30,11 @@ export default function TrailMap({
     const [issueError, setIssueError] = useState<string | null>(null);
     const [issuesLoading, setIssuesLoading] = useState(true);
     const [unlocatedCount, setUnlocatedCount] = useState(0);
+    const [noticeDismissed, setNoticeDismissed] = useState(false);
     useFocusEffect(
         useCallback(() => {
             let active = true;
+            setNoticeDismissed(false);
             onSelectIssue(null);
             setIssuePins([]);
             setIssuesLoading(true);
@@ -106,16 +109,29 @@ export default function TrailMap({
                 <MileMarkers />
             </Map>
 
-            <View
-                style={styles.issueNotice}
-                accessibilityLiveRegion="polite">
-                <Text style={styles.text}>
-                    {issuesLoading
-                        ? "Loading trail issues…"
-                        : (issueError ??
-                          `${issuePins.length} issue pins${unlocatedCount ? ` · ${unlocatedCount} without a saved location` : ""}`)}
-                </Text>
-            </View>
+            {!noticeDismissed && (
+                <View
+                    style={styles.issueNotice}
+                    accessibilityLiveRegion="polite">
+                    <Text style={[styles.text, styles.issueNoticeText]}>
+                        {issuesLoading
+                            ? "Loading trail issues…"
+                            : (issueError ??
+                              `${issuePins.length} issue pins${unlocatedCount ? ` · ${unlocatedCount} without a saved location` : ""}`)}
+                    </Text>
+                    <Pressable
+                        onPress={() => setNoticeDismissed(true)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Dismiss issue pin notice"
+                        hitSlop={8}
+                        style={styles.dismissNotice}>
+                        <X
+                            size={18}
+                            color={Palette.primaryBlack70}
+                        />
+                    </Pressable>
+                </View>
+            )}
 
             <Pressable
                 accessibilityRole="button"
@@ -175,8 +191,11 @@ const styles = StyleSheet.create({
         backgroundColor: "#ffffff",
         borderRadius: 8,
         padding: 8,
+        flexDirection: "row",
         alignItems: "center",
     },
+    issueNoticeText: { flex: 1 },
+    dismissNotice: { padding: 8 },
 
     switchButton: {
         position: "absolute",
