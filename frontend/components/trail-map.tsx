@@ -1,6 +1,8 @@
 import { Palette } from "@/constants/theme";
 import { Camera, Map } from "@maplibre/maplibre-react-native";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { fetchMapIssues } from "@/services/map-service";
 import {
     ActivityIndicator,
     Pressable,
@@ -16,10 +18,57 @@ import { MAP_STYLES, type MapMode } from "@/config/map-styles";
 
 const TRAIL_DATA = JSON.stringify(trail);
 
-export default function TrailMap({ selectedIssue, onSelectIssue }: {
+export default function TrailMap({
+    selectedIssue,
+    onSelectIssue,
+}: {
     selectedIssue: MapPin | null;
-    onSelectIssue: (issue: MapPin) => void;
+    onSelectIssue: (issue: MapPin | null) => void;
 }) {
+    const [issuePins, setIssuePins] = useState<MapPin[]>([]);
+    const [issueError, setIssueError] = useState<string | null>(null);
+    const [issuesLoading, setIssuesLoading] = useState(true);
+    const [unlocatedCount, setUnlocatedCount] = useState(0);
+    useFocusEffect(
+        useCallback(() => {
+            let active = true;
+            onSelectIssue(null);
+            setIssuePins([]);
+            setIssuesLoading(true);
+            setIssueError(null);
+            const load = async () => {
+                try {
+                    const key = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
+                    if (!key) throw new Error("Trello API key is missing.");
+                    const result = await fetchMapIssues(key);
+                    if (!active) return;
+                    setIssuePins(
+                        result.geojson.features.map((feature) => ({
+                            id: feature.properties.cardId,
+                            title: feature.properties.name,
+                            locationName: feature.properties.locationName,
+                            imageUrl: feature.properties.imageUrl ?? undefined,
+                            coordinates: feature.geometry.coordinates,
+                        })),
+                    );
+                    setUnlocatedCount(result.unlocatedIssues.length);
+                } catch (error) {
+                    if (active)
+                        setIssueError(
+                            error instanceof Error
+                                ? error.message
+                                : "Could not load trail issues.",
+                        );
+                } finally {
+                    if (active) setIssuesLoading(false);
+                }
+            };
+            void load();
+            return () => {
+                active = false;
+            };
+        }, [onSelectIssue]),
+    );
     const [mode, setMode] = useState<MapMode>("normal");
     const [attempt, setAttempt] = useState(0);
     const [status, setStatus] = useState<"loading" | "loaded" | "error">(
@@ -48,7 +97,7 @@ export default function TrailMap({ selectedIssue, onSelectIssue }: {
                 />
 
                 <MapOverlays
-                    pins={demoPins}
+                    pins={[...issuePins, ...demoPins]}
                     selectedId={selectedIssue?.id}
                     onSelectPin={onSelectIssue}
                     trail={TRAIL_DATA}
@@ -56,6 +105,17 @@ export default function TrailMap({ selectedIssue, onSelectIssue }: {
 
                 <MileMarkers />
             </Map>
+
+            <View
+                style={styles.issueNotice}
+                accessibilityLiveRegion="polite">
+                <Text style={styles.text}>
+                    {issuesLoading
+                        ? "Loading trail issues…"
+                        : (issueError ??
+                          `${issuePins.length} issue pins${unlocatedCount ? ` · ${unlocatedCount} without a saved location` : ""}`)}
+                </Text>
+            </View>
 
             <Pressable
                 accessibilityRole="button"
@@ -107,6 +167,16 @@ export default function TrailMap({ selectedIssue, onSelectIssue }: {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     map: { flex: 1 },
+    issueNotice: {
+        position: "absolute",
+        bottom: 8,
+        left: 16,
+        right: 16,
+        backgroundColor: "#ffffff",
+        borderRadius: 8,
+        padding: 8,
+        alignItems: "center",
+    },
 
     switchButton: {
         position: "absolute",

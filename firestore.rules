@@ -25,6 +25,34 @@ service cloud.firestore {
             return request.resource.data.diff(resource.data).affectedKeys();
         }
 
+        // Location cache only: Trello Intake membership still determines pins.
+        match /issueLocations/{trelloCardId} {
+            function validLocation(location) {
+                return location == null || (
+                    location is map
+                    && location.keys().hasAll(['locationName', 'latitude', 'longitude', 'source'])
+                    && location.keys().hasOnly(['locationName', 'latitude', 'longitude', 'source'])
+                    && location.locationName is string
+                    && location.locationName.size() > 0
+                    && location.locationName.size() <= 200
+                    && location.latitude is number
+                    && location.latitude >= -90 && location.latitude <= 90
+                    && location.longitude is number
+                    && location.longitude >= -180 && location.longitude <= 180
+                    && location.source in ['title', 'photo', 'manual']
+                );
+            }
+
+            allow read: if isSignedIn();
+            allow create, update: if isAdmin()
+                && request.resource.data.keys().hasAll(['trelloCardId', 'location', 'updatedAt'])
+                && request.resource.data.keys().hasOnly(['trelloCardId', 'location', 'updatedAt'])
+                && request.resource.data.trelloCardId == trelloCardId
+                && validLocation(request.resource.data.location)
+                && request.resource.data.updatedAt == request.time;
+            allow delete: if isAdmin();
+        }
+
         match /events/{eventId} {
             // Deliberately readable by any signed-in user: the pre-start event
             // modal on home-screen must read an admin-created event the
