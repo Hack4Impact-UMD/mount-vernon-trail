@@ -12,10 +12,8 @@ const GOOGLE_ANDROID_CLIENT_ID =
     process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || "";
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || "";
 
-// Identity only. Google Photos is reached through the backend proxy using the
-// MVT account's own credentials, and the Sheets client (api/googleSheetsClient.ts)
-// is not wired up, so the app needs no photoslibrary.* or spreadsheets access
-// from volunteers. If Sheets is wired up, do it through the backend, not here.
+// Identity only. Google Photos and Sheets use the backend with the MVT account's
+// credentials, so volunteers do not grant Google API scopes to the app.
 export const googleAuthConfig = {
     webClientId: GOOGLE_WEB_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,

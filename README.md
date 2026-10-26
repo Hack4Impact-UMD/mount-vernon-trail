@@ -5,12 +5,12 @@
 Hello and welcome to the Friends of the Mount Vernon Trail project!
 We'll be working, communicating, and logging bugs here, as well as in our other communication channels.
 
-Volunteers use the app to document trail issues during a work event: they photograph a problem before and after fixing it, record metrics, and publish a summary to Trello. The photos go into a **shared Google Photos album owned by the MVT account**, which is what the backend exists to make possible.
+Volunteers use the app to document trail issues during a work event: they photograph a problem before and after fixing it, record metrics, and publish a summary to Trello. The photos go into a **shared Google Photos album owned by the MVT account**; completed event metrics are exported to a shared Google Sheet for reporting.
 
 ## Repo layout
 
 - [`frontend/`](frontend/) — the Expo (React Native) app. `cd frontend && npm install && npm start`.
-- [`backend/`](backend/) — Node + TypeScript service that proxies Google Photos uploads into the MVT-owned album. Volunteers authenticate to it with their Firebase ID token; it holds the single Google refresh token. Deployed on Render. See [`backend/README.md`](backend/README.md) for the API and setup.
+- [`backend/`](backend/) — Node + TypeScript service that proxies Google Photos uploads and exports published metrics to Google Sheets using the MVT account. Volunteers authenticate with their Firebase ID token; the service holds the Google refresh token. Deployed on Render. See [`backend/README.md`](backend/README.md) for the API and setup.
 - [`firestore.rules`](firestore.rules) / [`firestore.indexes.json`](firestore.indexes.json) — Firestore security rules and composite indexes. Deployed by a lead, indexes before rules — see [Admin setup](#admin-setup-once-per-firebase-project-leads-only).
 - [`firestore/`](firestore/) — emulator-backed tests for those rules.
 

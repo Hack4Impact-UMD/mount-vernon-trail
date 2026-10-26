@@ -10,9 +10,9 @@ problem, fix it, photograph it again, record metrics, then publish a summary to
 Trello.
 
 The before/after photos land in **one shared Google Photos album owned by the MVT
-account** — not in any volunteer's personal library. That single requirement is
-why `backend/` exists: the app has no Google Photos credentials and reaches the
-album only through our own proxy.
+account** — not in any volunteer's personal library. Event metrics are exported
+to the MVT Google Sheet by the same backend when a draft is published. The app
+holds neither Google Photos nor Sheets credentials.
 
 ## Repo shape
 
@@ -23,7 +23,7 @@ package first.
 | Path | What | Nested guidance |
 |---|---|---|
 | `frontend/` | Expo / React Native app | [frontend/CLAUDE.md](frontend/CLAUDE.md) |
-| `backend/` | Express proxy to Google Photos | [backend/CLAUDE.md](backend/CLAUDE.md) |
+| `backend/` | Express proxy for Google Photos and event Sheets export | [backend/CLAUDE.md](backend/CLAUDE.md) |
 | `firestore/` | Emulator tests for `firestore.rules` | [firestore/CLAUDE.md](firestore/CLAUDE.md) |
 
 Cross-package flows (event setup saga, photo pipeline, event lifecycle) are in
@@ -34,8 +34,8 @@ Cross-package flows (event setup saga, photo pipeline, event lifecycle) are in
 Run every gate the package actually has, exactly as CI does on each PR.
 
 ```bash
-cd frontend  && npm run typecheck && npm run lint && npm test   # 70 tests, ~1s
-cd backend   && npm run typecheck && npm run lint && npm test   # 93 tests, ~3s
+cd frontend  && npm run typecheck && npm run lint && npm test   # 81 tests, ~1s
+cd backend   && npm run typecheck && npm run lint && npm test   # 100 tests, ~3s
 cd firestore && npm run typecheck && npm test                   # 35 tests, ~3s + emulator boot
 ```
 
@@ -56,14 +56,15 @@ CI is [.github/workflows/ci.yml](.github/workflows/ci.yml) — three independent
 jobs on every pull request and every push to `main`, Node 22, plus Temurin 17 for
 the rules job. The backend job also runs `npm run build`.
 
-## The three systems
+## The four systems
 
 One user flow spans three backends, each reached a different way:
 
 | System | How it is reached | Enforced by |
 |---|---|---|
-| **Firestore** | directly from the device, Firebase web SDK v11 | [firestore.rules](firestore.rules) |
+| **Firestore** | directly from the device; backend reads completed events for export | client access: [firestore.rules](firestore.rules); export: event owner/admin check |
 | **Google Photos** | only via `backend/`, never directly | Firebase ID token, then the MVT refresh token |
+| **Google Sheets** | event export via `backend/` on publish | Firebase ID token, event owner/admin check, then the MVT refresh token |
 | **Trello** | directly from the device, per-volunteer OAuth token | Trello |
 
 ## Data model
@@ -145,11 +146,11 @@ still-building index indistinguishably from a ready one.
 | [audits/2026-08-06-project-audit.md](audits/2026-08-06-project-audit.md) | **Historical (2026-08-06)** — describes the pre-refactor code |
 | [Feature Proposals (Google Doc)](https://docs.google.com/document/d/1DfmFrSI6qNeEN60E3PMVdfsyXaQmNKZsC4z6P3O_Ynk/edit) | **Historical (2026-08-06)** — premises partly obsolete; kept outside the repo |
 
-The audit and the proposals were written before the `stack/01`–`stack/15` refactor
-series. Most of the audit's findings are fixed, and the proposals' top-ranked
-feature is built on a Google Sheets client that is kept but not wired up. Both carry
-a banner saying so. **Do not treat either as a current to-do list** — check the
-code before acting on anything in them.
+The audit and proposals were written before the `stack/01`–`stack/15` refactor
+series. Most of the audit's findings are fixed; the proposals' Sheets idea is now
+implemented as a backend export on event publish. Both documents carry a banner
+explaining their historical status. **Do not treat either as a current to-do
+list** — check the code before acting on anything in them.
 
 ## Conventions
 
