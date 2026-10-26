@@ -42,6 +42,7 @@
     "expo-camera": "~57.0.6",
     "expo-constants": "~57.0.20",
     "expo-crypto": "~57.0.3",
+    "expo-dev-client": "~57.0.19",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-image": "~57.0.5",
@@ -82,6 +83,11 @@
     "prettier": "^3.8.1",
     "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "@firebase/firestore": {
+      "@grpc/grpc-js": "1.13.6"
+    }
   },
   "private": true
 }
