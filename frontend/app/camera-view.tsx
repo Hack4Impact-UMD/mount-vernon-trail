@@ -260,15 +260,6 @@ export default function CameraViewScreen() {
                         ref={cameraRef}
                         zoom={zoom}
                     />
-                    {/* Rule-of-thirds grid for lining up horizontal and vertical edges so before/after shots match. */}
-                    {showGrid && (
-                        <View style={[styles.gridContainer, { bottom: insets.bottom + 125 }]} pointerEvents="none">
-                            <View style={[styles.gridLineV, { left: '33.33%' }]} />
-                            <View style={[styles.gridLineV, { left: '66.66%' }]} />
-                            <View style={[styles.gridLineH, { top: '33.33%' }]} />
-                            <View style={[styles.gridLineH, { top: '66.66%' }]} />
-                        </View>
-                    )}
                     {resolveMode === 'after' && overlayUri && (
                         <View style={[ StyleSheet.absoluteFill, { opacity: overlayOpacity }]} pointerEvents="none">
                             <Image
@@ -276,6 +267,16 @@ export default function CameraViewScreen() {
                                 resizeMode="cover"
                                 style={{ flex : 1 }}
                             />
+                        </View>
+                    )}
+                    {/* Rule-of-thirds grid for lining up horizontal and vertical edges so before/after shots match.
+                        Rendered after the ghost overlay so the overlay doesn't dim the grid lines. */}
+                    {showGrid && (
+                        <View style={[styles.gridContainer, { bottom: insets.bottom + 125 }]} pointerEvents="none">
+                            <View style={[styles.gridLineV, { left: '33.33%' }]} />
+                            <View style={[styles.gridLineV, { left: '66.66%' }]} />
+                            <View style={[styles.gridLineH, { top: '33.33%' }]} />
+                            <View style={[styles.gridLineH, { top: '66.66%' }]} />
                         </View>
                     )}
                     {/* white screen flash */}
