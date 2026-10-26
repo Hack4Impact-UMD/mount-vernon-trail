@@ -2,7 +2,7 @@ import { Colors, Palette } from "@/constants/theme";
 import type { MapPin } from "@/components/map-overlays";
 import { Image } from "expo-image";
 import { X } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Animated,
     Easing,
@@ -23,13 +23,15 @@ export default function MapIssueCard({
 }) {
     const insets = useSafeAreaInsets();
     const { height } = useWindowDimensions();
-    const progress = useRef(new Animated.Value(0)).current;
+    const [progress] = useState(() => new Animated.Value(0));
     const [displayedIssue, setDisplayedIssue] = useState<MapPin | null>(
         selectedIssue,
     );
     const issue = selectedIssue ?? displayedIssue;
+    if (selectedIssue && selectedIssue !== displayedIssue) {
+        setDisplayedIssue(selectedIssue);
+    }
     useEffect(() => {
-        if (selectedIssue) setDisplayedIssue(selectedIssue);
         const animation = Animated.timing(progress, {
             toValue: selectedIssue ? 1 : 0,
             duration: selectedIssue ? 280 : 320,
