@@ -1,0 +1,23 @@
+import BottomNav from "@/components/ui/bottom-nav";
+import Header from "@/components/ui/header";
+import TrailMap from "@/components/trail-map";
+import MapIssueCard from "@/components/map-issue-card";
+import type { MapPin } from "@/components/map-overlays";
+import { useState } from "react";
+import { StyleSheet, View } from "react-native";
+
+export default function MapsScreen() {
+    const [selectedIssue, setSelectedIssue] = useState<MapPin | null>(null);
+    return (
+        <View style={styles.screen}>
+            <Header />
+            <TrailMap selectedIssue={selectedIssue} onSelectIssue={setSelectedIssue} />
+            <BottomNav active="maps" />
+            <MapIssueCard issue={selectedIssue} onClose={() => setSelectedIssue(null)} />
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    screen: { flex: 1, backgroundColor: "#ffffff" },
+});

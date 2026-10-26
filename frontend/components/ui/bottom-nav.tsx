@@ -1,16 +1,17 @@
 import { Palette } from "@/constants/theme";
 import { usePathname, useRouter } from "expo-router";
-import { FileText, House, Images, User } from "lucide-react-native";
+import { FileText, House, Images, MapPin, User } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type TabKey = "home" | "drafts" | "albums" | "profile";
+type TabKey = "home" | "drafts" | "albums" | "maps" | "profile";
 
 const ROUTES: Record<TabKey, string> = {
     home: "/home-screen",
     drafts: "/drafts",
     albums: "/albums",
+    maps: "/maps",
     profile: "/profile",
 };
 
@@ -65,6 +66,11 @@ const navItems: {
                 strokeWidth={1.8}
             />
         ),
+    },
+    {
+        key: "maps",
+        label: "Map",
+        icon: (color) => <MapPin size={25} color={color} strokeWidth={1.8} />,
     },
     {
         key: "profile",
@@ -142,7 +148,7 @@ const styles = StyleSheet.create({
     navItem: {
         alignItems: "center",
         justifyContent: "center",
-        minWidth: 70,
+        flex: 1,
         gap: 5,
     },
     label: {

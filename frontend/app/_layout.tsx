@@ -39,6 +39,7 @@ const AUTH_ROUTES = new Set([
     "drafts",
     "albums",
     "profile",
+    "maps",
     "before-after-graphic",
 ]);
 
@@ -159,6 +160,10 @@ function RootNavigator() {
                 />
                 <Stack.Screen
                     name="albums"
+                    options={{ headerShown: false, animation: "none" }}
+                />
+                <Stack.Screen
+                    name="maps"
                     options={{ headerShown: false, animation: "none" }}
                 />
                 <Stack.Screen
