@@ -1,6 +1,7 @@
 import { getListId, getTrelloClient } from "./trello-config";
 import type { Card } from "./trello-types";
 import { resolveFirestoreIssueLocation } from "./issue-location-service";
+import { resolveTrelloIssueLocation } from "./trello-issue-location";
 
 export type MapLocation = {
     /** GeoJSON order: longitude, latitude. */
@@ -60,14 +61,19 @@ export function filterMapIssues(
     };
 }
 
+async function resolveIssueLocation(card: Card): Promise<MapLocation | null> {
+    const saved = await resolveFirestoreIssueLocation(card);
+    return saved ?? resolveTrelloIssueLocation(card);
+}
+
 /** Fetch on map focus/refresh; Intake membership is the pin source of truth. */
 export async function fetchMapIssues(
     key: string,
-    resolveLocation: ResolveMapLocation = resolveFirestoreIssueLocation,
+    resolveLocation: ResolveMapLocation = resolveIssueLocation,
 ): Promise<MapIssueData> {
     const listId = await getListId("trailIssues", key);
     const trello = getTrelloClient(key);
-    const cards = await trello.getCards(listId, false, "cover");
+    const cards = await trello.getCards(listId, false, true);
     const result: MapIssueData = {
         geojson: { type: "FeatureCollection", features: [] },
         unlocatedIssues: [],
@@ -89,7 +95,7 @@ export async function fetchMapIssues(
             result.unlocatedIssues.push({ cardId: card.id, name: card.name });
             continue;
         }
-        const image = card.attachments?.find(attachment =>
+        const image = card.attachments?.find((attachment) =>
             attachment.mimeType?.startsWith("image/"),
         );
         // A failed photo must not hide an otherwise valid issue pin.

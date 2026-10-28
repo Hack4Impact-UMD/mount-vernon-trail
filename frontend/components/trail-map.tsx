@@ -7,18 +7,19 @@ import {
 } from "@maplibre/maplibre-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { fetchMapIssues } from "@/services/map-service";
-import { LocateFixed, X } from "lucide-react-native";
+import { fetchMapIssues, type MapIssueData } from "@/services/map-service";
+import { LocateFixed, RefreshCw, X } from "lucide-react-native";
 import { useUserLocation } from "@/hooks/use-user-location";
 import {
     ActivityIndicator,
+    Modal,
     Pressable,
+    ScrollView,
     StyleSheet,
     Text,
     View,
 } from "react-native";
 import MapOverlays, { type MapPin } from "@/components/map-overlays";
-import { demoPins } from "@/data/map-demo";
 import trail from "@/data/mount-vernon-trail.json";
 import MileMarkers from "@/components/mile-markers";
 import { MAP_STYLES, type MapMode } from "@/config/map-styles";
@@ -54,7 +55,12 @@ export default function TrailMap({
     const [issuePins, setIssuePins] = useState<MapPin[]>([]);
     const [issueError, setIssueError] = useState<string | null>(null);
     const [issuesLoading, setIssuesLoading] = useState(true);
-    const [unlocatedCount, setUnlocatedCount] = useState(0);
+    const [unlocatedIssues, setUnlocatedIssues] = useState<
+        MapIssueData["unlocatedIssues"]
+    >([]);
+    const [showUnlocated, setShowUnlocated] = useState(false);
+    const [refresh, setRefresh] = useState(0);
+    const refreshVersion = useRef(0);
     const [noticeDismissed, setNoticeDismissed] = useState(false);
     useFocusEffect(
         useCallback(() => {
@@ -62,6 +68,7 @@ export default function TrailMap({
             setNoticeDismissed(false);
             onSelectIssue(null);
             setIssuePins([]);
+            setUnlocatedIssues([]);
             setIssuesLoading(true);
             setIssueError(null);
             const load = async () => {
@@ -69,7 +76,7 @@ export default function TrailMap({
                     const key = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
                     if (!key) throw new Error("Trello API key is missing.");
                     const result = await fetchMapIssues(key);
-                    if (!active) return;
+                    if (!active || refresh !== refreshVersion.current) return;
                     setIssuePins(
                         result.geojson.features.map((feature) => ({
                             id: feature.properties.cardId,
@@ -79,7 +86,7 @@ export default function TrailMap({
                             coordinates: feature.geometry.coordinates,
                         })),
                     );
-                    setUnlocatedCount(result.unlocatedIssues.length);
+                    setUnlocatedIssues(result.unlocatedIssues);
                 } catch (error) {
                     if (active)
                         setIssueError(
@@ -95,7 +102,7 @@ export default function TrailMap({
             return () => {
                 active = false;
             };
-        }, [onSelectIssue]),
+        }, [onSelectIssue, refresh]),
     );
     const [mode, setMode] = useState<MapMode>("normal");
     const [attempt, setAttempt] = useState(0);
@@ -126,7 +133,7 @@ export default function TrailMap({
                 />
 
                 <MapOverlays
-                    pins={[...issuePins, ...demoPins]}
+                    pins={issuePins}
                     selectedId={selectedIssue?.id}
                     onSelectPin={onSelectIssue}
                     trail={TRAIL_DATA}
@@ -193,8 +200,32 @@ export default function TrailMap({
                         {issuesLoading
                             ? "Loading trail issues…"
                             : (issueError ??
-                              `${issuePins.length} issue pins${unlocatedCount ? ` · ${unlocatedCount} without a saved location` : ""}`)}
+                              `${issuePins.length + unlocatedIssues.length} intake cards · ${issuePins.length} pins${unlocatedIssues.length ? ` · ${unlocatedIssues.length} need a location` : ""}`)}
                     </Text>
+                    {!issuesLoading && unlocatedIssues.length > 0 && (
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="View cards that need a location"
+                            onPress={() => setShowUnlocated(true)}
+                            style={styles.dismissNotice}>
+                            <Text style={styles.retry}>Details</Text>
+                        </Pressable>
+                    )}
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Refresh intake cards"
+                        disabled={issuesLoading}
+                        accessibilityState={{ disabled: issuesLoading }}
+                        onPress={() => {
+                            refreshVersion.current += 1;
+                            setRefresh(refreshVersion.current);
+                        }}
+                        style={styles.dismissNotice}>
+                        <RefreshCw
+                            size={18}
+                            color={Palette.primaryPurple100}
+                        />
+                    </Pressable>
                     <Pressable
                         onPress={() => setNoticeDismissed(true)}
                         accessibilityRole="button"
@@ -222,6 +253,39 @@ export default function TrailMap({
                     {mode === "normal" ? "Satellite" : "Normal"}
                 </Text>
             </Pressable>
+
+            <Modal
+                visible={showUnlocated}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowUnlocated(false)}>
+                <View style={styles.modalBackdrop}>
+                    <View style={styles.unlocatedSheet}>
+                        <Text style={styles.sheetTitle}>
+                            Cards needing a location
+                        </Text>
+                        <Text style={styles.text}>
+                            These intake cards were loaded from Trello. Add a
+                            saved location, latitude and longitude, or a map
+                            link with explicit coordinates to place a pin.
+                        </Text>
+                        <ScrollView style={styles.unlocatedList}>
+                            {unlocatedIssues.map((issue) => (
+                                <Text
+                                    key={issue.cardId}
+                                    style={styles.unlocatedName}>
+                                    {issue.name}
+                                </Text>
+                            ))}
+                        </ScrollView>
+                        <Pressable
+                            accessibilityRole="button"
+                            onPress={() => setShowUnlocated(false)}>
+                            <Text style={styles.retry}>Close</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
 
             {status !== "loaded" && (
                 <View
@@ -269,6 +333,30 @@ const styles = StyleSheet.create({
         padding: 8,
         flexDirection: "row",
         alignItems: "center",
+    },
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: "#00000055",
+        justifyContent: "center",
+        padding: 24,
+    },
+    unlocatedSheet: {
+        backgroundColor: "#ffffff",
+        borderRadius: 16,
+        padding: 20,
+        gap: 16,
+        maxHeight: "80%",
+    },
+    sheetTitle: {
+        fontFamily: "Lato_700Bold",
+        fontSize: 20,
+        color: Palette.primaryBlack100,
+    },
+    unlocatedList: { flexGrow: 0 },
+    unlocatedName: {
+        fontFamily: "Lato_400Regular",
+        paddingVertical: 12,
+        color: Palette.primaryBlack100,
     },
     issueNoticeText: { flex: 1 },
     dismissNotice: { padding: 8 },
