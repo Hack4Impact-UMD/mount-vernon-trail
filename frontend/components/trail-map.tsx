@@ -1,9 +1,15 @@
 import { Palette } from "@/constants/theme";
-import { Camera, Map } from "@maplibre/maplibre-react-native";
-import { useCallback, useState } from "react";
+import {
+    Camera,
+    Map,
+    ViewAnnotation,
+    type CameraRef,
+} from "@maplibre/maplibre-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { fetchMapIssues } from "@/services/map-service";
-import { X } from "lucide-react-native";
+import { LocateFixed, X } from "lucide-react-native";
+import { useUserLocation } from "@/hooks/use-user-location";
 import {
     ActivityIndicator,
     Pressable,
@@ -26,6 +32,25 @@ export default function TrailMap({
     selectedIssue: MapPin | null;
     onSelectIssue: (issue: MapPin | null) => void;
 }) {
+    const camera = useRef<CameraRef>(null);
+    const centerOnNextFix = useRef(false);
+    const {
+        position,
+        status: locationStatus,
+        error: locationError,
+        locate,
+    } = useUserLocation();
+    const locationBusy =
+        locationStatus === "requesting" || locationStatus === "locating";
+    useEffect(() => {
+        if (!position || !centerOnNextFix.current) return;
+        centerOnNextFix.current = false;
+        camera.current?.flyTo({
+            center: [position.coords.longitude, position.coords.latitude],
+            zoom: 14,
+            duration: 800,
+        });
+    }, [position]);
     const [issuePins, setIssuePins] = useState<MapPin[]>([]);
     const [issueError, setIssueError] = useState<string | null>(null);
     const [issuesLoading, setIssuesLoading] = useState(true);
@@ -93,6 +118,7 @@ export default function TrailMap({
                 onDidFinishLoadingStyle={() => setStatus("loaded")}
                 onDidFailLoadingMap={() => setStatus("error")}>
                 <Camera
+                    ref={camera}
                     initialViewState={{
                         center: [-77.06, 38.78],
                         zoom: 10,
@@ -107,7 +133,57 @@ export default function TrailMap({
                 />
 
                 <MileMarkers />
+                {position && (
+                    <ViewAnnotation
+                        id="current-user-location"
+                        lngLat={[
+                            position.coords.longitude,
+                            position.coords.latitude,
+                        ]}
+                        anchor="center">
+                        <View
+                            collapsable={false}
+                            accessible
+                            accessibilityLabel="Your current location"
+                            style={styles.userLocationHalo}>
+                            <View style={styles.userLocationDot} />
+                        </View>
+                    </ViewAnnotation>
+                )}
             </Map>
+
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Show my current location"
+                accessibilityState={{
+                    disabled: locationBusy,
+                    busy: locationBusy,
+                }}
+                disabled={locationBusy}
+                onPress={() => {
+                    centerOnNextFix.current = true;
+                    void locate();
+                }}
+                style={styles.locationButton}>
+                {locationBusy ? (
+                    <ActivityIndicator color={Palette.primaryPurple100} />
+                ) : (
+                    <LocateFixed
+                        size={20}
+                        color={Palette.primaryPurple100}
+                    />
+                )}
+                <Text style={styles.switchText}>
+                    {locationBusy ? "Finding location…" : "My location"}
+                </Text>
+            </Pressable>
+            {status === "loaded" && locationError && (
+                <View
+                    style={styles.notice}
+                    accessibilityLiveRegion="polite">
+                    <Text style={styles.text}>{locationError}</Text>
+                </View>
+            )}
 
             {!noticeDismissed && (
                 <View
@@ -212,6 +288,37 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 4,
+    },
+    locationButton: {
+        position: "absolute",
+        right: 16,
+        bottom: 64,
+        backgroundColor: "#ffffff",
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: Palette.primaryPurple30,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        minHeight: 48,
+    },
+    userLocationHalo: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: "#1976D233",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    userLocationDot: {
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        backgroundColor: "#1976D2",
+        borderWidth: 2,
+        borderColor: "#ffffff",
     },
     switchText: {
         color: Palette.primaryPurple100,
