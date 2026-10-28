@@ -35,6 +35,12 @@ import MonumentSearch from "@/components/monument-search";
 import { MAP_STYLES, type MapMode } from "@/config/map-styles";
 
 const TRAIL_DATA = JSON.stringify(trail);
+// Derive the full extent from the rendered trail, rather than a fixed center/zoom.
+const TRAIL_BOUNDS: [number, number, number, number] = trail.features
+    .flatMap((feature) => feature.geometry.coordinates)
+    .reduce<
+        [number, number, number, number]
+    >((bounds, [longitude, latitude]) => [Math.min(bounds[0], longitude), Math.min(bounds[1], latitude), Math.max(bounds[2], longitude), Math.max(bounds[3], latitude)], [Infinity, Infinity, -Infinity, -Infinity]);
 
 export default function TrailMap({
     selectedIssue,
@@ -326,6 +332,31 @@ export default function TrailMap({
                         {locationBusy ? "Finding location…" : "My location"}
                     </Text>
                 </Pressable>
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Recenter map to the whole Mount Vernon Trail"
+                    accessibilityHint="Fits the entire trail on screen"
+                    disabled={status !== "loaded"}
+                    accessibilityState={{ disabled: status !== "loaded" }}
+                    onPress={() => {
+                        centerOnNextFix.current = false;
+                        onSelectIssue(null);
+                        setSelectedMonument(null);
+                        camera.current?.fitBounds(TRAIL_BOUNDS, {
+                            padding: {
+                                top: 40,
+                                right: 40,
+                                bottom: 136,
+                                left: 40,
+                            },
+                            bearing: 0,
+                            pitch: 0,
+                            duration: 800,
+                        });
+                    }}
+                    style={[styles.switchButton, styles.recenterButton]}>
+                    <Text style={styles.switchText}>Recenter</Text>
+                </Pressable>
                 {status === "loaded" && locationError && (
                     <View
                         style={styles.notice}
@@ -508,6 +539,8 @@ const styles = StyleSheet.create({
     dismissNotice: { padding: 8 },
 
     switchButton: {
+        width: 104,
+        alignItems: "center",
         position: "absolute",
         left: 16,
         bottom: 64,
@@ -538,6 +571,7 @@ const styles = StyleSheet.create({
         gap: 8,
         minHeight: 48,
     },
+    recenterButton: { bottom: 120 },
     userLocationHalo: {
         width: 32,
         height: 32,
