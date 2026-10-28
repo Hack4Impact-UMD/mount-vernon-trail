@@ -27,6 +27,7 @@ export type MapIssueFeature = {
 
 export type MapIssueData = {
     geojson: { type: "FeatureCollection"; features: MapIssueFeature[] };
+    issueAliases: Record<string, string>;
     unlocatedIssues: { cardId: string; name: string }[];
 };
 
@@ -77,7 +78,22 @@ export async function fetchMapIssues(
     const result: MapIssueData = {
         geojson: { type: "FeatureCollection", features: [] },
         unlocatedIssues: [],
+        issueAliases: {},
     };
+
+    for (const card of cards) {
+        result.issueAliases[card.id] = card.id;
+        if (card.shortUrl) {
+            try {
+                const url = new URL(card.shortUrl);
+                const link = /^\/c\/([a-zA-Z0-9]+)(?:\/|$)/.exec(url.pathname);
+                if (url.hostname === "trello.com" && link)
+                    result.issueAliases[link[1]] = card.id;
+            } catch {
+                // A malformed short URL does not invalidate the issue itself.
+            }
+        }
+    }
 
     const locations = await Promise.all(
         cards.map((card) => resolveLocation(card)),

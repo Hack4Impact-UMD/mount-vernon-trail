@@ -7,6 +7,12 @@ import {
 } from "@maplibre/maplibre-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
+import MapEventFilter from "@/components/map-event-filter";
+import {
+    fetchMapEvents,
+    filterIssuesByEvent,
+    type MapEvent,
+} from "@/services/map-event-service";
 import { fetchMapIssues, type MapIssueData } from "@/services/map-service";
 import { LocateFixed, RefreshCw, X } from "lucide-react-native";
 import { useUserLocation } from "@/hooks/use-user-location";
@@ -52,12 +58,65 @@ export default function TrailMap({
             duration: 800,
         });
     }, [position]);
-    const [issuePins, setIssuePins] = useState<MapPin[]>([]);
+    const [issueData, setIssueData] = useState<MapIssueData | null>(null);
+    const [events, setEvents] = useState<MapEvent[]>([]);
+    const [eventsError, setEventsError] = useState<string | null>(null);
+    const [eventsLoading, setEventsLoading] = useState(true);
+    const [selectedEvent, setSelectedEvent] = useState("all");
+    const effectiveEvent =
+        eventsLoading ||
+        eventsError ||
+        (selectedEvent !== "unassigned" &&
+            selectedEvent !== "all" &&
+            !events.some((event) => event.id === selectedEvent))
+            ? "all"
+            : selectedEvent;
+    const filteredData = issueData
+        ? filterIssuesByEvent(issueData, events, effectiveEvent)
+        : null;
+    const issuePins: MapPin[] = (filteredData?.geojson.features ?? []).map(
+        (feature) => ({
+            id: feature.properties.cardId,
+            title: feature.properties.name,
+            locationName: feature.properties.locationName,
+            imageUrl: feature.properties.imageUrl ?? undefined,
+            coordinates: feature.geometry.coordinates,
+        }),
+    );
+    const unlocatedIssues = filteredData?.unlocatedIssues ?? [];
+    const options = issueData
+        ? [
+              {
+                  id: "all",
+                  name: "All issues",
+                  count:
+                      issueData.geojson.features.length +
+                      issueData.unlocatedIssues.length,
+              },
+              {
+                  id: "unassigned",
+                  name: "Unassigned",
+                  count: (() => {
+                      const data = filterIssuesByEvent(
+                          issueData,
+                          events,
+                          "unassigned",
+                      );
+                      return (
+                          data.geojson.features.length +
+                          data.unlocatedIssues.length
+                      );
+                  })(),
+              },
+              ...events.map((event) => ({
+                  id: event.id,
+                  name: event.name,
+                  count: event.issueIds.length,
+              })),
+          ]
+        : [{ id: "all", name: "All issues", count: 0 }];
     const [issueError, setIssueError] = useState<string | null>(null);
     const [issuesLoading, setIssuesLoading] = useState(true);
-    const [unlocatedIssues, setUnlocatedIssues] = useState<
-        MapIssueData["unlocatedIssues"]
-    >([]);
     const [showUnlocated, setShowUnlocated] = useState(false);
     const [refresh, setRefresh] = useState(0);
     const refreshVersion = useRef(0);
@@ -67,8 +126,10 @@ export default function TrailMap({
             let active = true;
             setNoticeDismissed(false);
             onSelectIssue(null);
-            setIssuePins([]);
-            setUnlocatedIssues([]);
+            setIssueData(null);
+            setEvents([]);
+            setEventsError(null);
+            setEventsLoading(true);
             setIssuesLoading(true);
             setIssueError(null);
             const load = async () => {
@@ -77,16 +138,23 @@ export default function TrailMap({
                     if (!key) throw new Error("Trello API key is missing.");
                     const result = await fetchMapIssues(key);
                     if (!active || refresh !== refreshVersion.current) return;
-                    setIssuePins(
-                        result.geojson.features.map((feature) => ({
-                            id: feature.properties.cardId,
-                            title: feature.properties.name,
-                            locationName: feature.properties.locationName,
-                            imageUrl: feature.properties.imageUrl ?? undefined,
-                            coordinates: feature.geometry.coordinates,
-                        })),
-                    );
-                    setUnlocatedIssues(result.unlocatedIssues);
+                    setIssueData(result);
+                    setIssuesLoading(false);
+                    try {
+                        const loadedEvents = await fetchMapEvents(
+                            key,
+                            result.issueAliases,
+                        );
+                        if (active && refresh === refreshVersion.current)
+                            setEvents(loadedEvents);
+                    } catch (error: unknown) {
+                        if (active)
+                            setEventsError(
+                                error instanceof Error
+                                    ? error.message
+                                    : "Could not load events.",
+                            );
+                    }
                 } catch (error) {
                     if (active)
                         setIssueError(
@@ -95,7 +163,10 @@ export default function TrailMap({
                                 : "Could not load trail issues.",
                         );
                 } finally {
-                    if (active) setIssuesLoading(false);
+                    if (active) {
+                        setIssuesLoading(false);
+                        setEventsLoading(false);
+                    }
                 }
             };
             void load();
@@ -117,205 +188,254 @@ export default function TrailMap({
 
     return (
         <View style={styles.container}>
-            <Map
-                key={attempt}
-                style={styles.map}
-                mapStyle={MAP_STYLES[mode]}
-                onDidFinishLoadingMap={() => setStatus("loaded")}
-                onDidFinishLoadingStyle={() => setStatus("loaded")}
-                onDidFailLoadingMap={() => setStatus("error")}>
-                <Camera
-                    ref={camera}
-                    initialViewState={{
-                        center: [-77.06, 38.78],
-                        zoom: 10,
-                    }}
-                />
-
-                <MapOverlays
-                    pins={issuePins}
-                    selectedId={selectedIssue?.id}
-                    onSelectPin={onSelectIssue}
-                    trail={TRAIL_DATA}
-                />
-
-                <MileMarkers />
-                {position && (
-                    <ViewAnnotation
-                        id="current-user-location"
-                        lngLat={[
-                            position.coords.longitude,
-                            position.coords.latitude,
-                        ]}
-                        anchor="center">
-                        <View
-                            collapsable={false}
-                            accessible
-                            accessibilityLabel="Your current location"
-                            style={styles.userLocationHalo}>
-                            <View style={styles.userLocationDot} />
-                        </View>
-                    </ViewAnnotation>
-                )}
-            </Map>
-
-            <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Show my current location"
-                accessibilityState={{
-                    disabled: locationBusy,
-                    busy: locationBusy,
+            <MapEventFilter
+                options={options}
+                selectedId={effectiveEvent}
+                loading={issuesLoading || eventsLoading}
+                error={eventsError}
+                pinCount={issuePins.length}
+                onSelect={(id) => {
+                    setSelectedEvent(id);
+                    onSelectIssue(null);
+                    if (!issueData) return;
+                    const pins = filterIssuesByEvent(issueData, events, id)
+                        .geojson.features;
+                    if (pins.length === 1)
+                        camera.current?.flyTo({
+                            center: pins[0].geometry.coordinates,
+                            zoom: 14,
+                            duration: 600,
+                        });
+                    if (pins.length > 1) {
+                        const lngs = pins.map(
+                            (pin) => pin.geometry.coordinates[0],
+                        );
+                        const lats = pins.map(
+                            (pin) => pin.geometry.coordinates[1],
+                        );
+                        camera.current?.fitBounds(
+                            [
+                                Math.min(...lngs),
+                                Math.min(...lats),
+                                Math.max(...lngs),
+                                Math.max(...lats),
+                            ],
+                            {
+                                padding: {
+                                    top: 48,
+                                    right: 48,
+                                    bottom: 48,
+                                    left: 48,
+                                },
+                                duration: 600,
+                            },
+                        );
+                    }
                 }}
-                disabled={locationBusy}
-                onPress={() => {
-                    centerOnNextFix.current = true;
-                    void locate();
-                }}
-                style={styles.locationButton}>
-                {locationBusy ? (
-                    <ActivityIndicator color={Palette.primaryPurple100} />
-                ) : (
-                    <LocateFixed
-                        size={20}
-                        color={Palette.primaryPurple100}
-                    />
-                )}
-                <Text style={styles.switchText}>
-                    {locationBusy ? "Finding location…" : "My location"}
-                </Text>
-            </Pressable>
-            {status === "loaded" && locationError && (
-                <View
-                    style={styles.notice}
-                    accessibilityLiveRegion="polite">
-                    <Text style={styles.text}>{locationError}</Text>
-                </View>
-            )}
-
-            {!noticeDismissed && (
-                <View
-                    style={styles.issueNotice}
-                    accessibilityLiveRegion="polite">
-                    <Text style={[styles.text, styles.issueNoticeText]}>
-                        {issuesLoading
-                            ? "Loading trail issues…"
-                            : (issueError ??
-                              `${issuePins.length + unlocatedIssues.length} intake cards · ${issuePins.length} pins${unlocatedIssues.length ? ` · ${unlocatedIssues.length} need a location` : ""}`)}
-                    </Text>
-                    {!issuesLoading && unlocatedIssues.length > 0 && (
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel="View cards that need a location"
-                            onPress={() => setShowUnlocated(true)}
-                            style={styles.dismissNotice}>
-                            <Text style={styles.retry}>Details</Text>
-                        </Pressable>
-                    )}
-                    <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel="Refresh intake cards"
-                        disabled={issuesLoading}
-                        accessibilityState={{ disabled: issuesLoading }}
-                        onPress={() => {
-                            refreshVersion.current += 1;
-                            setRefresh(refreshVersion.current);
+            />
+            <View style={styles.mapRegion}>
+                <Map
+                    key={attempt}
+                    style={styles.map}
+                    mapStyle={MAP_STYLES[mode]}
+                    onDidFinishLoadingMap={() => setStatus("loaded")}
+                    onDidFinishLoadingStyle={() => setStatus("loaded")}
+                    onDidFailLoadingMap={() => setStatus("error")}>
+                    <Camera
+                        ref={camera}
+                        initialViewState={{
+                            center: [-77.06, 38.78],
+                            zoom: 10,
                         }}
-                        style={styles.dismissNotice}>
-                        <RefreshCw
-                            size={18}
+                    />
+
+                    <MapOverlays
+                        pins={issuePins}
+                        selectedId={selectedIssue?.id}
+                        onSelectPin={onSelectIssue}
+                        trail={TRAIL_DATA}
+                    />
+
+                    <MileMarkers />
+                    {position && (
+                        <ViewAnnotation
+                            id="current-user-location"
+                            lngLat={[
+                                position.coords.longitude,
+                                position.coords.latitude,
+                            ]}
+                            anchor="center">
+                            <View
+                                collapsable={false}
+                                accessible
+                                accessibilityLabel="Your current location"
+                                style={styles.userLocationHalo}>
+                                <View style={styles.userLocationDot} />
+                            </View>
+                        </ViewAnnotation>
+                    )}
+                </Map>
+
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Show my current location"
+                    accessibilityState={{
+                        disabled: locationBusy,
+                        busy: locationBusy,
+                    }}
+                    disabled={locationBusy}
+                    onPress={() => {
+                        centerOnNextFix.current = true;
+                        void locate();
+                    }}
+                    style={styles.locationButton}>
+                    {locationBusy ? (
+                        <ActivityIndicator color={Palette.primaryPurple100} />
+                    ) : (
+                        <LocateFixed
+                            size={20}
                             color={Palette.primaryPurple100}
                         />
-                    </Pressable>
-                    <Pressable
-                        onPress={() => setNoticeDismissed(true)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Dismiss issue pin notice"
-                        hitSlop={8}
-                        style={styles.dismissNotice}>
-                        <X
-                            size={18}
-                            color={Palette.primaryBlack70}
-                        />
-                    </Pressable>
-                </View>
-            )}
-
-            <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                    mode === "normal"
-                        ? "Switch to satellite map"
-                        : "Switch to normal map"
-                }
-                onPress={toggleMap}
-                style={styles.switchButton}>
-                <Text style={styles.switchText}>
-                    {mode === "normal" ? "Satellite" : "Normal"}
-                </Text>
-            </Pressable>
-
-            <Modal
-                visible={showUnlocated}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setShowUnlocated(false)}>
-                <View style={styles.modalBackdrop}>
-                    <View style={styles.unlocatedSheet}>
-                        <Text style={styles.sheetTitle}>
-                            Cards needing a location
-                        </Text>
-                        <Text style={styles.text}>
-                            These intake cards were loaded from Trello. Add a
-                            saved location, latitude and longitude, or a map
-                            link with explicit coordinates to place a pin.
-                        </Text>
-                        <ScrollView style={styles.unlocatedList}>
-                            {unlocatedIssues.map((issue) => (
-                                <Text
-                                    key={issue.cardId}
-                                    style={styles.unlocatedName}>
-                                    {issue.name}
-                                </Text>
-                            ))}
-                        </ScrollView>
-                        <Pressable
-                            accessibilityRole="button"
-                            onPress={() => setShowUnlocated(false)}>
-                            <Text style={styles.retry}>Close</Text>
-                        </Pressable>
+                    )}
+                    <Text style={styles.switchText}>
+                        {locationBusy ? "Finding location…" : "My location"}
+                    </Text>
+                </Pressable>
+                {status === "loaded" && locationError && (
+                    <View
+                        style={styles.notice}
+                        accessibilityLiveRegion="polite">
+                        <Text style={styles.text}>{locationError}</Text>
                     </View>
-                </View>
-            </Modal>
+                )}
 
-            {status !== "loaded" && (
-                <View
-                    style={styles.notice}
-                    accessibilityLiveRegion="polite">
-                    {status === "loading" ? (
-                        <>
-                            <ActivityIndicator
-                                color={Palette.primaryPurple100}
-                            />
-                            <Text style={styles.text}>Loading map…</Text>
-                        </>
-                    ) : (
-                        <>
-                            <Text style={styles.text}>
-                                Could not load the map. Check your connection.
-                            </Text>
-
+                {!noticeDismissed && (
+                    <View
+                        style={styles.issueNotice}
+                        accessibilityLiveRegion="polite">
+                        <Text style={[styles.text, styles.issueNoticeText]}>
+                            {issuesLoading
+                                ? "Loading trail issues…"
+                                : (issueError ??
+                                  `${issuePins.length + unlocatedIssues.length} intake cards · ${issuePins.length} pins${unlocatedIssues.length ? ` · ${unlocatedIssues.length} need a location` : ""}`)}
+                        </Text>
+                        {!issuesLoading && unlocatedIssues.length > 0 && (
                             <Pressable
                                 accessibilityRole="button"
-                                onPress={() => {
-                                    setStatus("loading");
-                                    setAttempt((value) => value + 1);
-                                }}>
-                                <Text style={styles.retry}>Retry</Text>
+                                accessibilityLabel="View cards that need a location"
+                                onPress={() => setShowUnlocated(true)}
+                                style={styles.dismissNotice}>
+                                <Text style={styles.retry}>Details</Text>
                             </Pressable>
-                        </>
-                    )}
-                </View>
-            )}
+                        )}
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Refresh intake cards"
+                            disabled={issuesLoading}
+                            accessibilityState={{ disabled: issuesLoading }}
+                            onPress={() => {
+                                refreshVersion.current += 1;
+                                setRefresh(refreshVersion.current);
+                            }}
+                            style={styles.dismissNotice}>
+                            <RefreshCw
+                                size={18}
+                                color={Palette.primaryPurple100}
+                            />
+                        </Pressable>
+                        <Pressable
+                            onPress={() => setNoticeDismissed(true)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Dismiss issue pin notice"
+                            hitSlop={8}
+                            style={styles.dismissNotice}>
+                            <X
+                                size={18}
+                                color={Palette.primaryBlack70}
+                            />
+                        </Pressable>
+                    </View>
+                )}
+
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                        mode === "normal"
+                            ? "Switch to satellite map"
+                            : "Switch to normal map"
+                    }
+                    onPress={toggleMap}
+                    style={styles.switchButton}>
+                    <Text style={styles.switchText}>
+                        {mode === "normal" ? "Satellite" : "Normal"}
+                    </Text>
+                </Pressable>
+
+                <Modal
+                    visible={showUnlocated}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setShowUnlocated(false)}>
+                    <View style={styles.modalBackdrop}>
+                        <View style={styles.unlocatedSheet}>
+                            <Text style={styles.sheetTitle}>
+                                Cards needing a location
+                            </Text>
+                            <Text style={styles.text}>
+                                These intake cards were loaded from Trello. Add
+                                a saved location, latitude and longitude, or a
+                                map link with explicit coordinates to place a
+                                pin.
+                            </Text>
+                            <ScrollView style={styles.unlocatedList}>
+                                {unlocatedIssues.map((issue) => (
+                                    <Text
+                                        key={issue.cardId}
+                                        style={styles.unlocatedName}>
+                                        {issue.name}
+                                    </Text>
+                                ))}
+                            </ScrollView>
+                            <Pressable
+                                accessibilityRole="button"
+                                onPress={() => setShowUnlocated(false)}>
+                                <Text style={styles.retry}>Close</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </Modal>
+
+                {status !== "loaded" && (
+                    <View
+                        style={styles.notice}
+                        accessibilityLiveRegion="polite">
+                        {status === "loading" ? (
+                            <>
+                                <ActivityIndicator
+                                    color={Palette.primaryPurple100}
+                                />
+                                <Text style={styles.text}>Loading map…</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={styles.text}>
+                                    Could not load the map. Check your
+                                    connection.
+                                </Text>
+
+                                <Pressable
+                                    accessibilityRole="button"
+                                    onPress={() => {
+                                        setStatus("loading");
+                                        setAttempt((value) => value + 1);
+                                    }}>
+                                    <Text style={styles.retry}>Retry</Text>
+                                </Pressable>
+                            </>
+                        )}
+                    </View>
+                )}
+            </View>
         </View>
     );
 }
@@ -323,6 +443,7 @@ export default function TrailMap({
 const styles = StyleSheet.create({
     container: { flex: 1 },
     map: { flex: 1 },
+    mapRegion: { flex: 1 },
     issueNotice: {
         position: "absolute",
         bottom: 8,

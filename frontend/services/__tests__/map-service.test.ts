@@ -209,3 +209,27 @@ it("prefers a saved location over coordinates in the card description", async ()
         location.coordinates,
     );
 });
+
+it("records full IDs and short links for located and unlocated Intake cards", async () => {
+    getCards.mockResolvedValueOnce([
+        {
+            id: "one",
+            name: "Located",
+            shortUrl: "https://trello.com/c/ShortOne/name",
+        },
+        {
+            id: "two",
+            name: "Unlocated",
+            shortUrl: "https://trello.com/c/ShortTwo",
+        },
+    ]);
+    const result = await fetchMapIssues("key", (card) =>
+        card.id === "one" ? location : null,
+    );
+    expect(result.issueAliases).toEqual({
+        one: "one",
+        two: "two",
+        ShortOne: "one",
+        ShortTwo: "two",
+    });
+});
