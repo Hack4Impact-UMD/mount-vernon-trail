@@ -71,7 +71,7 @@ export default function MonumentDetailPopup({
                         </Text>
                         {marker && (
                             <Text style={styles.reference}>
-                                Amenities shown on the supplied 1995 MVT map;
+                                Amenities shown according to the 1995 MVT map;
                                 availability may have changed.
                             </Text>
                         )}

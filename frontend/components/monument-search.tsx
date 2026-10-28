@@ -195,7 +195,7 @@ export default function MonumentSearch({
                                 )}
                             </View>
                             <Text style={styles.caption}>
-                                Amenities recorded from the supplied 1995 MVT
+                                Amenities recorded from the 1995 MVT
                                 map.
                             </Text>
                         </ScrollView>
