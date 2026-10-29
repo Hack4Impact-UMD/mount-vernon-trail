@@ -12,26 +12,31 @@ import { Search, X, ChevronRight } from "lucide-react-native";
 import { Colors, Palette } from "@/constants/theme";
 import {
     MONUMENT_AMENITIES,
-    searchMonuments,
     type MonumentAmenity,
-    type MonumentMarker,
 } from "@/services/monument-service";
+import {
+    searchLandmarks,
+    LANDMARK_CATEGORIES,
+    type LandmarkKind,
+    type TrailLandmark,
+} from "@/services/trail-landmark-service";
 import MonumentAmenities, { AMENITY_ICONS } from "./monument-amenities";
 
-export default function MonumentSearch({
+export default function TrailLandmarkSearch({
     onSelect,
 }: {
-    onSelect: (marker: MonumentMarker) => void;
+    onSelect: (marker: TrailLandmark) => void;
 }) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [amenities, setAmenities] = useState<MonumentAmenity[]>([]);
-    const results = searchMonuments(query, amenities);
+    const [category, setCategory] = useState<"all" | LandmarkKind>("all");
+    const results = searchLandmarks(query, amenities, category);
     return (
         <>
             <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Search monuments and amenities"
+                accessibilityLabel="Search trail landmarks and amenities"
                 onPress={() => setOpen(true)}
                 style={styles.trigger}>
                 <Search
@@ -39,7 +44,7 @@ export default function MonumentSearch({
                     color={Palette.primaryPurple100}
                 />
                 <Text style={styles.triggerText}>
-                    Find monuments & amenities
+                    Find monuments, bridges & mile markers
                 </Text>
                 <ChevronRight
                     size={17}
@@ -57,11 +62,11 @@ export default function MonumentSearch({
                         accessibilityViewIsModal>
                         <View style={styles.header}>
                             <Text style={styles.heading}>
-                                Explore monuments
+                                Explore the trail
                             </Text>
                             <Pressable
                                 accessibilityRole="button"
-                                accessibilityLabel="Close monument search"
+                                accessibilityLabel="Close landmark search"
                                 onPress={() => setOpen(false)}
                                 style={styles.close}>
                                 <X
@@ -80,8 +85,8 @@ export default function MonumentSearch({
                                     color={Palette.primaryPurple100}
                                 />
                                 <TextInput
-                                    accessibilityLabel="Search monuments or amenities"
-                                    placeholder="Name, abbreviation, or amenity"
+                                    accessibilityLabel="Search trail landmarks or amenities"
+                                    placeholder="Name, B15, M4, or amenity"
                                     placeholderTextColor={
                                         Palette.primaryBlack70
                                     }
@@ -90,6 +95,32 @@ export default function MonumentSearch({
                                     autoCorrect={false}
                                     style={styles.input}
                                 />
+                            </View>
+                            <View style={styles.filters}>
+                                {LANDMARK_CATEGORIES.map((item) => (
+                                    <Pressable
+                                        key={item.id}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`Show ${item.label}`}
+                                        accessibilityState={{
+                                            selected: category === item.id,
+                                        }}
+                                        onPress={() => setCategory(item.id)}
+                                        style={[
+                                            styles.chip,
+                                            category === item.id &&
+                                                styles.chipSelected,
+                                        ]}>
+                                        <Text
+                                            style={[
+                                                styles.chipText,
+                                                category === item.id &&
+                                                    styles.chipTextSelected,
+                                            ]}>
+                                            {item.label}
+                                        </Text>
+                                    </Pressable>
+                                ))}
                             </View>
                             <View style={styles.filters}>
                                 {MONUMENT_AMENITIES.map((item) => {
@@ -145,15 +176,18 @@ export default function MonumentSearch({
                                 <Text
                                     accessibilityLiveRegion="polite"
                                     style={styles.caption}>
-                                    {results.length} monuments · matches all
+                                    {results.length} locations · matches all
                                     selected amenities
                                 </Text>
-                                {(query || amenities.length > 0) && (
+                                {(query ||
+                                    amenities.length > 0 ||
+                                    category !== "all") && (
                                     <Pressable
                                         accessibilityRole="button"
                                         onPress={() => {
                                             setQuery("");
                                             setAmenities([]);
+                                            setCategory("all");
                                         }}
                                         style={styles.clear}>
                                         <Text style={styles.clearText}>
@@ -177,9 +211,11 @@ export default function MonumentSearch({
                                             <Text style={styles.name}>
                                                 {marker.location_name}
                                             </Text>
-                                            <MonumentAmenities
-                                                amenities={marker.amenities}
-                                            />
+                                            {marker.amenities && (
+                                                <MonumentAmenities
+                                                    amenities={marker.amenities}
+                                                />
+                                            )}
                                         </View>
                                         <ChevronRight
                                             size={18}
@@ -189,14 +225,13 @@ export default function MonumentSearch({
                                 ))}
                                 {results.length === 0 && (
                                     <Text style={styles.empty}>
-                                        No monuments match. Try a different name
-                                        or remove an amenity filter.
+                                        No locations match. Try a different name
+                                        or clear the filters.
                                     </Text>
                                 )}
                             </View>
                             <Text style={styles.caption}>
-                                Amenities recorded from the 1995 MVT
-                                map.
+                                Amenities recorded from the 1995 MVT map.
                             </Text>
                         </ScrollView>
                     </View>

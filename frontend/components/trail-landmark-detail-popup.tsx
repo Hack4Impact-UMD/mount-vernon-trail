@@ -8,14 +8,17 @@ import {
 } from "react-native";
 import { MapPin, X } from "lucide-react-native";
 import { Colors, Palette } from "@/constants/theme";
-import type { MonumentMarker } from "@/services/monument-service";
+import {
+    LANDMARK_LABELS,
+    type TrailLandmark,
+} from "@/services/trail-landmark-service";
 import MonumentAmenities from "./monument-amenities";
 
-export default function MonumentDetailPopup({
+export default function TrailLandmarkDetailPopup({
     marker,
     onClose,
 }: {
-    marker: MonumentMarker | null;
+    marker: TrailLandmark | null;
     onClose: () => void;
 }) {
     return (
@@ -27,7 +30,7 @@ export default function MonumentDetailPopup({
             <View style={styles.backdrop}>
                 <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Dismiss monument details"
+                    accessibilityLabel="Dismiss landmark details"
                     onPress={onClose}
                     style={StyleSheet.absoluteFill}
                 />
@@ -41,10 +44,14 @@ export default function MonumentDetailPopup({
                                 color={Palette.primaryPurple100}
                             />
                         </View>
-                        <Text style={styles.eyebrow}>MONUMENT</Text>
+                        <Text style={styles.eyebrow}>
+                            {marker
+                                ? LANDMARK_LABELS[marker.kind].toUpperCase()
+                                : ""}
+                        </Text>
                         <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel="Close monument details"
+                            accessibilityLabel="Close landmark details"
                             onPress={onClose}
                             style={styles.close}>
                             <X
@@ -60,16 +67,23 @@ export default function MonumentDetailPopup({
                                 style={styles.title}>
                                 {marker?.location_name}
                             </Text>
-                            {marker && (
+                            {marker?.amenities && (
                                 <MonumentAmenities
                                     amenities={marker.amenities}
                                 />
                             )}
                         </View>
                         <Text style={styles.description}>
-                            {marker?.description}
+                            {marker?.description ??
+                                "Location on the Mount Vernon Trail."}
                         </Text>
                         {marker && (
+                            <Text style={styles.reference}>
+                                {marker.coordinates.latitude},{" "}
+                                {marker.coordinates.longitude}
+                            </Text>
+                        )}
+                        {marker?.amenities && (
                             <Text style={styles.reference}>
                                 Amenities shown according to the 1995 MVT map;
                                 availability may have changed.

@@ -1,0 +1,82 @@
+[
+    {
+        "id": "mile-marker-4",
+        "mile_marker": 4,
+        "abbreviation": "M4",
+        "location_name": "Mile Marker 4",
+        "coordinates": {
+            "latitude": 38.730911,
+            "longitude": -77.045972
+        }
+    },
+    {
+        "id": "mile-marker-5",
+        "mile_marker": 5,
+        "abbreviation": "M5",
+        "location_name": "Mile Marker 5",
+        "coordinates": {
+            "latitude": 38.743333,
+            "longitude": -77.048379
+        }
+    },
+    {
+        "id": "mile-marker-6",
+        "mile_marker": 6,
+        "abbreviation": "M6",
+        "location_name": "Mile Marker 6",
+        "coordinates": {
+            "latitude": 38.759483,
+            "longitude": -77.048816
+        }
+    },
+    {
+        "id": "mile-marker-7",
+        "mile_marker": 7,
+        "abbreviation": "M7",
+        "location_name": "Mile Marker 7",
+        "coordinates": {
+            "latitude": 38.7709431,
+            "longitude": -77.0526281
+        }
+    },
+    {
+        "id": "mile-marker-13",
+        "mile_marker": 13,
+        "abbreviation": "M13",
+        "location_name": "Mile Marker 13",
+        "coordinates": {
+            "latitude": 38.8433033,
+            "longitude": -77.0486284
+        }
+    },
+    {
+        "id": "mile-marker-14",
+        "mile_marker": 14,
+        "abbreviation": "M14",
+        "location_name": "Mile Marker 14",
+        "coordinates": {
+            "latitude": 38.8577405,
+            "longitude": -77.0465406
+        }
+    },
+    {
+        "id": "mile-marker-15",
+        "mile_marker": 15,
+        "abbreviation": "M15",
+        "location_name": "Mile Marker 15",
+        "coordinates": {
+            "latitude": 38.8687726,
+            "longitude": -77.039065
+        }
+    },
+    {
+        "id": "mile-marker-16",
+        "mile_marker": 16,
+        "abbreviation": "M16",
+        "location_name": "Mile Marker 16",
+        "coordinates": {
+            "latitude": 38.8781733,
+            "longitude": -77.049126
+        }
+    }
+]

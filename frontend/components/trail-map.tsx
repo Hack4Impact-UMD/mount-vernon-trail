@@ -27,11 +27,11 @@ import {
 } from "react-native";
 import MapOverlays, { type MapPin } from "@/components/map-overlays";
 import trail from "@/data/mount-vernon-trail.json";
-import MonumentMarkers, {
-    type MonumentMarker,
-} from "@/components/monument-markers";
-import MonumentDetailPopup from "@/components/monument-detail-popup";
-import MonumentSearch from "@/components/monument-search";
+import TrailLandmarks, {
+    type TrailLandmark,
+} from "@/components/trail-landmark-markers";
+import TrailLandmarkDetailPopup from "@/components/trail-landmark-detail-popup";
+import TrailLandmarkSearch from "@/components/trail-landmark-search";
 import { MAP_STYLES, type MapMode } from "@/config/map-styles";
 
 const TRAIL_DATA = JSON.stringify(trail);
@@ -50,8 +50,8 @@ export default function TrailMap({
     onSelectIssue: (issue: MapPin | null) => void;
 }) {
     const camera = useRef<CameraRef>(null);
-    const [selectedMonument, setSelectedMonument] =
-        useState<MonumentMarker | null>(null);
+    const [selectedLandmark, setSelectedLandmark] =
+        useState<TrailLandmark | null>(null);
     const centerOnNextFix = useRef(false);
     const {
         position,
@@ -184,7 +184,7 @@ export default function TrailMap({
             void load();
             return () => {
                 active = false;
-                setSelectedMonument(null);
+                setSelectedLandmark(null);
             };
         }, [onSelectIssue, refresh]),
     );
@@ -246,7 +246,7 @@ export default function TrailMap({
                     }
                 }}
             />
-            <MonumentSearch
+            <TrailLandmarkSearch
                 onSelect={(marker) => {
                     onSelectIssue(null);
                     camera.current?.flyTo({
@@ -257,7 +257,7 @@ export default function TrailMap({
                         zoom: 14,
                         duration: 700,
                     });
-                    setSelectedMonument(marker);
+                    setSelectedLandmark(marker);
                 }}
             />
             <View style={styles.mapRegion}>
@@ -283,7 +283,7 @@ export default function TrailMap({
                         trail={TRAIL_DATA}
                     />
 
-                    <MonumentMarkers onSelect={setSelectedMonument} />
+                    <TrailLandmarks onSelect={setSelectedLandmark} />
                     {position && (
                         <ViewAnnotation
                             id="current-user-location"
@@ -302,9 +302,9 @@ export default function TrailMap({
                         </ViewAnnotation>
                     )}
                 </Map>
-                <MonumentDetailPopup
-                    marker={selectedMonument}
-                    onClose={() => setSelectedMonument(null)}
+                <TrailLandmarkDetailPopup
+                    marker={selectedLandmark}
+                    onClose={() => setSelectedLandmark(null)}
                 />
 
                 <Pressable
@@ -341,7 +341,7 @@ export default function TrailMap({
                     onPress={() => {
                         centerOnNextFix.current = false;
                         onSelectIssue(null);
-                        setSelectedMonument(null);
+                        setSelectedLandmark(null);
                         camera.current?.fitBounds(TRAIL_BOUNDS, {
                             padding: {
                                 top: 40,

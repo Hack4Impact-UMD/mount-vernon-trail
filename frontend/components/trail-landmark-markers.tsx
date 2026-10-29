@@ -1,10 +1,13 @@
-import markers from "@/data/monument_markers.json";
+import {
+    TRAIL_LANDMARKS as markers,
+    LANDMARK_MIN_ZOOM,
+} from "@/services/trail-landmark-service";
 import { Colors, Palette } from "@/constants/theme";
 import { GeoJSONSource, Layer } from "@maplibre/maplibre-react-native";
 
-import type { MonumentMarker } from "@/services/monument-service";
-export type { MonumentMarker } from "@/services/monument-service";
-const MIN_ZOOM = 13;
+import type { TrailLandmark } from "@/services/trail-landmark-service";
+export type { TrailLandmark } from "@/services/trail-landmark-service";
+
 const MARKER_DATA = JSON.stringify({
     type: "FeatureCollection",
     features: markers.map((marker) => ({
@@ -21,14 +24,14 @@ const MARKER_DATA = JSON.stringify({
     })),
 });
 
-export default function MonumentMarkers({
+export default function TrailLandmarks({
     onSelect,
 }: {
-    onSelect: (marker: MonumentMarker) => void;
+    onSelect: (marker: TrailLandmark) => void;
 }) {
     return (
         <GeoJSONSource
-            id="monument-markers"
+            id="trail-landmark-markers"
             data={MARKER_DATA}
             onPress={(event) => {
                 const id = event.nativeEvent.features[0]?.properties?.markerId;
@@ -38,9 +41,9 @@ export default function MonumentMarkers({
                 onSelect(marker);
             }}>
             <Layer
-                id="monument-marker-circles"
+                id="trail-landmark-marker-circles"
                 type="circle"
-                minzoom={MIN_ZOOM}
+                minzoom={LANDMARK_MIN_ZOOM}
                 paint={{
                     "circle-radius": 11,
                     "circle-color": Colors.light.background,
@@ -49,9 +52,9 @@ export default function MonumentMarkers({
                 }}
             />
             <Layer
-                id="monument-marker-abbreviations"
+                id="trail-landmark-marker-abbreviations"
                 type="symbol"
-                minzoom={MIN_ZOOM}
+                minzoom={LANDMARK_MIN_ZOOM}
                 layout={{
                     "text-field": ["get", "label"],
                     "text-font": ["Noto Sans Regular"],
