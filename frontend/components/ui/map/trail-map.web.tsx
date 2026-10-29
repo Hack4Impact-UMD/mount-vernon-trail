@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import type { MapPin } from "@/components/map-overlays";
+import type { MapPin } from "@/components/ui/map/map-overlays";
 
 export default function TrailMap(_props: {
     selectedIssue: MapPin | null;

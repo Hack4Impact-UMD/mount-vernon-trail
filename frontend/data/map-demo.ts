@@ -1,4 +1,4 @@
-import type { MapPin } from "@/components/map-overlays";
+import type { MapPin } from "@/components/ui/map/map-overlays";
 
 // Synthetic examples near the trail; these are not real issues.
 const DEMO_PINS: MapPin[] = [

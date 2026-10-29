@@ -1,5 +1,5 @@
 import { Colors, Palette } from "@/constants/theme";
-import type { MapPin } from "@/components/map-overlays";
+import type { MapPin } from "@/components/ui/map/map-overlays";
 import { Image } from "expo-image";
 import { X } from "lucide-react-native";
 import { useEffect, useState } from "react";

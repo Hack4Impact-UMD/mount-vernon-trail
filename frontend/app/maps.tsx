@@ -1,8 +1,8 @@
 import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
-import TrailMap from "@/components/trail-map";
-import MapIssueCard from "@/components/map-issue-card";
-import type { MapPin } from "@/components/map-overlays";
+import TrailMap from "@/components/ui/map/trail-map";
+import MapIssueCard from "@/components/ui/map/map-issue-card";
+import type { MapPin } from "@/components/ui/map/map-overlays";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 

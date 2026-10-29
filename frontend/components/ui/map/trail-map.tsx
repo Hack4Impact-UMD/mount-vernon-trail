@@ -7,7 +7,7 @@ import {
 } from "@maplibre/maplibre-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import MapEventFilter from "@/components/map-event-filter";
+import MapEventFilter from "@/components/ui/map/map-event-filter";
 import {
     fetchMapEvents,
     filterIssuesByEvent,
@@ -25,13 +25,13 @@ import {
     Text,
     View,
 } from "react-native";
-import MapOverlays, { type MapPin } from "@/components/map-overlays";
+import MapOverlays, { type MapPin } from "@/components/ui/map/map-overlays";
 import trail from "@/data/mount-vernon-trail.json";
 import TrailLandmarks, {
     type TrailLandmark,
-} from "@/components/trail-landmark-markers";
-import TrailLandmarkDetailPopup from "@/components/trail-landmark-detail-popup";
-import TrailLandmarkSearch from "@/components/trail-landmark-search";
+} from "@/components/ui/map/trail-landmark-markers";
+import TrailLandmarkDetailPopup from "@/components/ui/map/trail-landmark-detail-popup";
+import TrailLandmarkSearch from "@/components/ui/map/trail-landmark-search";
 import { MAP_STYLES, type MapMode } from "@/config/map-styles";
 
 const TRAIL_DATA = JSON.stringify(trail);

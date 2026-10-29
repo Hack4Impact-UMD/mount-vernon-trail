@@ -57,7 +57,7 @@ it("searches bridges and mile markers and clears category filters", () => {
         view.getByLabelText("Search trail landmarks or amenities"),
         "B29A",
     );
-    fireEvent.press(view.getByLabelText("View Mount Vernon Trail Bridge 29A"));
+    fireEvent.press(view.getByLabelText("View Bridge 29A"));
     expect(onSelect).toHaveBeenCalledWith(
         expect.objectContaining({ id: "bridge-29a", kind: "bridge" }),
     );
@@ -71,7 +71,7 @@ it("searches bridges and mile markers and clears category filters", () => {
         "M4",
     );
     fireEvent.press(
-        view.getByLabelText("View Mount Vernon Trail Mile Marker 4"),
+        view.getByLabelText("View Mile Marker 4"),
     );
     expect(onSelect).toHaveBeenLastCalledWith(
         expect.objectContaining({ id: "mile-marker-4", kind: "mile-marker" }),
