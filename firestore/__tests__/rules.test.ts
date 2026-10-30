@@ -4,7 +4,7 @@ import {
     initializeTestEnvironment,
     type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, deleteDoc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, deleteDoc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
@@ -409,6 +409,131 @@ describe("albumTitles — the duplicate-name reservation", () => {
     it("denies releasing a reservation held by someone else", async () => {
         await seed("albumTitles", "t_x", reservation());
         await assertFails(deleteDoc(doc(admin(OTHER_ADMIN), "albumTitles", "t_x")));
+    });
+});
+
+describe("issueLocations", () => {
+    const location = {
+        locationName: "Test location",
+        latitude: 38.8,
+        longitude: -77.05,
+        source: "title",
+    };
+    const record = (overrides: Record<string, unknown> = {}) => ({
+        trelloCardId: "card-1",
+        location,
+        updatedAt: serverTimestamp(),
+        ...overrides,
+    });
+
+    it("allows an admin to save, update and delete a location", async () => {
+        const ref = doc(admin(), "issueLocations", "card-1");
+        await assertSucceeds(setDoc(ref, record()));
+        await assertSucceeds(
+            updateDoc(ref, {
+                location: { ...location, source: "photo", latitude: 38.9 },
+                updatedAt: serverTimestamp(),
+            }),
+        );
+        await assertSucceeds(deleteDoc(ref));
+    });
+
+    it("allows unresolved locations and valid coordinate boundaries", async () => {
+        for (const value of [
+            null,
+            { ...location, latitude: -90, longitude: 180 },
+            { ...location, latitude: 90, longitude: -180 },
+            { ...location, latitude: 0, longitude: 0, source: "manual" },
+        ]) {
+            await assertSucceeds(
+                setDoc(
+                    doc(admin(), "issueLocations", "card-1"),
+                    record({ location: value }),
+                ),
+            );
+        }
+    });
+
+    it("allows signed-in reads but denies anonymous reads", async () => {
+        await seed(
+            "issueLocations",
+            "card-1",
+            record({ updatedAt: new Date() }),
+        );
+        await assertSucceeds(
+            getDoc(doc(volunteer(), "issueLocations", "card-1")),
+        );
+        await assertFails(getDoc(doc(anonymous(), "issueLocations", "card-1")));
+    });
+
+    it("denies volunteer and anonymous writes, updates and deletes", async () => {
+        await seed(
+            "issueLocations",
+            "card-1",
+            record({ updatedAt: new Date() }),
+        );
+        for (const db of [volunteer(), anonymous()]) {
+            await assertFails(
+                setDoc(
+                    doc(db, "issueLocations", "new-card"),
+                    record({ trelloCardId: "new-card" }),
+                ),
+            );
+            await assertFails(
+                updateDoc(doc(db, "issueLocations", "card-1"), {
+                    location: null,
+                    updatedAt: serverTimestamp(),
+                }),
+            );
+            await assertFails(deleteDoc(doc(db, "issueLocations", "card-1")));
+        }
+    });
+
+    it.each([
+        { ...location, latitude: 91 },
+        { ...location, longitude: -181 },
+        { ...location, latitude: "38.8" },
+        { ...location, latitude: NaN },
+        { ...location, longitude: Infinity },
+        { ...location, source: "guessed" },
+        { ...location, locationName: "" },
+        { ...location, locationName: "x".repeat(201) },
+        { latitude: 38.8, longitude: -77 },
+        { ...location, extra: true },
+    ])("denies invalid location %j", async (invalid) => {
+        await assertFails(
+            setDoc(
+                doc(admin(), "issueLocations", "card-1"),
+                record({ location: invalid }),
+            ),
+        );
+    });
+
+    it.each([
+        { trelloCardId: "other-card" },
+        { updatedAt: new Date(0) },
+        { extra: true },
+    ])(
+        "denies mismatched identity, stale timestamps and extra fields: %j",
+        async (invalid) => {
+            await assertFails(
+                setDoc(
+                    doc(admin(), "issueLocations", "card-1"),
+                    record(invalid),
+                ),
+            );
+        },
+    );
+
+    it("denies an update that invalidates the schema", async () => {
+        const ref = doc(admin(), "issueLocations", "card-1");
+        await assertSucceeds(setDoc(ref, record()));
+        await assertFails(
+            updateDoc(ref, {
+                "location.latitude": 100,
+                updatedAt: serverTimestamp(),
+            }),
+        );
     });
 });
 

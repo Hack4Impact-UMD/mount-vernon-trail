@@ -9,6 +9,10 @@ const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
 export const Palette = {
+  heatmapOrange: '#f59e0b',
+  heatmapRed: '#dc2626',
+  statusAmber: '#e59400',
+  statusAmberBackground: '#fcf5e5',
   primaryPurple100: '#693894',
   primaryPurple70: '#8a6bad',
   primaryPurple50: '#a58cc0',

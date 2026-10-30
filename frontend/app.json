@@ -13,7 +13,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.mountvernontrail"
+      "bundleIdentifier": "com.anonymous.mountvernontrail",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Allow Mount Vernon Trail to show your current location on the trail map."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -73,7 +76,8 @@
             "enableSceneSupport": true
           }
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "typedRoutes": true,

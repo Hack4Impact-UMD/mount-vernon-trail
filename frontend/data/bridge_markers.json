@@ -1,0 +1,342 @@
+[
+    {
+        "id": "bridge-1",
+        "bridge_number": "1",
+        "abbreviation": "B1",
+        "location_name": "Bridge 1",
+        "coordinates": {
+            "latitude": 38.716397,
+            "longitude": -77.080986
+        }
+    },
+    {
+        "id": "bridge-2",
+        "bridge_number": "2",
+        "abbreviation": "B2",
+        "location_name": "Bridge 2",
+        "coordinates": {
+            "latitude": 38.715092,
+            "longitude": -77.077286
+        }
+    },
+    {
+        "id": "bridge-3",
+        "bridge_number": "3",
+        "abbreviation": "B3",
+        "location_name": "Bridge 3",
+        "coordinates": {
+            "latitude": 38.710572,
+            "longitude": -77.069581
+        }
+    },
+    {
+        "id": "bridge-4",
+        "bridge_number": "4",
+        "abbreviation": "B4",
+        "location_name": "Bridge 4",
+        "coordinates": {
+            "latitude": 38.710367,
+            "longitude": -77.067864
+        }
+    },
+    {
+        "id": "bridge-5",
+        "bridge_number": "5",
+        "abbreviation": "B5",
+        "location_name": "Bridge 5",
+        "coordinates": {
+            "latitude": 38.710139,
+            "longitude": -77.066414
+        }
+    },
+    {
+        "id": "bridge-6",
+        "bridge_number": "6",
+        "abbreviation": "B6",
+        "location_name": "Bridge 6",
+        "coordinates": {
+            "latitude": 38.709975,
+            "longitude": -77.062356
+        }
+    },
+    {
+        "id": "bridge-7",
+        "bridge_number": "7",
+        "abbreviation": "B7",
+        "location_name": "Bridge 7",
+        "coordinates": {
+            "latitude": 38.710117,
+            "longitude": -77.059258
+        }
+    },
+    {
+        "id": "bridge-8",
+        "bridge_number": "8",
+        "abbreviation": "B8",
+        "location_name": "Bridge 8",
+        "coordinates": {
+            "latitude": 38.710136,
+            "longitude": -77.058267
+        }
+    },
+    {
+        "id": "bridge-9",
+        "bridge_number": "9",
+        "abbreviation": "B9",
+        "location_name": "Bridge 9",
+        "coordinates": {
+            "latitude": 38.710769,
+            "longitude": -77.053489
+        }
+    },
+    {
+        "id": "bridge-10",
+        "bridge_number": "10",
+        "abbreviation": "B10",
+        "location_name": "Bridge 10",
+        "coordinates": {
+            "latitude": 38.713689,
+            "longitude": -77.047631
+        }
+    },
+    {
+        "id": "bridge-11",
+        "bridge_number": "11",
+        "abbreviation": "B11",
+        "location_name": "Bridge 11",
+        "coordinates": {
+            "latitude": 38.715947,
+            "longitude": -77.046731
+        }
+    },
+    {
+        "id": "bridge-12",
+        "bridge_number": "12",
+        "abbreviation": "B12",
+        "location_name": "Bridge 12",
+        "coordinates": {
+            "latitude": 38.7192,
+            "longitude": -77.044578
+        }
+    },
+    {
+        "id": "bridge-13",
+        "bridge_number": "13",
+        "abbreviation": "B13",
+        "location_name": "Bridge 13",
+        "coordinates": {
+            "latitude": 38.722697,
+            "longitude": -77.043953
+        }
+    },
+    {
+        "id": "bridge-14",
+        "bridge_number": "14",
+        "abbreviation": "B14",
+        "location_name": "Bridge 14",
+        "coordinates": {
+            "latitude": 38.7234,
+            "longitude": -77.043931
+        }
+    },
+    {
+        "id": "bridge-15",
+        "bridge_number": "15",
+        "abbreviation": "B15",
+        "location_name": "Bridge 15",
+        "coordinates": {
+            "latitude": 38.72585,
+            "longitude": -77.042314
+        }
+    },
+    {
+        "id": "bridge-16",
+        "bridge_number": "16",
+        "abbreviation": "B16",
+        "location_name": "Bridge 16",
+        "coordinates": {
+            "latitude": 38.737428,
+            "longitude": -77.049339
+        }
+    },
+    {
+        "id": "bridge-17",
+        "bridge_number": "17",
+        "abbreviation": "B17",
+        "location_name": "Bridge 17",
+        "coordinates": {
+            "latitude": 38.752475,
+            "longitude": -77.050567
+        }
+    },
+    {
+        "id": "bridge-18",
+        "bridge_number": "18",
+        "abbreviation": "B18",
+        "location_name": "Bridge 18",
+        "coordinates": {
+            "latitude": 38.756533,
+            "longitude": -77.048775
+        }
+    },
+    {
+        "id": "bridge-19",
+        "bridge_number": "19",
+        "abbreviation": "B19",
+        "location_name": "Bridge 19",
+        "coordinates": {
+            "latitude": 38.758842,
+            "longitude": -77.048728
+        }
+    },
+    {
+        "id": "bridge-20",
+        "bridge_number": "20",
+        "abbreviation": "B20",
+        "location_name": "Bridge 20",
+        "coordinates": {
+            "latitude": 38.762353,
+            "longitude": -77.050606
+        }
+    },
+    {
+        "id": "bridge-21",
+        "bridge_number": "21",
+        "abbreviation": "B21",
+        "location_name": "Bridge 21",
+        "coordinates": {
+            "latitude": 38.7625,
+            "longitude": -77.05075
+        }
+    },
+    {
+        "id": "bridge-22",
+        "bridge_number": "22",
+        "abbreviation": "B22",
+        "location_name": "Bridge 22",
+        "coordinates": {
+            "latitude": 38.764142,
+            "longitude": -77.052131
+        }
+    },
+    {
+        "id": "bridge-23",
+        "bridge_number": "23",
+        "abbreviation": "B23",
+        "location_name": "Bridge 23",
+        "coordinates": {
+            "latitude": 38.768388,
+            "longitude": -77.05315
+        }
+    },
+    {
+        "id": "bridge-24",
+        "bridge_number": "24",
+        "abbreviation": "B24",
+        "location_name": "Bridge 24",
+        "coordinates": {
+            "latitude": 38.776808,
+            "longitude": -77.051497
+        }
+    },
+    {
+        "id": "bridge-25",
+        "bridge_number": "25",
+        "abbreviation": "B25",
+        "location_name": "Bridge 25",
+        "coordinates": {
+            "latitude": 38.795294,
+            "longitude": -77.039772
+        }
+    },
+    {
+        "id": "bridge-26",
+        "bridge_number": "26",
+        "abbreviation": "B26",
+        "location_name": "Bridge 26",
+        "coordinates": {
+            "latitude": 38.819786,
+            "longitude": -77.039642
+        }
+    },
+    {
+        "id": "bridge-27",
+        "bridge_number": "27",
+        "abbreviation": "B27",
+        "location_name": "Bridge 27",
+        "coordinates": {
+            "latitude": 38.822964,
+            "longitude": -77.041611
+        }
+    },
+    {
+        "id": "bridge-28",
+        "bridge_number": "28",
+        "abbreviation": "B28",
+        "location_name": "Bridge 28",
+        "coordinates": {
+            "latitude": 38.825294,
+            "longitude": -77.043006
+        }
+    },
+    {
+        "id": "bridge-29",
+        "bridge_number": "29",
+        "abbreviation": "B29",
+        "location_name": "Bridge 29",
+        "coordinates": {
+            "latitude": 38.836025,
+            "longitude": -77.045356
+        }
+    },
+    {
+        "id": "bridge-29a",
+        "bridge_number": "29A",
+        "abbreviation": "B29A",
+        "location_name": "Bridge 29A",
+        "coordinates": {
+            "latitude": 38.841503,
+            "longitude": -77.048142
+        }
+    },
+    {
+        "id": "bridge-29b",
+        "bridge_number": "29B",
+        "abbreviation": "B29B",
+        "location_name": "Bridge 29B",
+        "coordinates": {
+            "latitude": 38.856464,
+            "longitude": -77.046556
+        }
+    },
+    {
+        "id": "bridge-29c",
+        "bridge_number": "29C",
+        "abbreviation": "B29C",
+        "location_name": "Bridge 29C",
+        "coordinates": {
+            "latitude": 38.860478,
+            "longitude": -77.045325
+        }
+    },
+    {
+        "id": "bridge-30a",
+        "bridge_number": "30A",
+        "abbreviation": "B30A",
+        "location_name": "Bridge 30A",
+        "coordinates": {
+            "latitude": 38.890092,
+            "longitude": -77.064231
+        }
+    },
+    {
+        "id": "bridge-31",
+        "bridge_number": "31",
+        "abbreviation": "B31",
+        "location_name": "Bridge 31",
+        "coordinates": {
+            "latitude": 38.891211,
+            "longitude": -77.064828
+        }
+    }
+]
