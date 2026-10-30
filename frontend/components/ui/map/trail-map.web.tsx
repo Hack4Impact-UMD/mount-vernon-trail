@@ -3,6 +3,7 @@ import type { MapPin } from "@/components/ui/map/map-overlays";
 
 export default function TrailMap(_props: {
     selectedIssue: MapPin | null;
+    focusIssueId?: string;
     onSelectIssue: (issue: MapPin | null) => void;
 }) {
     return (

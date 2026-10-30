@@ -45,8 +45,10 @@ const TRAIL_BOUNDS: [number, number, number, number] = trail.features
 export default function TrailMap({
     selectedIssue,
     onSelectIssue,
+    focusIssueId,
 }: {
     selectedIssue: MapPin | null;
+    focusIssueId?: string;
     onSelectIssue: (issue: MapPin | null) => void;
 }) {
     const camera = useRef<CameraRef>(null);
@@ -136,6 +138,7 @@ export default function TrailMap({
     useFocusEffect(
         useCallback(() => {
             let active = true;
+            if (focusIssueId) setSelectedEvent("all");
             setNoticeDismissed(false);
             onSelectIssue(null);
             setIssueData(null);
@@ -151,6 +154,17 @@ export default function TrailMap({
                     const result = await fetchMapIssues(key);
                     if (!active || refresh !== refreshVersion.current) return;
                     setIssueData(result);
+                    if (
+                        focusIssueId &&
+                        !result.geojson.features.some(
+                            (feature) =>
+                                feature.properties.cardId === focusIssueId,
+                        )
+                    ) {
+                        setIssueError(
+                            "This issue is no longer in Intake or does not have a valid map location.",
+                        );
+                    }
                     setIssuesLoading(false);
                     try {
                         const loadedEvents = await fetchMapEvents(
@@ -186,13 +200,32 @@ export default function TrailMap({
                 active = false;
                 setSelectedLandmark(null);
             };
-        }, [onSelectIssue, refresh]),
+        }, [onSelectIssue, refresh, focusIssueId]),
     );
     const [mode, setMode] = useState<MapMode>("normal");
     const [attempt, setAttempt] = useState(0);
     const [status, setStatus] = useState<"loading" | "loaded" | "error">(
         "loading",
     );
+    useEffect(() => {
+        if (!focusIssueId || !issueData || status !== "loaded") return;
+        const feature = issueData.geojson.features.find(
+            (item) => item.properties.cardId === focusIssueId,
+        );
+        if (!feature) return;
+        onSelectIssue({
+            id: feature.properties.cardId,
+            title: feature.properties.name,
+            locationName: feature.properties.locationName,
+            imageUrl: feature.properties.imageUrl ?? undefined,
+            coordinates: feature.geometry.coordinates,
+        });
+        camera.current?.flyTo({
+            center: feature.geometry.coordinates,
+            zoom: 15,
+            duration: 700,
+        });
+    }, [focusIssueId, issueData, status, onSelectIssue]);
 
     function toggleMap() {
         setStatus("loading");

@@ -1,6 +1,7 @@
 import { Colors, Palette } from "@/constants/theme";
 import type { MapPin } from "@/components/ui/map/map-overlays";
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
@@ -21,6 +22,7 @@ export default function MapIssueCard({
     issue: MapPin | null;
     onClose: () => void;
 }) {
+    const router = useRouter();
     const insets = useSafeAreaInsets();
     const { height } = useWindowDimensions();
     const [progress] = useState(() => new Animated.Value(0));
@@ -112,11 +114,24 @@ export default function MapIssueCard({
                         )}
                     </View>
                 )}
-                <Text
-                    accessibilityRole="header"
-                    style={styles.title}>
-                    {issue?.title ?? "Trail issue"}
-                </Text>
+                <Pressable
+                    accessibilityRole="link"
+                    accessibilityLabel={`Open issue: ${issue.title ?? "Trail issue"}`}
+                    disabled={!selectedIssue}
+                    onPress={() => {
+                        onClose();
+                        router.push({
+                            pathname: "/trail-issue-screen",
+                            params: {
+                                issueId: issue.id,
+                                issueName: issue.title ?? "Trail issue",
+                            },
+                        });
+                    }}>
+                    <Text style={styles.title}>
+                        {issue.title ?? "Trail issue"}
+                    </Text>
+                </Pressable>
                 {issue?.locationName && (
                     <Text style={styles.location}>{issue.locationName}</Text>
                 )}
@@ -179,7 +194,8 @@ const styles = StyleSheet.create({
         fontVariant: ["tabular-nums"],
     },
     title: {
-        color: Palette.primaryBlack100,
+        color: Palette.primaryPurple100,
+        textDecorationLine: "underline",
         fontSize: 23,
         fontFamily: "Lato_700Bold",
         marginBottom: 6,

@@ -62,7 +62,9 @@ export function filterMapIssues(
     };
 }
 
-async function resolveIssueLocation(card: Card): Promise<MapLocation | null> {
+export async function resolveIssueLocation(
+    card: Card,
+): Promise<MapLocation | null> {
     const saved = await resolveFirestoreIssueLocation(card);
     return saved ?? resolveTrelloIssueLocation(card);
 }
