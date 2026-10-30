@@ -3,16 +3,19 @@ import type { MapPin } from "@/components/ui/map/map-overlays";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Animated,
     Easing,
+    PanResponder,
     Pressable,
+    ScrollView,
     StyleSheet,
     Text,
     View,
     useWindowDimensions,
 } from "react-native";
+import { getIssueSheetTarget } from "@/utils/issue-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function MapIssueCard({
@@ -25,7 +28,12 @@ export default function MapIssueCard({
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { height } = useWindowDimensions();
-    const [progress] = useState(() => new Animated.Value(0));
+    const [availableHeight, setAvailableHeight] = useState(height);
+    const expandedHeight = availableHeight * 0.9;
+    const compactHeight = Math.min(340, availableHeight * 0.44);
+    const compactOffset = expandedHeight - compactHeight;
+    const [translation] = useState(() => new Animated.Value(height));
+    const visible = selectedIssue !== null;
     const [displayedIssue, setDisplayedIssue] = useState<MapPin | null>(
         selectedIssue,
     );
@@ -34,40 +42,102 @@ export default function MapIssueCard({
         setDisplayedIssue(selectedIssue);
     }
     useEffect(() => {
-        const animation = Animated.timing(progress, {
-            toValue: selectedIssue ? 1 : 0,
-            duration: selectedIssue ? 280 : 320,
-            easing: selectedIssue
+        const animation = Animated.timing(translation, {
+            toValue: visible ? compactOffset : expandedHeight,
+            duration: visible ? 280 : 320,
+            easing: visible
                 ? Easing.out(Easing.cubic)
                 : Easing.inOut(Easing.cubic),
             useNativeDriver: true,
         });
         animation.start(({ finished }) => {
-            if (finished && !selectedIssue) setDisplayedIssue(null);
+            if (finished && !visible) setDisplayedIssue(null);
         });
         return () => animation.stop();
-    }, [selectedIssue, progress]);
+    }, [visible, translation, compactOffset, expandedHeight]);
+
+    const panResponder = useMemo(() => {
+        let dragStart = compactOffset;
+        const snap = (offset: number) =>
+            Animated.spring(translation, {
+                toValue: offset,
+                useNativeDriver: true,
+                damping: 26,
+                stiffness: 240,
+                mass: 1,
+                overshootClamping: true,
+            }).start();
+        return PanResponder.create({
+            onMoveShouldSetPanResponder: (_, gesture) =>
+                Math.abs(gesture.dy) > 5 &&
+                Math.abs(gesture.dy) > Math.abs(gesture.dx),
+            onPanResponderGrant: () => {
+                translation.stopAnimation((value) => {
+                    dragStart = value;
+                });
+            },
+            onPanResponderMove: (_, gesture) => {
+                translation.setValue(
+                    Math.max(
+                        0,
+                        Math.min(expandedHeight, dragStart + gesture.dy),
+                    ),
+                );
+            },
+            onPanResponderRelease: (_, gesture) => {
+                const offset = Math.max(0, dragStart + gesture.dy);
+                const target = getIssueSheetTarget(
+                    offset,
+                    gesture.vy,
+                    compactOffset,
+                );
+                if (target === "dismissed") onClose();
+                else snap(target === "expanded" ? 0 : compactOffset);
+            },
+            onPanResponderTerminate: () =>
+                snap(dragStart < compactOffset / 2 ? 0 : compactOffset),
+        });
+    }, [translation, compactOffset, expandedHeight, onClose]);
     const status = issue?.status;
     if (!issue) return null;
     return (
         <View
             style={styles.container}
-            pointerEvents="box-none">
+            pointerEvents="box-none"
+            onLayout={(event) =>
+                setAvailableHeight(event.nativeEvent.layout.height)
+            }>
             <Animated.View
                 style={[
                     styles.card,
                     {
-                        paddingBottom: Math.max(insets.bottom, 24),
-                        transform: [
-                            {
-                                translateY: progress.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [height, 0],
-                                }),
-                            },
-                        ],
+                        height: expandedHeight,
+                        transform: [{ translateY: translation }],
                     },
                 ]}>
+                <View
+                    style={styles.dragArea}
+                    {...panResponder.panHandlers}>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Expand or collapse issue details"
+                        accessibilityHint="Drag up to expand, down to collapse or dismiss"
+                        onPress={() =>
+                            translation.stopAnimation((value) => {
+                                Animated.spring(translation, {
+                                    toValue:
+                                        value < compactOffset / 2
+                                            ? compactOffset
+                                            : 0,
+                                    useNativeDriver: true,
+                                    overshootClamping: true,
+                                }).start();
+                            })
+                        }
+                        style={styles.handleTouch}>
+                        <View style={styles.handle} />
+                    </Pressable>
+                </View>
                 <Pressable
                     onPress={onClose}
                     style={styles.close}
@@ -79,62 +149,72 @@ export default function MapIssueCard({
                         color={Palette.primaryBlack70}
                     />
                 </Pressable>
-                <Image
-                    source={
-                        issue?.imageUrl
-                            ? { uri: issue.imageUrl }
-                            : require("@/assets/images/placeholder.png")
-                    }
-                    style={styles.image}
-                    contentFit="cover"
-                    accessibilityLabel={issue?.title ?? "Trail issue photo"}
-                />
-                {(status || issue?.elapsedTime) && (
-                    <View style={styles.metadata}>
-                        {status && (
-                            <View
-                                style={[
-                                    styles.badge,
-                                    status === "Completed" && styles.completed,
-                                ]}>
-                                <Text
+                <ScrollView
+                    style={styles.content}
+                    contentContainerStyle={{
+                        paddingBottom: Math.max(insets.bottom, 24),
+                    }}
+                    showsVerticalScrollIndicator={false}>
+                    <Image
+                        source={
+                            issue?.imageUrl
+                                ? { uri: issue.imageUrl }
+                                : require("@/assets/images/placeholder.png")
+                        }
+                        style={styles.image}
+                        contentFit="cover"
+                        accessibilityLabel={issue?.title ?? "Trail issue photo"}
+                    />
+                    {(status || issue?.elapsedTime) && (
+                        <View style={styles.metadata}>
+                            {status && (
+                                <View
                                     style={[
-                                        styles.status,
+                                        styles.badge,
                                         status === "Completed" &&
-                                            styles.completedText,
+                                            styles.completed,
                                     ]}>
-                                    {status}
+                                    <Text
+                                        style={[
+                                            styles.status,
+                                            status === "Completed" &&
+                                                styles.completedText,
+                                        ]}>
+                                        {status}
+                                    </Text>
+                                </View>
+                            )}
+                            {issue?.elapsedTime && (
+                                <Text style={styles.elapsed}>
+                                    {issue.elapsedTime}
                                 </Text>
-                            </View>
-                        )}
-                        {issue?.elapsedTime && (
-                            <Text style={styles.elapsed}>
-                                {issue.elapsedTime}
-                            </Text>
-                        )}
-                    </View>
-                )}
-                <Pressable
-                    accessibilityRole="link"
-                    accessibilityLabel={`Open issue: ${issue.title ?? "Trail issue"}`}
-                    disabled={!selectedIssue}
-                    onPress={() => {
-                        onClose();
-                        router.push({
-                            pathname: "/trail-issue-screen",
-                            params: {
-                                issueId: issue.id,
-                                issueName: issue.title ?? "Trail issue",
-                            },
-                        });
-                    }}>
-                    <Text style={styles.title}>
-                        {issue.title ?? "Trail issue"}
-                    </Text>
-                </Pressable>
-                {issue?.locationName && (
-                    <Text style={styles.location}>{issue.locationName}</Text>
-                )}
+                            )}
+                        </View>
+                    )}
+                    <Pressable
+                        accessibilityRole="link"
+                        accessibilityLabel={`Open issue: ${issue.title ?? "Trail issue"}`}
+                        disabled={!selectedIssue}
+                        onPress={() => {
+                            onClose();
+                            router.push({
+                                pathname: "/trail-issue-screen",
+                                params: {
+                                    issueId: issue.id,
+                                    issueName: issue.title ?? "Trail issue",
+                                },
+                            });
+                        }}>
+                        <Text style={styles.title}>
+                            {issue.title ?? "Trail issue"}
+                        </Text>
+                    </Pressable>
+                    {issue?.locationName && (
+                        <Text style={styles.location}>
+                            {issue.locationName}
+                        </Text>
+                    )}
+                </ScrollView>
             </Animated.View>
         </View>
     );
@@ -158,8 +238,17 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: Palette.primaryBlack30,
         paddingHorizontal: 24,
-        paddingTop: 42,
+        overflow: "hidden",
     },
+    dragArea: { height: 44, marginHorizontal: 28 },
+    handleTouch: { flex: 1, alignItems: "center", justifyContent: "center" },
+    handle: {
+        width: 40,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: Palette.primaryBlack30,
+    },
+    content: { flex: 1 },
     close: { position: "absolute", top: 12, right: 18, padding: 4 },
     image: {
         width: "100%",
