@@ -6,6 +6,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library/legacy";
 import { useRouter } from "expo-router";
 import { Check, Download, House, Plus, X } from "lucide-react-native";
+import Svg, { Path } from "react-native-svg";
 import React, { useRef, useState } from "react";
 import {
     Alert,
@@ -19,11 +20,22 @@ import {
 import { captureRef } from "react-native-view-shot";
 
 type Step = "select" | "preview" | "success";
+type PhotoOrientation = "horizontal" | "vertical";
+type SelectedPhoto = {
+    uri: string;
+    orientation: PhotoOrientation;
+    aspectRatio: number;
+};
+
+function compositeAspectRatio(before: SelectedPhoto, after: SelectedPhoto) {
+    const panelAspect = (before.aspectRatio + after.aspectRatio) / 2;
+    return panelAspect * 2;
+}
 
 export default function BeforeAfterGraphicScreen() {
     const router = useRouter();
-    const [beforeUri, setBeforeUri] = useState<string | null>(null);
-    const [afterUri, setAfterUri] = useState<string | null>(null);
+    const [beforePhoto, setBeforePhoto] = useState<SelectedPhoto | null>(null);
+    const [afterPhoto, setAfterPhoto] = useState<SelectedPhoto | null>(null);
     const [step, setStep] = useState<Step>("select");
     const [saving, setSaving] = useState(false);
     const [, requestMediaPermission] = MediaLibrary.usePermissions({
@@ -40,13 +52,28 @@ export default function BeforeAfterGraphicScreen() {
                 allowsEditing: false,
                 quality: 1,
             });
-            if (result.canceled || !result.assets?.[0]?.uri) return;
-            const uri = result.assets[0].uri;
-            if (slot === "before") setBeforeUri(uri);
-            else setAfterUri(uri);
+            const asset = result.assets?.[0];
+            if (result.canceled || !asset?.uri) return;
+            const width = asset.width || 1;
+            const height = asset.height || 1;
+            const photo: SelectedPhoto = {
+                uri: asset.uri,
+                orientation: width >= height ? "horizontal" : "vertical",
+                aspectRatio: width / height,
+            };
+            const other = slot === "before" ? afterPhoto : beforePhoto;
+            if (other && photo.orientation !== other.orientation) {
+                const expected = other.orientation;
+                Alert.alert(
+                    "Choose a matching photo",
+                    `This pair needs two ${expected} photos. Choose a ${expected} photo, or clear the other slot first.`,
+                );
+                return;
+            }
+            if (slot === "before") setBeforePhoto(photo);
+            else setAfterPhoto(photo);
             // Advance once both photos exist, here rather than in an effect
             // watching them.
-            const other = slot === "before" ? afterUri : beforeUri;
             if (step === "select" && other) setStep("preview");
         } catch (e) {
             console.error("Error picking image:", e);
@@ -58,14 +85,14 @@ export default function BeforeAfterGraphicScreen() {
     };
 
     const clearSlot = (slot: "before" | "after") => {
-        if (slot === "before") setBeforeUri(null);
-        else setAfterUri(null);
+        if (slot === "before") setBeforePhoto(null);
+        else setAfterPhoto(null);
         setStep("select");
     };
 
     const reset = () => {
-        setBeforeUri(null);
-        setAfterUri(null);
+        setBeforePhoto(null);
+        setAfterPhoto(null);
         setStep("select");
     };
 
@@ -105,10 +132,10 @@ export default function BeforeAfterGraphicScreen() {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}>
                     <Header />
-                    {step === "success" && beforeUri && afterUri ? (
+                    {step === "success" && beforePhoto && afterPhoto ? (
                         <SuccessView
-                            beforeUri={beforeUri}
-                            afterUri={afterUri}
+                            beforePhoto={beforePhoto}
+                            afterPhoto={afterPhoto}
                             onCreateAnother={reset}
                             onGoHome={() => router.replace("/home-screen")}
                         />
@@ -120,34 +147,34 @@ export default function BeforeAfterGraphicScreen() {
                             <Text style={styles.subtitle}>
                                 {step === "preview"
                                     ? "Review your comparison and save"
-                                    : "Select two photos to create a before/after comparison"}
+                                    : "Choose two photos in the same orientation. Each photo will be shown in full."}
                             </Text>
 
                             <View style={styles.pickerRow}>
                                 <PhotoSlot
                                     label="BEFORE"
-                                    uri={beforeUri}
+                                    photo={beforePhoto}
+                                    expectedOrientation={afterPhoto?.orientation}
                                     onPress={() => pickImage("before")}
                                     onClear={() => clearSlot("before")}
                                     borderColor="#693894"
-                                    boxHeight={step === "preview" ? 225 : 395}
                                 />
                                 <PhotoSlot
                                     label="AFTER"
-                                    uri={afterUri}
+                                    photo={afterPhoto}
+                                    expectedOrientation={beforePhoto?.orientation}
                                     onPress={() => pickImage("after")}
                                     onClear={() => clearSlot("after")}
                                     borderColor="#2D8682"
-                                    boxHeight={step === "preview" ? 225 : 395}
                                 />
                             </View>
 
                             {step === "select" && (
                                 <View style={styles.hintBox}>
-                                    {!beforeUri && !afterUri ? (
+                                    {!beforePhoto && !afterPhoto ? (
                                         <Text style={styles.hintText}>
-                                            Tap the boxes above to select your
-                                            before and after photos
+                                            Tap each box to select your before
+                                            and after photos
                                         </Text>
                                     ) : (
                                         <>
@@ -156,17 +183,22 @@ export default function BeforeAfterGraphicScreen() {
                                             </Text>
                                             <Text style={styles.hintText}>
                                                 Now select your &quot;
-                                                {!beforeUri
+                                                {!beforePhoto
                                                     ? "Before"
                                                     : "After"}
                                                 &quot; photo
                                             </Text>
+                                            {beforePhoto && (
+                                                <Text style={styles.hintText}>
+                                                    Choose a {beforePhoto.orientation} photo to match.
+                                                </Text>
+                                            )}
                                         </>
                                     )}
                                 </View>
                             )}
 
-                            {step === "preview" && beforeUri && afterUri && (
+                            {step === "preview" && beforePhoto && afterPhoto && (
                                 <>
                                     <Text style={styles.previewHeading}>
                                         PREVIEW
@@ -174,14 +206,22 @@ export default function BeforeAfterGraphicScreen() {
                                     <View
                                         ref={previewRef}
                                         collapsable={false}
-                                        style={styles.composite}>
+                                        style={[
+                                            styles.composite,
+                                            {
+                                                aspectRatio: compositeAspectRatio(
+                                                    beforePhoto,
+                                                    afterPhoto,
+                                                ),
+                                            },
+                                        ]}>
                                         <CompositeHalf
-                                            uri={beforeUri}
+                                            photo={beforePhoto}
                                             label="BEFORE"
                                         />
                                         <View style={styles.compositeDivider} />
                                         <CompositeHalf
-                                            uri={afterUri}
+                                            photo={afterPhoto}
                                             label="AFTER"
                                         />
                                     </View>
@@ -222,32 +262,32 @@ export default function BeforeAfterGraphicScreen() {
 
 function PhotoSlot({
     label,
-    uri,
+    photo,
+    expectedOrientation,
     onPress,
     onClear,
     borderColor,
-    boxHeight = 466,
 }: {
     label: string;
-    uri: string | null;
+    photo: SelectedPhoto | null;
+    expectedOrientation?: PhotoOrientation;
     onPress: () => void;
     onClear: () => void;
     borderColor: string;
-    boxHeight?: number;
 }) {
     return (
         <View style={slotStyles.column}>
             <Text style={slotStyles.label}>{label}</Text>
-            {uri ? (
+            {photo ? (
                 <View
                     style={[
                         slotStyles.filledBox,
-                        { borderColor, height: boxHeight },
+                        { borderColor, aspectRatio: photo.aspectRatio },
                     ]}>
                     <Image
-                        source={{ uri }}
+                        source={{ uri: photo.uri }}
                         style={slotStyles.image}
-                        resizeMode="cover"
+                        resizeMode="contain"
                     />
                     <View style={slotStyles.tag}>
                         <Text style={slotStyles.tagText}>{label}</Text>
@@ -265,7 +305,14 @@ function PhotoSlot({
                 </View>
             ) : (
                 <TouchableOpacity
-                    style={slotStyles.emptyBox}
+                    style={[
+                        slotStyles.emptyBox,
+                        expectedOrientation === "horizontal"
+                            ? { aspectRatio: 4 / 3 }
+                            : expectedOrientation === "vertical"
+                              ? { aspectRatio: 3 / 4 }
+                              : undefined,
+                    ]}
                     activeOpacity={0.7}
                     onPress={onPress}>
                     <Plus
@@ -280,29 +327,44 @@ function PhotoSlot({
     );
 }
 
-function CompositeHalf({ uri, label }: { uri: string; label: string }) {
+function CompositeHalf({
+    photo,
+    label,
+}: {
+    photo: SelectedPhoto;
+    label: string;
+}) {
     return (
         <View style={compositeStyles.half}>
             <Image
-                source={{ uri }}
+                source={{ uri: photo.uri }}
                 style={compositeStyles.image}
-                resizeMode="cover"
+                resizeMode="contain"
             />
-            <View style={slotStyles.tag}>
-                <Text style={slotStyles.tagText}>{label}</Text>
+            <View style={compositeStyles.labelBrush}>
+                <Svg
+                    viewBox="0 0 460 130"
+                    preserveAspectRatio="none"
+                    style={StyleSheet.absoluteFill}>
+                    <Path
+                        d="M0 13 Q22 3 48 9 L405 8 Q424 7 420 18 L438 27 L421 39 L432 50 L415 62 L430 74 L409 85 L422 98 L401 111 L409 122 L0 122 Z"
+                        fill="#FFFFFF"
+                    />
+                </Svg>
+                <Text style={compositeStyles.labelText}>{label}</Text>
             </View>
         </View>
     );
 }
 
 function SuccessView({
-    beforeUri,
-    afterUri,
+    beforePhoto,
+    afterPhoto,
     onCreateAnother,
     onGoHome,
 }: {
-    beforeUri: string;
-    afterUri: string;
+    beforePhoto: SelectedPhoto;
+    afterPhoto: SelectedPhoto;
     onCreateAnother: () => void;
     onGoHome: () => void;
 }) {
@@ -321,14 +383,23 @@ function SuccessView({
             <Text style={successStyles.subtitle}>
                 Your before/after comparison has been saved to your camera roll
             </Text>
-            <View style={successStyles.composite}>
+            <View
+                style={[
+                    successStyles.composite,
+                    {
+                        aspectRatio: compositeAspectRatio(
+                            beforePhoto,
+                            afterPhoto,
+                        ),
+                    },
+                ]}>
                 <CompositeHalf
-                    uri={beforeUri}
+                    photo={beforePhoto}
                     label="BEFORE"
                 />
                 <View style={styles.compositeDivider} />
                 <CompositeHalf
-                    uri={afterUri}
+                    photo={afterPhoto}
                     label="AFTER"
                 />
             </View>
@@ -453,15 +524,11 @@ const styles = StyleSheet.create({
     },
     composite: {
         flexDirection: "row",
-        height: 280,
-        borderRadius: 16,
         overflow: "hidden",
-        borderWidth: 2,
-        borderColor: Palette.primaryPurple70,
         backgroundColor: "#000",
     },
     compositeDivider: {
-        width: 3,
+        width: 6,
         height: "100%",
         backgroundColor: "#FFFFFF",
     },
@@ -480,7 +547,7 @@ const slotStyles = StyleSheet.create({
         marginBottom: 10,
     },
     emptyBox: {
-        height: 395,
+        aspectRatio: 9 / 10,
         borderRadius: 14,
         borderWidth: 1.5,
         borderColor: Palette.primaryBlack30,
@@ -499,6 +566,7 @@ const slotStyles = StyleSheet.create({
         borderRadius: 10,
         overflow: "hidden",
         borderWidth: 1.5,
+        aspectRatio: 9 / 10,
     },
     image: {
         width: "100%",
@@ -543,10 +611,27 @@ const compositeStyles = StyleSheet.create({
     half: {
         flex: 1,
         backgroundColor: "#000",
+        overflow: "hidden",
     },
     image: {
         width: "100%",
         height: "100%",
+    },
+    labelBrush: {
+        position: "absolute",
+        left: 0,
+        bottom: 0,
+        width: "47%",
+        height: "21%",
+        justifyContent: "center",
+    },
+    labelText: {
+        color: "#302923",
+        fontFamily: "Lato_700Bold",
+        fontSize: 16,
+        letterSpacing: -0.5,
+        marginLeft: 6,
+        marginTop: 1,
     },
 });
 
@@ -589,14 +674,7 @@ const successStyles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     composite: {
-        flexDirection: "row",
-        height: 220,
         width: "100%",
-        borderRadius: 16,
-        overflow: "hidden",
-        borderWidth: 2,
-        borderColor: Palette.teal,
-        backgroundColor: "#000",
         marginTop: 24,
     },
 });
