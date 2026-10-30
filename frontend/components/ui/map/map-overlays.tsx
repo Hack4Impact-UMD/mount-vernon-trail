@@ -29,6 +29,14 @@ export default function MapOverlays({
     selectedId,
     onSelectPin,
 }: Props) {
+    const heatmapData = JSON.stringify({
+        type: "FeatureCollection",
+        features: pins.map((pin) => ({
+            type: "Feature",
+            properties: {},
+            geometry: { type: "Point", coordinates: pin.coordinates },
+        })),
+    });
     return (
         <>
             {trail && (
@@ -61,6 +69,46 @@ export default function MapOverlays({
                     />
                 </GeoJSONSource>
             )}
+
+            <GeoJSONSource
+                id="issue-density"
+                data={heatmapData}>
+                <Layer
+                    id="issue-heatmap"
+                    type="heatmap"
+                    paint={{
+                        "heatmap-weight": 1,
+                        "heatmap-radius": [
+                            "interpolate",
+                            ["linear"],
+                            ["zoom"],
+                            8,
+                            20,
+                            14,
+                            40,
+                            18,
+                            60,
+                        ],
+                        "heatmap-intensity": 1,
+                        "heatmap-opacity": 0.7,
+                        "heatmap-color": [
+                            "interpolate",
+                            ["linear"],
+                            ["heatmap-density"],
+                            0,
+                            `${Palette.green}00`,
+                            0.2,
+                            Palette.green,
+                            0.5,
+                            Palette.heatmapOrange,
+                            0.8,
+                            Palette.heatmapRed,
+                            1,
+                            Palette.heatmapRed,
+                        ],
+                    }}
+                />
+            </GeoJSONSource>
 
             {pins.map((pin) => {
                 const selected = selectedId === pin.id;

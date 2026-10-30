@@ -1,21 +1,29 @@
-import { Palette } from "@/constants/theme";
-import {
-    Camera,
-    Map,
-    ViewAnnotation,
-    type CameraRef,
-} from "@maplibre/maplibre-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useFocusEffect } from "expo-router";
 import MapEventFilter from "@/components/ui/map/map-event-filter";
+import MapOverlays, { type MapPin } from "@/components/ui/map/map-overlays";
+import TrailLandmarkDetailPopup from "@/components/ui/map/trail-landmark-detail-popup";
+import TrailLandmarks, {
+    type TrailLandmark,
+} from "@/components/ui/map/trail-landmark-markers";
+import TrailLandmarkSearch from "@/components/ui/map/trail-landmark-search";
+import { MAP_STYLES, type MapMode } from "@/config/map-styles";
+import { Palette } from "@/constants/theme";
+import trail from "@/data/mount-vernon-trail.json";
+import { useUserLocation } from "@/hooks/use-user-location";
 import {
     fetchMapEvents,
     filterIssuesByEvent,
     type MapEvent,
 } from "@/services/map-event-service";
 import { fetchMapIssues, type MapIssueData } from "@/services/map-service";
+import {
+    Camera,
+    Map,
+    ViewAnnotation,
+    type CameraRef,
+} from "@maplibre/maplibre-react-native";
+import { useFocusEffect } from "expo-router";
 import { LocateFixed, RefreshCw, X } from "lucide-react-native";
-import { useUserLocation } from "@/hooks/use-user-location";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Modal,
@@ -25,14 +33,6 @@ import {
     Text,
     View,
 } from "react-native";
-import MapOverlays, { type MapPin } from "@/components/ui/map/map-overlays";
-import trail from "@/data/mount-vernon-trail.json";
-import TrailLandmarks, {
-    type TrailLandmark,
-} from "@/components/ui/map/trail-landmark-markers";
-import TrailLandmarkDetailPopup from "@/components/ui/map/trail-landmark-detail-popup";
-import TrailLandmarkSearch from "@/components/ui/map/trail-landmark-search";
-import { MAP_STYLES, type MapMode } from "@/config/map-styles";
 
 const TRAIL_DATA = JSON.stringify(trail);
 // Derive the full extent from the rendered trail, rather than a fixed center/zoom.
@@ -373,7 +373,7 @@ export default function TrailMap({
                             {issuesLoading
                                 ? "Loading trail issues…"
                                 : (issueError ??
-                                  `${issuePins.length + unlocatedIssues.length} intake cards · ${issuePins.length} pins${unlocatedIssues.length ? ` · ${unlocatedIssues.length} need a location` : ""}`)}
+                                  `${issuePins.length + unlocatedIssues.length} intake cards · ${issuePins.length} pins`)}
                         </Text>
                         {!issuesLoading && unlocatedIssues.length > 0 && (
                             <Pressable
@@ -381,7 +381,13 @@ export default function TrailMap({
                                 accessibilityLabel="View cards that need a location"
                                 onPress={() => setShowUnlocated(true)}
                                 style={styles.dismissNotice}>
-                                <Text style={styles.retry}>Details</Text>
+                                <Text
+                                    style={[
+                                        styles.retry,
+                                        styles.noticeDetails,
+                                    ]}>
+                                    Details
+                                </Text>
                             </Pressable>
                         )}
                         <Pressable
@@ -507,7 +513,8 @@ const styles = StyleSheet.create({
         right: 16,
         backgroundColor: "#ffffff",
         borderRadius: 8,
-        padding: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 8,
         flexDirection: "row",
         alignItems: "center",
     },
@@ -536,7 +543,8 @@ const styles = StyleSheet.create({
         color: Palette.primaryBlack100,
     },
     issueNoticeText: { flex: 1 },
-    dismissNotice: { padding: 8 },
+    dismissNotice: { paddingHorizontal: 8, paddingVertical: 8 },
+    noticeDetails: { paddingVertical: 0 },
 
     switchButton: {
         width: 104,
