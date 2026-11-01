@@ -120,3 +120,54 @@ it("reads real JPEG EXIF bytes, including the west longitude reference", async (
         longitude: -77,
     });
 });
+
+it.each(["image/png", "image/webp", "image/gif"])(
+    "skips unsupported %s attachments before downloading them",
+    async (mimeType) => {
+        const load = jest.fn();
+        expect(
+            await resolvePhotoIssueLocation(
+                {
+                    ...card,
+                    attachments: [
+                        { mimeType, url: "https://trello.com/photo" },
+                    ],
+                },
+                load,
+            ),
+        ).toBeNull();
+        expect(load).not.toHaveBeenCalled();
+        expect(gps).not.toHaveBeenCalled();
+    },
+);
+it("silently skips unknown image bytes and tries the next supported photo", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+        jest.mocked(gps)
+            .mockRejectedValueOnce(new Error("Unknown file format"))
+            .mockResolvedValueOnce({ latitude: 38.8, longitude: -77 });
+        expect(
+            await resolvePhotoIssueLocation(
+                card,
+                jest.fn().mockResolvedValue("data:image/jpeg;base64,AQID"),
+            ),
+        ).toMatchObject({ coordinates: [-77, 38.8] });
+        expect(warn).not.toHaveBeenCalled();
+    } finally {
+        warn.mockRestore();
+    }
+});
+it("uses a supported extension when the attachment MIME type is missing", async () => {
+    jest.mocked(gps).mockResolvedValue({ latitude: 38.8, longitude: -77 });
+    expect(
+        await resolvePhotoIssueLocation(
+            {
+                ...card,
+                attachments: [
+                    { mimeType: "", url: "https://trello.com/original.jpg" },
+                ],
+            },
+            jest.fn().mockResolvedValue("data:image/jpeg;base64,AQID"),
+        ),
+    ).toMatchObject({ coordinates: [-77, 38.8] });
+});

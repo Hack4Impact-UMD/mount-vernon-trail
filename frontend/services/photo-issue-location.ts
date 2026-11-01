@@ -4,6 +4,16 @@ import { getErrorMessage } from "@/utils/errors";
 import type { Card } from "./trello-types";
 import type { MapLocation } from "./map-service";
 
+const GPS_IMAGE_TYPES = new Set([
+    "image/jpeg",
+    "image/jpg",
+    "image/tiff",
+    "image/heic",
+    "image/heif",
+    "image/avif",
+]);
+const GPS_IMAGE_EXTENSION = /\.(?:jpe?g|heic|heif|avif|tiff?)(?:[?#]|$)/i;
+
 export type LoadIssueImage = (url: string) => Promise<string | null>;
 
 /** Use original attachment bytes, never Trello's resized preview images. */
@@ -12,9 +22,16 @@ export async function resolvePhotoIssueLocation(
     loadImage: LoadIssueImage,
 ): Promise<MapLocation | null> {
     for (const attachment of card.attachments ?? []) {
+        const mimeType = attachment.mimeType
+            ?.split(";")[0]
+            .trim()
+            .toLowerCase();
+        // A known PNG/WebP/GIF cannot be read by our registered EXIF parsers.
+        if (mimeType?.startsWith("image/") && !GPS_IMAGE_TYPES.has(mimeType))
+            continue;
         if (
-            !attachment.mimeType?.startsWith("image/") &&
-            !/\.(?:jpe?g|heic|tiff?)(?:[?#]|$)/i.test(attachment.url)
+            !GPS_IMAGE_TYPES.has(mimeType) &&
+            !GPS_IMAGE_EXTENSION.test(attachment.url)
         )
             continue;
         try {
@@ -37,7 +54,9 @@ export async function resolvePhotoIssueLocation(
                 eventNames: [],
             };
         } catch (error: unknown) {
-            // Missing or malformed EXIF must not prevent the title fallback.
+            // Some attachments have misleading extensions/MIME types. Unsupported
+            // bytes are an expected fallback, rather than a warning on every refresh.
+            if (getErrorMessage(error) === "Unknown file format") continue;
             console.warn(
                 "Could not read issue photo GPS:",
                 getErrorMessage(error),
