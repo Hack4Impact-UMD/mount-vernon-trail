@@ -12,6 +12,7 @@ export type TrailLandmark = {
     id: string;
     kind: LandmarkKind;
     abbreviation: string;
+    aliases?: string[];
     location_name: string;
     coordinates: { latitude: number; longitude: number };
     description?: string;

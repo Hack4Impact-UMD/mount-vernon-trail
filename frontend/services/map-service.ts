@@ -1,7 +1,18 @@
 import { getListId, getTrelloClient } from "./trello-config";
 import type { Card } from "./trello-types";
-import { resolveFirestoreIssueLocation } from "./issue-location-service";
-import { resolveTrelloIssueLocation } from "./trello-issue-location";
+import {
+    resolveFirestoreIssueLocation,
+    saveResolvedIssueLocation,
+} from "./issue-location-service";
+import {
+    resolvePhotoIssueLocation,
+    type LoadIssueImage,
+} from "./photo-issue-location";
+import { getErrorMessage } from "@/utils/errors";
+import {
+    resolveTrelloIssueLocation,
+    resolveTitleIssueLocation,
+} from "./trello-issue-location";
 
 export type MapLocation = {
     /** GeoJSON order: longitude, latitude. */
@@ -64,15 +75,36 @@ export function filterMapIssues(
 
 export async function resolveIssueLocation(
     card: Card,
+    loadImage?: LoadIssueImage,
 ): Promise<MapLocation | null> {
     const saved = await resolveFirestoreIssueLocation(card);
-    return saved ?? resolveTrelloIssueLocation(card);
+    if (saved) return saved;
+    const photo = loadImage
+        ? await resolvePhotoIssueLocation(card, loadImage)
+        : null;
+    const explicit = photo ? null : resolveTrelloIssueLocation(card);
+    const resolved = photo ?? explicit ?? resolveTitleIssueLocation(card);
+    if (resolved) {
+        try {
+            await saveResolvedIssueLocation(
+                card,
+                resolved,
+                photo ? "photo" : explicit ? "manual" : "title",
+            );
+        } catch (error: unknown) {
+            console.warn(
+                "Could not cache issue location:",
+                getErrorMessage(error),
+            );
+        }
+    }
+    return resolved;
 }
 
 /** Fetch on map focus/refresh; Intake membership is the pin source of truth. */
 export async function fetchMapIssues(
     key: string,
-    resolveLocation: ResolveMapLocation = resolveIssueLocation,
+    resolveLocation?: ResolveMapLocation,
 ): Promise<MapIssueData> {
     const listId = await getListId("trailIssues", key);
     const trello = getTrelloClient(key);
@@ -97,8 +129,22 @@ export async function fetchMapIssues(
         }
     }
 
+    // Share downloads between EXIF extraction and the map thumbnail for this refresh.
+    const images = new Map<string, Promise<string | null>>();
+    const loadImage: LoadIssueImage = (url) => {
+        if (!images.has(url))
+            images.set(
+                url,
+                trello.loadTrelloImage(url).catch(() => null),
+            );
+        return images.get(url)!;
+    };
     const locations = await Promise.all(
-        cards.map((card) => resolveLocation(card)),
+        cards.map((card) =>
+            resolveLocation
+                ? resolveLocation(card)
+                : resolveIssueLocation(card, loadImage),
+        ),
     );
     for (const [index, card] of cards.entries()) {
         const location = locations[index];
@@ -117,9 +163,7 @@ export async function fetchMapIssues(
             attachment.mimeType?.startsWith("image/"),
         );
         // A failed photo must not hide an otherwise valid issue pin.
-        const imageUrl = image
-            ? await trello.loadTrelloImage(image.url).catch(() => null)
-            : null;
+        const imageUrl = image ? await loadImage(image.url) : null;
         result.geojson.features.push({
             type: "Feature",
             id: card.id,

@@ -1,3 +1,4 @@
+import { TRAIL_LANDMARKS } from "./trail-landmark-service";
 import type { Card } from "./trello-types";
 import type { MapLocation } from "./map-service";
 
@@ -80,6 +81,47 @@ export function resolveTrelloIssueLocation(card: Card): MapLocation | null {
     return {
         coordinates,
         locationName: name?.[1].trim() || card.name,
+        eventNames: [],
+    };
+}
+
+/** Match only a known prefix, with a boundary so B1 never matches B10. */
+export function resolveTitleIssueLocation(card: Card): MapLocation | null {
+    const normalize = (value: string) =>
+        value.toLowerCase().replace(/\s+/g, " ").trim();
+    const title = normalize(card.name).replace(/^\[\s*/, "");
+    const matches = TRAIL_LANDMARKS.flatMap((landmark) => {
+        const number = landmark.location_name.match(/\d+(?:\.\d+)?$/)?.[0];
+        const aliases = [
+            landmark.location_name,
+            landmark.abbreviation,
+            ...(landmark.aliases ?? []),
+        ];
+        if (landmark.kind === "bridge" && number)
+            aliases.push(`Bridge #${number}`, `Bridge#${number}`);
+        if (landmark.kind === "mile-marker" && number)
+            aliases.push(`MM${number}`, `MM ${number}`, `Mile ${number}`);
+        return aliases
+            .map(normalize)
+            .filter((alias) => {
+                if (!title.startsWith(alias)) return false;
+                const rest = title.slice(alias.length);
+                // A decimal suffix is not a separator (M4.5 must not resolve to M4).
+                return !rest || /^(?:[\s\]:,;–—-]|\.(?!\d))/.test(rest);
+            })
+            .map((alias) => ({ landmark, length: alias.length }));
+    }).sort((a, b) => b.length - a.length);
+    if (!matches.length) return null;
+    const best = matches.filter((match) => match.length === matches[0].length);
+    if (new Set(best.map(({ landmark }) => landmark.id)).size !== 1)
+        return null;
+    const landmark = best[0].landmark;
+    return {
+        coordinates: [
+            landmark.coordinates.longitude,
+            landmark.coordinates.latitude,
+        ],
+        locationName: landmark.location_name,
         eventNames: [],
     };
 }

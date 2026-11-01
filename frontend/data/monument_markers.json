@@ -1,6 +1,7 @@
 [
     {
         "location_name": "Mount Vernon Estate Trailhead",
+        "aliases": ["Mount Vernon"],
         "coordinates": {
             "latitude": 38.7081,
             "longitude": -77.0861
@@ -22,6 +23,7 @@
     },
     {
         "location_name": "Riverside Park / Little Hunting Creek",
+        "aliases": ["Riverside Park"],
         "coordinates": {
             "latitude": 38.7188,
             "longitude": -77.0672
@@ -43,6 +45,7 @@
     },
     {
         "location_name": "Fort Hunt Park (East Entrance)",
+        "aliases": ["Fort Hunt Park"],
         "coordinates": {
             "latitude": 38.7153,
             "longitude": -77.0398
@@ -64,6 +67,7 @@
     },
     {
         "location_name": "Dyke Marsh Wildlife Preserve",
+        "aliases": ["Dyke Marsh"],
         "coordinates": {
             "latitude": 38.7615,
             "longitude": -77.0494
@@ -85,6 +89,7 @@
     },
     {
         "location_name": "Belle Haven Park & Marina",
+        "aliases": ["Belle Haven", "Belle Haven Park"],
         "coordinates": {
             "latitude": 38.7758,
             "longitude": -77.0512
@@ -106,6 +111,7 @@
     },
     {
         "location_name": "Jones Point Park / Woodrow Wilson Bridge",
+        "aliases": ["Jones Point Park", "Woodrow Wilson Bridge"],
         "coordinates": {
             "latitude": 38.7891,
             "longitude": -77.0409
@@ -127,6 +133,7 @@
     },
     {
         "location_name": "Old Town Alexandria (Oronoco Bay Park)",
+        "aliases": ["Alexandria", "Old Town Alexandria", "Oronoco Bay Park"],
         "coordinates": {
             "latitude": 38.8115,
             "longitude": -77.0378
@@ -148,6 +155,7 @@
     },
     {
         "location_name": "Daingerfield Island / Washington Sailing Marina",
+        "aliases": ["Daingerfield Island", "Washington Sailing Marina"],
         "coordinates": {
             "latitude": 38.8319,
             "longitude": -77.0411
@@ -169,6 +177,7 @@
     },
     {
         "location_name": "Gravelly Point Park",
+        "aliases": ["Gravelly Point"],
         "coordinates": {
             "latitude": 38.8647,
             "longitude": -77.0392
@@ -190,6 +199,11 @@
     },
     {
         "location_name": "Lady Bird Johnson Park / LBJ Grove",
+        "aliases": [
+            "Lady Bird Johnson Park",
+            "LBJ Grove",
+            "Lyndon Baines Johnson Memorial Grove"
+        ],
         "coordinates": {
             "latitude": 38.8794,
             "longitude": -77.0518
@@ -211,6 +225,7 @@
     },
     {
         "location_name": "Theodore Roosevelt Island Trailhead",
+        "aliases": ["Theodore Roosevelt Island"],
         "coordinates": {
             "latitude": 38.8953,
             "longitude": -77.0633

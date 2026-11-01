@@ -1,11 +1,24 @@
-import { doc, getDoc } from "firebase/firestore";
+import {
+    doc,
+    getDoc,
+    runTransaction,
+    serverTimestamp,
+} from "firebase/firestore";
 import { requireUser } from "../require-user";
-import { resolveFirestoreIssueLocation } from "../issue-location-service";
+import {
+    resolveFirestoreIssueLocation,
+    saveResolvedIssueLocation,
+} from "../issue-location-service";
 import type { Card } from "../trello-types";
 
 jest.mock("@/config/firebase", () => ({ db: {} }));
 jest.mock("../require-user", () => ({ requireUser: jest.fn() }));
-jest.mock("firebase/firestore", () => ({ doc: jest.fn(), getDoc: jest.fn() }));
+jest.mock("firebase/firestore", () => ({
+    doc: jest.fn(),
+    getDoc: jest.fn(),
+    runTransaction: jest.fn(),
+    serverTimestamp: jest.fn(),
+}));
 
 const card = { id: "intake-card", name: "Issue" } as Card;
 beforeEach(() => jest.resetAllMocks());
@@ -48,3 +61,49 @@ it("requires sign-in before reading Firestore", async () => {
     );
     expect(getDoc).not.toHaveBeenCalled();
 });
+
+const resolved = {
+    coordinates: [-77, 38] as [number, number],
+    locationName: "Bridge 1",
+    eventNames: [],
+};
+it("does not attempt writes for a non-admin", async () => {
+    (requireUser as jest.Mock).mockReturnValue({
+        getIdTokenResult: async () => ({ claims: {} }),
+    });
+    await saveResolvedIssueLocation(card, resolved, "title");
+    expect(runTransaction).not.toHaveBeenCalled();
+});
+it.each([
+    null,
+    { source: "manual", latitude: 39, longitude: -77, locationName: "Saved" },
+])(
+    "fills missing locations without replacing a concurrent saved location: %j",
+    async (location) => {
+        (requireUser as jest.Mock).mockReturnValue({
+            getIdTokenResult: async () => ({ claims: { admin: true } }),
+        });
+        (doc as jest.Mock).mockReturnValue("location-ref");
+        (serverTimestamp as jest.Mock).mockReturnValue("server-time");
+        const set = jest.fn();
+        (runTransaction as jest.Mock).mockImplementation(async (_, action) =>
+            action({
+                get: async () => ({ data: () => ({ location }) }),
+                set,
+            }),
+        );
+        await saveResolvedIssueLocation(card, resolved, "title");
+        if (location) expect(set).not.toHaveBeenCalled();
+        else
+            expect(set).toHaveBeenCalledWith("location-ref", {
+                trelloCardId: card.id,
+                location: {
+                    latitude: 38,
+                    longitude: -77,
+                    locationName: "Bridge 1",
+                    source: "title",
+                },
+                updatedAt: "server-time",
+            });
+    },
+);

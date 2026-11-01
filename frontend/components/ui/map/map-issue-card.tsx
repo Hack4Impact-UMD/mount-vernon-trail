@@ -34,6 +34,7 @@ export default function MapIssueCard({
     const compactOffset = expandedHeight - compactHeight;
     const [translation] = useState(() => new Animated.Value(height));
     const visible = selectedIssue !== null;
+    const groupSelected = (selectedIssue?.sameLocationIssues?.length ?? 0) > 1;
     const [displayedIssue, setDisplayedIssue] = useState<MapPin | null>(
         selectedIssue,
     );
@@ -43,7 +44,11 @@ export default function MapIssueCard({
     }
     useEffect(() => {
         const animation = Animated.timing(translation, {
-            toValue: visible ? compactOffset : expandedHeight,
+            toValue: visible
+                ? groupSelected
+                    ? 0
+                    : compactOffset
+                : expandedHeight,
             duration: visible ? 280 : 320,
             easing: visible
                 ? Easing.out(Easing.cubic)
@@ -54,7 +59,7 @@ export default function MapIssueCard({
             if (finished && !visible) setDisplayedIssue(null);
         });
         return () => animation.stop();
-    }, [visible, translation, compactOffset, expandedHeight]);
+    }, [visible, groupSelected, translation, compactOffset, expandedHeight]);
 
     const panResponder = useMemo(() => {
         let dragStart = compactOffset;
@@ -99,6 +104,18 @@ export default function MapIssueCard({
         });
     }, [translation, compactOffset, expandedHeight, onClose]);
     const status = issue?.status;
+    const groupedIssues = issue?.sameLocationIssues;
+    const isGroup = !!groupedIssues && groupedIssues.length > 1;
+    const openIssue = (item: MapPin) => {
+        onClose();
+        router.push({
+            pathname: "/trail-issue-screen",
+            params: {
+                issueId: item.id,
+                issueName: item.title ?? "Trail issue",
+            },
+        });
+    };
     if (!issue) return null;
     return (
         <View
@@ -154,65 +171,108 @@ export default function MapIssueCard({
                     contentContainerStyle={{
                         paddingBottom: Math.max(insets.bottom, 24),
                     }}
-                    showsVerticalScrollIndicator={false}>
-                    <Image
-                        source={
-                            issue?.imageUrl
-                                ? { uri: issue.imageUrl }
-                                : require("@/assets/images/placeholder.png")
-                        }
-                        style={styles.image}
-                        contentFit="cover"
-                        accessibilityLabel={issue?.title ?? "Trail issue photo"}
-                    />
-                    {(status || issue?.elapsedTime) && (
-                        <View style={styles.metadata}>
-                            {status && (
-                                <View
-                                    style={[
-                                        styles.badge,
-                                        status === "Completed" &&
-                                            styles.completed,
-                                    ]}>
-                                    <Text
-                                        style={[
-                                            styles.status,
-                                            status === "Completed" &&
-                                                styles.completedText,
-                                        ]}>
-                                        {status}
-                                    </Text>
+                    showsVerticalScrollIndicator={isGroup}
+                    accessibilityLabel={
+                        isGroup ? "Issues at this location" : "Issue details"
+                    }>
+                    {isGroup ? (
+                        <>
+                            <Text style={styles.groupTitle}>
+                                {issue.locationName ?? "Trail issues"}
+                            </Text>
+                            <Text style={styles.groupCount}>
+                                {groupedIssues.length} issues at this location
+                            </Text>
+                            {groupedIssues.map((item) => (
+                                <Pressable
+                                    key={item.id}
+                                    accessibilityRole="link"
+                                    accessibilityLabel={`Open issue: ${item.title ?? "Trail issue"}`}
+                                    disabled={!selectedIssue}
+                                    onPress={() => openIssue(item)}
+                                    style={styles.issueRow}>
+                                    <Image
+                                        source={
+                                            item.imageUrl
+                                                ? { uri: item.imageUrl }
+                                                : require("@/assets/images/placeholder.png")
+                                        }
+                                        style={styles.thumbnail}
+                                        contentFit="cover"
+                                    />
+                                    <View style={styles.rowDetails}>
+                                        <Text style={styles.rowTitle}>
+                                            {item.title ?? "Trail issue"}
+                                        </Text>
+                                        {item.status && (
+                                            <Text style={styles.location}>
+                                                {item.status}
+                                            </Text>
+                                        )}
+                                        {item.elapsedTime && (
+                                            <Text style={styles.elapsed}>
+                                                {item.elapsedTime}
+                                            </Text>
+                                        )}
+                                    </View>
+                                </Pressable>
+                            ))}
+                        </>
+                    ) : (
+                        <>
+                            <Image
+                                source={
+                                    issue?.imageUrl
+                                        ? { uri: issue.imageUrl }
+                                        : require("@/assets/images/placeholder.png")
+                                }
+                                style={styles.image}
+                                contentFit="cover"
+                                accessibilityLabel={
+                                    issue?.title ?? "Trail issue photo"
+                                }
+                            />
+                            {(status || issue?.elapsedTime) && (
+                                <View style={styles.metadata}>
+                                    {status && (
+                                        <View
+                                            style={[
+                                                styles.badge,
+                                                status === "Completed" &&
+                                                    styles.completed,
+                                            ]}>
+                                            <Text
+                                                style={[
+                                                    styles.status,
+                                                    status === "Completed" &&
+                                                        styles.completedText,
+                                                ]}>
+                                                {status}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    {issue?.elapsedTime && (
+                                        <Text style={styles.elapsed}>
+                                            {issue.elapsedTime}
+                                        </Text>
+                                    )}
                                 </View>
                             )}
-                            {issue?.elapsedTime && (
-                                <Text style={styles.elapsed}>
-                                    {issue.elapsedTime}
+                            <Pressable
+                                accessibilityRole="link"
+                                accessibilityLabel={`Open issue: ${issue.title ?? "Trail issue"}`}
+                                disabled={!selectedIssue}
+                                onPress={() => openIssue(issue)}>
+                                <Text style={styles.title}>
+                                    {issue.title ?? "Trail issue"}
+                                </Text>
+                            </Pressable>
+                            {issue?.locationName && (
+                                <Text style={styles.location}>
+                                    {issue.locationName}
                                 </Text>
                             )}
-                        </View>
-                    )}
-                    <Pressable
-                        accessibilityRole="link"
-                        accessibilityLabel={`Open issue: ${issue.title ?? "Trail issue"}`}
-                        disabled={!selectedIssue}
-                        onPress={() => {
-                            onClose();
-                            router.push({
-                                pathname: "/trail-issue-screen",
-                                params: {
-                                    issueId: issue.id,
-                                    issueName: issue.title ?? "Trail issue",
-                                },
-                            });
-                        }}>
-                        <Text style={styles.title}>
-                            {issue.title ?? "Trail issue"}
-                        </Text>
-                    </Pressable>
-                    {issue?.locationName && (
-                        <Text style={styles.location}>
-                            {issue.locationName}
-                        </Text>
+                        </>
                     )}
                 </ScrollView>
             </Animated.View>
@@ -249,6 +309,34 @@ const styles = StyleSheet.create({
         backgroundColor: Palette.primaryBlack30,
     },
     content: { flex: 1 },
+    groupTitle: {
+        fontSize: 23,
+        fontFamily: "Lato_700Bold",
+        color: Palette.primaryBlack100,
+        marginBottom: 6,
+    },
+    groupCount: {
+        fontSize: 14,
+        fontFamily: "Lato_400Regular",
+        color: Palette.primaryBlack70,
+        marginBottom: 16,
+    },
+    issueRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 14,
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: Palette.primaryBlack30,
+    },
+    thumbnail: { width: 80, height: 72, borderRadius: 12 },
+    rowDetails: { flex: 1, gap: 6 },
+    rowTitle: {
+        fontSize: 18,
+        fontFamily: "Lato_700Bold",
+        color: Palette.primaryPurple100,
+        textDecorationLine: "underline",
+    },
     close: { position: "absolute", top: 12, right: 18, padding: 4 },
     image: {
         width: "100%",

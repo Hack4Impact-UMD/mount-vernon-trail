@@ -1,13 +1,23 @@
 import {
     fetchMapIssues,
+    resolveIssueLocation,
     filterMapIssues,
     type MapLocation,
 } from "../map-service";
+import { resolvePhotoIssueLocation } from "../photo-issue-location";
+jest.mock("../photo-issue-location", () => ({
+    resolvePhotoIssueLocation: jest.fn(),
+}));
+
 import { getListId, getTrelloClient } from "../trello-config";
-import { resolveFirestoreIssueLocation } from "../issue-location-service";
+import {
+    resolveFirestoreIssueLocation,
+    saveResolvedIssueLocation,
+} from "../issue-location-service";
 
 jest.mock("../issue-location-service", () => ({
     resolveFirestoreIssueLocation: jest.fn(),
+    saveResolvedIssueLocation: jest.fn(),
 }));
 
 jest.mock("../trello-config", () => ({
@@ -232,4 +242,52 @@ it("records full IDs and short links for located and unlocated Intake cards", as
         ShortOne: "one",
         ShortTwo: "two",
     });
+});
+
+it("preserves saved locations without fetching metadata", async () => {
+    jest.mocked(resolveFirestoreIssueLocation).mockResolvedValueOnce(location);
+    expect(
+        await resolveIssueLocation({ id: "issue" } as never, loadTrelloImage),
+    ).toEqual(location);
+    expect(resolvePhotoIssueLocation).not.toHaveBeenCalled();
+    expect(saveResolvedIssueLocation).not.toHaveBeenCalled();
+});
+it("prefers photo GPS over a title and caches it", async () => {
+    jest.mocked(resolveFirestoreIssueLocation).mockResolvedValueOnce(null);
+    jest.mocked(resolvePhotoIssueLocation).mockResolvedValueOnce(location);
+    const card = { id: "issue", name: "B1 - vines" } as never;
+    expect(await resolveIssueLocation(card, loadTrelloImage)).toEqual(location);
+    expect(saveResolvedIssueLocation).toHaveBeenCalledWith(
+        card,
+        location,
+        "photo",
+    );
+});
+it("falls back to a title when photo GPS is missing", async () => {
+    jest.mocked(resolveFirestoreIssueLocation).mockResolvedValueOnce(null);
+    jest.mocked(resolvePhotoIssueLocation).mockResolvedValueOnce(null);
+    const card = { id: "issue", name: "B1 - vines" } as never;
+    expect(await resolveIssueLocation(card, loadTrelloImage)).toMatchObject({
+        locationName: "Bridge 1",
+    });
+    expect(saveResolvedIssueLocation).toHaveBeenCalledWith(
+        card,
+        expect.anything(),
+        "title",
+    );
+});
+it("keeps a resolved pin when caching fails", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    jest.mocked(resolveFirestoreIssueLocation).mockResolvedValueOnce(null);
+    jest.mocked(saveResolvedIssueLocation).mockRejectedValueOnce(
+        new Error("Offline"),
+    );
+    expect(
+        await resolveIssueLocation({
+            id: "issue",
+            name: "B1 - vines",
+        } as never),
+    ).toMatchObject({ locationName: "Bridge 1" });
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
 });

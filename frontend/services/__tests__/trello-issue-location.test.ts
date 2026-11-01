@@ -1,4 +1,7 @@
-import { resolveTrelloIssueLocation } from "../trello-issue-location";
+import {
+    resolveTrelloIssueLocation,
+    resolveTitleIssueLocation,
+} from "../trello-issue-location";
 import type { Card } from "../trello-types";
 
 const card = (desc: string, attachments: Card["attachments"] = []): Card => ({
@@ -53,3 +56,89 @@ it.each([
         expect(resolveTrelloIssueLocation(card(desc))).toBeNull();
     },
 );
+
+// The reference coordinates come from the same map landmarks used by the app.
+it.each(["Bridge 1 - vines", "Bridge #1: vines", "B1 vines", "[B1] vines"])(
+    "matches a bridge prefix: %s",
+    (name) => {
+        expect(resolveTitleIssueLocation({ ...card(""), name })).toMatchObject({
+            coordinates: [-77.080986, 38.716397],
+            locationName: "Bridge 1",
+        });
+    },
+);
+it.each([
+    "M4: repair",
+    "MM 4 - repair",
+    "Mile Marker 4 repair",
+    "Mile 4 repair",
+])("matches a mile marker prefix: %s", (name) => {
+    expect(resolveTitleIssueLocation({ ...card(""), name })?.locationName).toBe(
+        "Mile Marker 4",
+    );
+});
+it("matches named landmarks", () => {
+    expect(
+        resolveTitleIssueLocation({
+            ...card(""),
+            name: "Mount Vernon Estate Trailhead - trash",
+        })?.locationName,
+    ).toBe("Mount Vernon Estate Trailhead");
+});
+it.each([
+    "M4.5 repair",
+    "B1000 vines",
+    "Repair near Bridge 1",
+    "Unknown place: trash",
+])("leaves unknown or partial prefixes unresolved: %s", (name) => {
+    expect(resolveTitleIssueLocation({ ...card(""), name })).toBeNull();
+});
+
+it.each([
+    "Gravelly Point : John testing",
+    "Gravelly Point Park : John testing",
+    "gravelly point: John testing",
+])("resolves the known Gravelly Point alias: %s", (name) => {
+    const result = resolveTitleIssueLocation({ ...card(""), name });
+    expect(result).toMatchObject({
+        locationName: "Gravelly Point Park",
+        coordinates: [-77.0392, 38.8647],
+    });
+});
+it("does not treat part of an unknown place name as a known alias", () => {
+    expect(
+        resolveTitleIssueLocation({
+            ...card(""),
+            name: "Gravelly Pointer: testing",
+        }),
+    ).toBeNull();
+});
+
+it.each([
+    ["Mount Vernon", "Mount Vernon Estate Trailhead"],
+    ["Riverside Park", "Riverside Park / Little Hunting Creek"],
+    ["Fort Hunt Park", "Fort Hunt Park (East Entrance)"],
+    ["Dyke Marsh", "Dyke Marsh Wildlife Preserve"],
+    ["Belle Haven", "Belle Haven Park & Marina"],
+    ["Alexandria", "Old Town Alexandria (Oronoco Bay Park)"],
+    ["Daingerfield Island", "Daingerfield Island / Washington Sailing Marina"],
+    [
+        "Lyndon Baines Johnson Memorial Grove",
+        "Lady Bird Johnson Park / LBJ Grove",
+    ],
+    ["Theodore Roosevelt Island", "Theodore Roosevelt Island Trailhead"],
+])("matches the reference map label %s", (prefix, expected) => {
+    expect(
+        resolveTitleIssueLocation({
+            ...card(""),
+            name: `${prefix} : Trail issue`,
+        })?.locationName,
+    ).toBe(expected);
+});
+it.each([
+    "Navy-Marine Memorial: testing",
+    "Fort Washington: testing",
+    "Arlington Memorial Bridge: testing",
+])("keeps places without reference coordinates unresolved: %s", (name) => {
+    expect(resolveTitleIssueLocation({ ...card(""), name })).toBeNull();
+});

@@ -219,6 +219,21 @@ export default function TrailMap({
             locationName: feature.properties.locationName,
             imageUrl: feature.properties.imageUrl ?? undefined,
             coordinates: feature.geometry.coordinates,
+            sameLocationIssues: issueData.geojson.features
+                .filter(
+                    (item) =>
+                        item.geometry.coordinates[0] ===
+                            feature.geometry.coordinates[0] &&
+                        item.geometry.coordinates[1] ===
+                            feature.geometry.coordinates[1],
+                )
+                .map((item) => ({
+                    id: item.properties.cardId,
+                    title: item.properties.name,
+                    locationName: item.properties.locationName,
+                    imageUrl: item.properties.imageUrl ?? undefined,
+                    coordinates: item.geometry.coordinates,
+                })),
         });
         camera.current?.flyTo({
             center: feature.geometry.coordinates,
@@ -477,10 +492,11 @@ export default function TrailMap({
                                 Cards needing a location
                             </Text>
                             <Text style={styles.text}>
-                                These intake cards were loaded from Trello. Add
-                                a saved location, latitude and longitude, or a
-                                map link with explicit coordinates to place a
-                                pin.
+                                These cards could not be located automatically.
+                                Photo GPS metadata and recognized location
+                                names, bridge numbers, or mile markers at the
+                                start of their titles are used to find
+                                locations.
                             </Text>
                             <ScrollView style={styles.unlocatedList}>
                                 {unlocatedIssues.map((issue) => (

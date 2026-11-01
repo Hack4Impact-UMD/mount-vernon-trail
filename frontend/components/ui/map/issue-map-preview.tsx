@@ -58,8 +58,11 @@ export default function IssueMapPreview({ issueId }: IssueMapPreviewProps) {
                 try {
                     const key = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
                     if (!key) throw new Error("Trello API key is missing.");
-                    const card = await getTrelloClient(key).getCard(issueId);
-                    const result = await resolveIssueLocation(card);
+                    const trello = getTrelloClient(key);
+                    const card = await trello.getCardByID(issueId, true);
+                    const result = await resolveIssueLocation(card, (url) =>
+                        trello.loadTrelloImage(url),
+                    );
                     if (!active) return;
                     setLocation(result);
                     if (!result)

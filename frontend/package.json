@@ -37,6 +37,8 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "axios": "^1.13.6",
+    "base64-js": "^1.5.1",
+    "exifr": "^7.1.3",
     "expo": "~57.0.31",
     "expo-auth-session": "~57.0.16",
     "expo-build-properties": "~57.0.22",

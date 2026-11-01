@@ -4,7 +4,8 @@ import {
     Layer,
     ViewAnnotation,
 } from "@maplibre/maplibre-react-native";
-import { StyleSheet, View } from "react-native";
+import { groupMapPins } from "@/utils/map-pins";
+import { StyleSheet, Text, View } from "react-native";
 
 export type MapPin = {
     id: string;
@@ -14,6 +15,7 @@ export type MapPin = {
     imageUrl?: string;
     status?: "Not started" | "In Progress" | "Completed";
     elapsedTime?: string;
+    sameLocationIssues?: MapPin[];
 };
 
 type Props = {
@@ -110,8 +112,9 @@ export default function MapOverlays({
                 />
             </GeoJSONSource>
 
-            {pins.map((pin) => {
-                const selected = selectedId === pin.id;
+            {groupMapPins(pins).map((group) => {
+                const pin = group[0];
+                const selected = group.some((item) => selectedId === item.id);
 
                 return (
                     <ViewAnnotation
@@ -119,7 +122,13 @@ export default function MapOverlays({
                         id={pin.id}
                         lngLat={pin.coordinates}
                         anchor="bottom"
-                        onPress={() => onSelectPin?.(pin)}>
+                        onPress={() =>
+                            onSelectPin?.(
+                                group.length > 1
+                                    ? { ...pin, sameLocationIssues: group }
+                                    : pin,
+                            )
+                        }>
                         <View
                             collapsable={false}
                             style={[
@@ -130,16 +139,26 @@ export default function MapOverlays({
                                         : Palette.primaryPurple30,
                                 },
                             ]}>
-                            <View
-                                style={[
-                                    styles.dot,
-                                    {
-                                        backgroundColor: selected
-                                            ? Colors.light.background
-                                            : Palette.primaryPurple100,
-                                    },
-                                ]}
-                            />
+                            {group.length > 1 ? (
+                                <Text
+                                    style={[
+                                        styles.count,
+                                        selected && styles.selectedCount,
+                                    ]}>
+                                    {group.length}
+                                </Text>
+                            ) : (
+                                <View
+                                    style={[
+                                        styles.dot,
+                                        {
+                                            backgroundColor: selected
+                                                ? Colors.light.background
+                                                : Palette.primaryPurple100,
+                                        },
+                                    ]}
+                                />
+                            )}
                         </View>
                     </ViewAnnotation>
                 );
@@ -160,6 +179,13 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
+    count: {
+        transform: [{ rotate: "-45deg" }],
+        color: Palette.primaryPurple100,
+        fontSize: 12,
+        fontFamily: "Lato_700Bold",
+    },
+    selectedCount: { color: Colors.light.background },
     dot: {
         width: 8,
         height: 8,
