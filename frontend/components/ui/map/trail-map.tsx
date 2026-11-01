@@ -21,7 +21,7 @@ import {
     ViewAnnotation,
     type CameraRef,
 } from "@maplibre/maplibre-react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { LocateFixed, RefreshCw, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -52,6 +52,9 @@ export default function TrailMap({
     onSelectIssue: (issue: MapPin | null) => void;
 }) {
     const camera = useRef<CameraRef>(null);
+    const router = useRouter();
+    // Clearing a consumed preview request must not restart the map's data load.
+    const focusIssueIdRef = useRef(focusIssueId);
     const [selectedLandmark, setSelectedLandmark] =
         useState<TrailLandmark | null>(null);
     const centerOnNextFix = useRef(false);
@@ -77,6 +80,10 @@ export default function TrailMap({
     const [eventsError, setEventsError] = useState<string | null>(null);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [selectedEvent, setSelectedEvent] = useState("all");
+    if (focusIssueId && selectedEvent !== "all") setSelectedEvent("all");
+    useEffect(() => {
+        focusIssueIdRef.current = focusIssueId;
+    }, [focusIssueId]);
     const effectiveEvent =
         eventsLoading ||
         eventsError ||
@@ -138,7 +145,6 @@ export default function TrailMap({
     useFocusEffect(
         useCallback(() => {
             let active = true;
-            if (focusIssueId) setSelectedEvent("all");
             setNoticeDismissed(false);
             onSelectIssue(null);
             setIssueData(null);
@@ -154,11 +160,12 @@ export default function TrailMap({
                     const result = await fetchMapIssues(key);
                     if (!active || refresh !== refreshVersion.current) return;
                     setIssueData(result);
+                    const requestedIssueId = focusIssueIdRef.current;
                     if (
-                        focusIssueId &&
+                        requestedIssueId &&
                         !result.geojson.features.some(
                             (feature) =>
-                                feature.properties.cardId === focusIssueId,
+                                feature.properties.cardId === requestedIssueId,
                         )
                     ) {
                         setIssueError(
@@ -200,7 +207,7 @@ export default function TrailMap({
                 active = false;
                 setSelectedLandmark(null);
             };
-        }, [onSelectIssue, refresh, focusIssueId]),
+        }, [onSelectIssue, refresh]),
     );
     const [mode, setMode] = useState<MapMode>("normal");
     const [attempt, setAttempt] = useState(0);
@@ -212,6 +219,9 @@ export default function TrailMap({
         const feature = issueData.geojson.features.find(
             (item) => item.properties.cardId === focusIssueId,
         );
+        // The route param is an entry request, not a persistent selection.
+        // Consume missing issues too so a stale ID cannot replay on return.
+        router.setParams({ issueId: undefined });
         if (!feature) return;
         onSelectIssue({
             id: feature.properties.cardId,
@@ -240,7 +250,7 @@ export default function TrailMap({
             zoom: 15,
             duration: 700,
         });
-    }, [focusIssueId, issueData, status, onSelectIssue]);
+    }, [focusIssueId, issueData, status, onSelectIssue, router]);
 
     function toggleMap() {
         setStatus("loading");
