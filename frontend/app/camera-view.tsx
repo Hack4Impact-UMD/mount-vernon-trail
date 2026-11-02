@@ -19,9 +19,13 @@ import Refresh from '@/components/icons/refresh';
 import Checkbox from '@/components/icons/checkbox';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+// Zoom change per doubling of finger distance; 0 to 1 is the expo-camera's full range
+const PINCH_SENSITIVITY = 0.25; // Constant factor to adjust the sensitivity of pinch zoom gestures
+const ZOOM_STEP = 0.1;
 
 export default function CameraViewScreen() {
     const insets = useSafeAreaInsets();
+    const [showGrid, setShowGrid] = useState(false);
     const [facing, setFacing] = useState<CameraType>('back');
     const [permission, requestPermission] = useCameraPermissions();
     const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions({
@@ -80,15 +84,21 @@ export default function CameraViewScreen() {
     function toggleFlash() {
         setFlash(current => (current === 'off' ? 'on' : 'off'));
     }
+    function applyZoom(next: number) {
+        const clamped = Math.min(1, Math.max(0, next));
+        currentZoom.set(clamped);
+        setZoom(clamped);
+    }
+
+    // The previous equation made it so that zooming out was half as effective as zooming in
+    // using log2 makes pinch symmetric: the user spreading their fingers 2x or 0.5x to zoom
+    // in or out zooms by the same amount. old linear {(scale - 1) * 0.12} also only ran while fingers moved
+    // so zoom might stall short of the target
     const pinchGesture = Gesture.Pinch().runOnJS(true).onStart(() => {
         startZoom.set(currentZoom.get());
     }).onUpdate((e) => {
-        const target = Math.min(1, Math.max(0, startZoom.get() + (e.scale - 1) * 0.12));
-        const smoothed = currentZoom.get() + (target - currentZoom.get()) * 0.25;
-        if (Math.abs(smoothed - currentZoom.get()) > 0.003) {
-            currentZoom.set(smoothed);
-            setZoom(smoothed);
-        }
+        const target = startZoom.get() + Math.log2(e.scale) * PINCH_SENSITIVITY;
+        applyZoom(target); //ensures zoom is between 0 and 1 along with updating currentZoom shared value
     });
 
     async function takePhoto() {
@@ -259,6 +269,16 @@ export default function CameraViewScreen() {
                             />
                         </View>
                     )}
+                    {/* Rule-of-thirds grid for lining up horizontal and vertical edges so before/after shots match.
+                        Rendered after the ghost overlay so the overlay doesn't dim the grid lines. */}
+                    {showGrid && (
+                        <View style={[styles.gridContainer, { bottom: insets.bottom + 125 }]} pointerEvents="none">
+                            <View style={[styles.gridLineV, { left: '33.33%' }]} />
+                            <View style={[styles.gridLineV, { left: '66.66%' }]} />
+                            <View style={[styles.gridLineH, { top: '33.33%' }]} />
+                            <View style={[styles.gridLineH, { top: '66.66%' }]} />
+                        </View>
+                    )}
                     {/* white screen flash */}
                     <Animated.View
                         style={[
@@ -283,7 +303,22 @@ export default function CameraViewScreen() {
                             <TouchableOpacity onPress={toggleCameraFacing}>
                                 <CameraSwitch width={39} height={39} />
                             </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.pillButton, showGrid && styles.pillButtonActive]}
+                                onPress={() => setShowGrid(!showGrid)}
+                            >
+                                <Text style={styles.pillButtonText}>Grid</Text>
+                            </TouchableOpacity>
                         </View>
+                    </View>
+                    {/* Buttons to support zoom along with pinching */}
+                    <View style={[styles.zoomControls, { bottom: insets.bottom + 140 }]}>
+                        <TouchableOpacity style={styles.zoomButton} onPress={() => applyZoom(zoom - ZOOM_STEP)}>
+                            <Text style={styles.zoomButtonText}>−</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.zoomButton} onPress={() => applyZoom(zoom + ZOOM_STEP)}>
+                            <Text style={styles.zoomButtonText}>+</Text>
+                        </TouchableOpacity>
                     </View>
                     <View style={[styles.bottomContainer, { height: insets.bottom + 125 }]}>
                         {/* gallery/recent photo preview (right position) */}
@@ -440,6 +475,66 @@ const styles = StyleSheet.create({
         width: SCREEN_HEIGHT * 0.12,
         height: SCREEN_HEIGHT * 0.04,
         transform: [{ scale: 0.9 }]
+    },
+    /* Grid */
+    // Stops at the bottom bar so the thirds divide only the visible preview.
+    gridContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+    },
+    gridLineV: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        width: StyleSheet.hairlineWidth,
+        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    },
+    gridLineH: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    },
+    pillButton: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#ffffff80',
+        alignItems: 'center',
+    },
+    pillButtonActive: {
+        backgroundColor: '#ffffff40',
+        borderColor: 'white',
+    },
+    pillButtonText: {
+        color: 'white',
+        fontFamily: 'Lato_700Bold',
+        fontSize: 12,
+    },
+    /* Zoom */
+    zoomControls: {
+        position: 'absolute',
+        alignSelf: 'center',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    zoomButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#00000080',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    zoomButtonText: {
+        color: 'white',
+        fontSize: 20,
+        fontFamily: 'Lato_700Bold',
     },
     sliderLabel: {
         color: 'white',
