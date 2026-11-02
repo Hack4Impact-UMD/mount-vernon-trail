@@ -14,10 +14,7 @@ import {
     where,
     writeBatch,
 } from "firebase/firestore";
-import {
-    ALBUMS_COLLECTION,
-    ALBUM_TITLES_COLLECTION,
-} from "./album-service";
+import { ALBUMS_COLLECTION, ALBUM_TITLES_COLLECTION } from "./album-service";
 import { requireUser } from "./require-user";
 
 // Per-event metrics collected during a trail event. Every key here must have a
@@ -202,6 +199,12 @@ export async function getEventById(eventId: string): Promise<Event | null> {
     return snapshot.data() as Event;
 }
 
+export async function getAllEvents(): Promise<Event[]> {
+    requireUser("view events");
+    const snapshot = await getDocs(collection(db, EVENTS_COLLECTION));
+    return snapshot.docs.map((eventDoc) => eventDoc.data() as Event);
+}
+
 export async function getEventByTrelloCardId(
     trelloCardId: string,
 ): Promise<Event | null> {
@@ -245,7 +248,8 @@ export async function setEventInactive(eventId: string): Promise<void> {
         }
         const data = snapshot.data() as Event;
         if (data.endDate) {
-            if (data.isActive) transaction.update(eventRef, { isActive: false });
+            if (data.isActive)
+                transaction.update(eventRef, { isActive: false });
             return;
         }
         transaction.update(eventRef, {
