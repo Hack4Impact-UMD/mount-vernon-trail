@@ -4,7 +4,15 @@ import {
     updateEventMetrics,
 } from "@/services/event-service";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import { getErrorMessage } from "@/utils/errors";
+import React, {
+    forwardRef,
+    useImperativeHandle,
+    useMemo,
+    useState,
+    useRef,
+    useEffect,
+} from "react";
 import {
     StyleSheet,
     Text,
@@ -161,10 +169,14 @@ interface TrailMetricsSectionProps {
     initialMetrics?: EventMetrics;
 }
 
-export default function TrailMetricsSection({
-    eventId,
-    initialMetrics,
-}: TrailMetricsSectionProps) {
+export type TrailMetricsSectionHandle = {
+    flushPendingUpdates: () => Promise<void>;
+};
+
+const TrailMetricsSection = forwardRef<
+    TrailMetricsSectionHandle,
+    TrailMetricsSectionProps
+>(function TrailMetricsSection({ eventId, initialMetrics }, ref) {
     const [metrics, setMetrics] = useState<EventMetrics>(
         initialMetrics ?? createDefaultMetrics(),
     );
@@ -181,24 +193,87 @@ export default function TrailMetricsSection({
     }
 
     const debounceTimers = useRef<Map<keyof EventMetrics, ReturnType<typeof setTimeout>>>(new Map());
+    const pendingUpdates = useRef<Map<keyof EventMetrics, number>>(new Map());
+    const inFlightUpdates = useRef<Set<Promise<void>>>(new Set());
+
+    async function persistMetric(
+        key: keyof EventMetrics,
+        value: number,
+    ): Promise<void> {
+        const update = updateEventMetrics(eventId, { [key]: value });
+        inFlightUpdates.current.add(update);
+        try {
+            await update;
+            if (pendingUpdates.current.get(key) === value) {
+                pendingUpdates.current.delete(key);
+            }
+            if (pendingUpdates.current.size === 0) {
+                setSaveError(null);
+            }
+        } catch (error) {
+            if (!pendingUpdates.current.has(key)) {
+                pendingUpdates.current.set(key, value);
+            }
+            setSaveError("Couldn't save — will retry when leaving this screen.");
+            throw error;
+        } finally {
+            inFlightUpdates.current.delete(update);
+        }
+    }
+
     async function setField(key: keyof EventMetrics, value: number) {
         const safe = Number.isFinite(value) && value >= 0 ? value : 0;
         setMetrics((prev) => ({ ...prev, [key]: safe }));
+        pendingUpdates.current.set(key, safe);
         const existing = debounceTimers.current.get(key);
         if (existing) clearTimeout(existing);
 
         const timer = setTimeout(async () => {
-            try {
-                await updateEventMetrics(eventId, { [key]: safe });
-                setSaveError(null);
-            } catch (err) {
-                console.error("Failed to save metric:", err);
-                setSaveError("Couldn't save — will retry on next change.");
-            }
             debounceTimers.current.delete(key);
+            const pending = pendingUpdates.current.get(key);
+            if (pending === undefined) return;
+            try {
+                await persistMetric(key, pending);
+            } catch (err) {
+                console.error("Failed to save metric:", getErrorMessage(err));
+            }
         }, 400);
         debounceTimers.current.set(key, timer);
     }
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            async flushPendingUpdates() {
+                for (const timer of debounceTimers.current.values()) {
+                    clearTimeout(timer);
+                }
+                debounceTimers.current.clear();
+                await Promise.allSettled([...inFlightUpdates.current]);
+
+                const pending = new Map(pendingUpdates.current);
+                if (pending.size === 0) return;
+                const updates: Partial<EventMetrics> = {};
+                for (const [key, value] of pending) {
+                    updates[key] = value;
+                }
+                pendingUpdates.current.clear();
+                try {
+                    await updateEventMetrics(eventId, updates);
+                    if (pendingUpdates.current.size === 0) {
+                        setSaveError(null);
+                    }
+                } catch (error: unknown) {
+                    for (const [key, value] of pending) {
+                        pendingUpdates.current.set(key, value);
+                    }
+                    setSaveError("Couldn't save metrics. Please try again.");
+                    throw error;
+                }
+            },
+        }),
+        [eventId],
+    );
 
     useEffect(() => {
         const timers = debounceTimers.current;
@@ -305,7 +380,9 @@ export default function TrailMetricsSection({
             })}
         </View>
     );
-}
+});
+
+export default TrailMetricsSection;
 
 interface StepperProps {
     label: string;

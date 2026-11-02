@@ -37,6 +37,25 @@ export class GooglePhotosError extends Error {
     }
 }
 
+export class GoogleSheetsError extends Error {
+    readonly status: number;
+    readonly body: string;
+
+    constructor(status: number, body: string) {
+        super(`Google Sheets API error (${status})`);
+        this.name = "GoogleSheetsError";
+        this.status = status;
+        this.body = body;
+    }
+}
+
+export class GoogleSheetsDataError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "GoogleSheetsDataError";
+    }
+}
+
 // Single place every /api route funnels failures through, so the 401/502/500
 // mapping stays identical across routes.
 export function sendError(res: Response, context: string, error: unknown): Response {
@@ -53,6 +72,19 @@ export function sendError(res: Response, context: string, error: unknown): Respo
             error: "Google Photos API error",
             status: error.status,
         });
+    }
+    if (error instanceof GoogleSheetsError) {
+        console.error(`${context}:`, error.status, error.body);
+        return res.status(error.status === 404 ? 404 : 502).json({
+            error:
+                error.status === 404
+                    ? "Google spreadsheet or configured tab was not found"
+                    : "Google Sheets request failed; verify OAuth consent and spreadsheet editor access",
+            status: error.status,
+        });
+    }
+    if (error instanceof GoogleSheetsDataError) {
+        return res.status(409).json({ error: error.message });
     }
     console.error(`${context}:`, error);
     return res.status(500).json({ error: context });

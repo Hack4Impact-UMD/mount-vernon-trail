@@ -9,6 +9,9 @@ export type Env = {
     googleClientSecret: string;
     googleRedirectUri: string;
     googleRefreshToken: string | null;
+    googleSheetsSpreadsheetId: string | null;
+    googleSheetsEventsTab: string;
+    googleSheetsImprovementsTab: string;
     upstashRedisUrl: string;
     upstashRedisToken: string;
     firebaseServiceAccountJson: string;
@@ -71,6 +74,12 @@ export function loadEnv(): Env {
         googleClientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
         googleRedirectUri: process.env.GOOGLE_REDIRECT_URI as string,
         googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN?.trim() || null,
+        googleSheetsSpreadsheetId:
+            process.env.GOOGLE_SHEETS_SPREADSHEET_ID?.trim() || null,
+        googleSheetsEventsTab:
+            process.env.GOOGLE_SHEETS_EVENTS_TAB?.trim() || "Events",
+        googleSheetsImprovementsTab:
+            process.env.GOOGLE_SHEETS_IMPROVEMENTS_TAB?.trim() || "Improvements",
         upstashRedisUrl,
         upstashRedisToken,
         firebaseServiceAccountJson: serviceAccount,

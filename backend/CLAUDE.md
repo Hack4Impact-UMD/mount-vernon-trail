@@ -1,6 +1,7 @@
-# backend/ — Google Photos proxy
+# backend/ — Google Photos and Sheets integration
 
-Express 5 + TypeScript (NodeNext), deployed on Render. See the root
+Express 5 + TypeScript (NodeNext), deployed on Render. It proxies Photos uploads
+and exports completed event metrics to the MVT Google Sheet. See the root
 [CLAUDE.md](../CLAUDE.md) for repo-wide context and
 [README.md](README.md) for the full endpoint table, the one-time Google account
 linking, and deployment settings — this file covers what to know before editing.
@@ -8,16 +9,16 @@ linking, and deployment settings — this file covers what to know before editin
 ## Why this service exists
 
 Every volunteer's before/after photos must land in **one shared album owned by the
-MVT Google account**. No volunteer can own that album, and the app cannot hold the
-MVT credentials. So the app authenticates to *this* service, and this service holds
-the single Google refresh token.
+MVT Google account**. Published event metrics are also exported to the team's
+Google Sheet. The app holds neither credential; it authenticates to this service,
+which holds the MVT Google refresh token.
 
 Two independent auth layers:
 
 | Layer | Who | Mechanism |
 |---|---|---|
 | caller → this API | every volunteer | `Authorization: Bearer <Firebase ID token>` on all `/api/*` |
-| this API → Google Photos | the MVT account, once | admin OAuth flow, refresh token in Redis (+ env backup) |
+| this API → Google APIs | the MVT account, once | admin OAuth flow with Photos and Sheets scopes, refresh token in Redis (+ env backup) |
 
 ```bash
 npm run dev        # tsx watch
@@ -25,7 +26,7 @@ npm run build      # tsc -> dist/
 npm start          # run the build
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint .
-npm test           # jest + supertest — 93 tests, ~3s
+npm test           # jest + supertest — 100 tests, ~3s
 ```
 
 **Nothing in the suite sleeps** — TTL and expiry behavior is exercised through
@@ -112,8 +113,9 @@ preference. Raising it on a 512 MB Render instance risks an OOM.
   `--revoke` and `--list`, and a bare invocation grants the claim against the live
   project immediately. Passing `--apply` does not gate anything; it is ignored as a
   stray argument. Use `--list` first if you want to look before you write.
-- Firestore is touched **only** from `scripts/`, never from `src/`. The service
-  itself is stateless apart from the token store.
+- Event documents are read from Firestore in `src/` only for the authenticated
+  Sheets export; scripts remain the only path for administrative Firestore
+  writes. The service does not write event data back to Firestore.
 - Trello is not called from this service at all — it lives entirely in
   `frontend/services/trello-*.ts`.
 

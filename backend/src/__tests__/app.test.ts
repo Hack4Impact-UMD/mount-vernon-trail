@@ -3,12 +3,16 @@ import request from "supertest";
 import { createApp } from "../app";
 import type { Env } from "../env";
 import { GooglePhotosError, NotAuthenticatedError } from "../errors";
+import * as sheets from "../google-sheets";
 import * as photos from "../google-photos";
+import type { EventReader } from "../routes/api";
 import type { TokenStore } from "../google-tokens";
 
 jest.mock("../google-photos");
+jest.mock("../google-sheets");
 
 const mockPhotos = photos as jest.Mocked<typeof photos>;
+const mockSheets = sheets as jest.Mocked<typeof sheets>;
 
 const TEST_ENV: Env = {
     port: 8080,
@@ -16,6 +20,9 @@ const TEST_ENV: Env = {
     googleClientSecret: "client-secret",
     googleRedirectUri: "http://localhost:8080/auth/callback",
     googleRefreshToken: null,
+    googleSheetsSpreadsheetId: "spreadsheet-id",
+    googleSheetsEventsTab: "Events",
+    googleSheetsImprovementsTab: "Improvements",
     upstashRedisUrl: "https://redis.example",
     upstashRedisToken: "redis-token",
     firebaseServiceAccountJson: "{}",
@@ -28,6 +35,7 @@ type Harness = {
     app: ReturnType<typeof createApp>;
     verifyIdToken: jest.Mock;
     tokenStore: jest.Mocked<TokenStore>;
+    readEvent: jest.MockedFunction<EventReader>;
 };
 
 function harness(overrides: Partial<Env> = {}): Harness {
@@ -40,10 +48,12 @@ function harness(overrides: Partial<Env> = {}): Harness {
         consumeState: jest.fn().mockResolvedValue(true),
         exchangeCode: jest.fn().mockResolvedValue(undefined),
     };
+    const readEvent: jest.MockedFunction<EventReader> = jest.fn();
     return {
-        app: createApp({ ...TEST_ENV, ...overrides }, auth, tokenStore),
+        app: createApp({ ...TEST_ENV, ...overrides }, auth, tokenStore, readEvent),
         verifyIdToken,
         tokenStore,
+        readEvent,
     };
 }
 
@@ -120,6 +130,84 @@ describe("CORS", () => {
         expect(res.headers["access-control-allow-origin"]).toBe(
             "https://app.example",
         );
+    });
+
+    describe("POST /api/events/:eventId/sheets", () => {
+        const completedEvent = {
+            eventId: "event-1",
+            title: "Trail cleanup",
+            date: new Date("2026-10-25T14:00:00.000Z"),
+            startDate: new Date("2026-10-25T14:00:00.000Z"),
+            endDate: new Date("2026-10-25T16:00:00.000Z"),
+            startedBy: "u1",
+            eventLeader: "Volunteer",
+            metrics: { trashBagsCollected: 2 },
+        };
+
+        beforeEach(() => {
+            mockSheets.syncEventToGoogleSheets.mockResolvedValue(undefined);
+        });
+
+        it("exports the stored event for its owner", async () => {
+            const h = harness();
+            asVolunteer(h);
+            h.readEvent.mockResolvedValue(completedEvent);
+            const res = await request(h.app)
+                .post("/api/events/event-1/sheets")
+                .set("Authorization", "Bearer good");
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({ synced: true, eventId: "event-1" });
+            expect(mockSheets.syncEventToGoogleSheets).toHaveBeenCalledWith(
+                "google-access-token",
+                "spreadsheet-id",
+                "Events",
+                "Improvements",
+                expect.objectContaining({
+                    eventId: "event-1",
+                    title: "Trail cleanup",
+                    metrics: { trashBagsCollected: 2 },
+                }),
+            );
+        });
+
+        it("does not let a different volunteer export another owner's event", async () => {
+            const h = harness();
+            asVolunteer(h);
+            h.readEvent.mockResolvedValue({
+                ...completedEvent,
+                startedBy: "someone-else",
+            });
+            const res = await request(h.app)
+                .post("/api/events/event-1/sheets")
+                .set("Authorization", "Bearer good");
+
+            expect(res.status).toBe(403);
+            expect(mockSheets.syncEventToGoogleSheets).not.toHaveBeenCalled();
+        });
+
+        it("requires the event to have ended", async () => {
+            const h = harness();
+            asVolunteer(h);
+            h.readEvent.mockResolvedValue({ ...completedEvent, endDate: null });
+            const res = await request(h.app)
+                .post("/api/events/event-1/sheets")
+                .set("Authorization", "Bearer good");
+
+            expect(res.status).toBe(409);
+            expect(mockSheets.syncEventToGoogleSheets).not.toHaveBeenCalled();
+        });
+
+        it("reports missing spreadsheet configuration", async () => {
+            const h = harness({ googleSheetsSpreadsheetId: null });
+            asVolunteer(h);
+            const res = await request(h.app)
+                .post("/api/events/event-1/sheets")
+                .set("Authorization", "Bearer good");
+
+            expect(res.status).toBe(503);
+            expect(h.readEvent).not.toHaveBeenCalled();
+        });
     });
 
     it("rejects an origin that is not on the allowlist", async () => {

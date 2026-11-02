@@ -26,6 +26,9 @@ coverage and is listed only for context.
    **Sign out and back in afterwards** — ID tokens cache the claim for up to an hour.
 5. The MVT Google account is linked once per environment (see `backend/README.md`).
    Confirm with `GET /api/auth/status` → `{"authenticated":true}`.
+6. For Sheets export, set `GOOGLE_SHEETS_SPREADSHEET_ID` in `backend/.env`,
+   create `Events` and `Improvements` tabs, and complete the updated Google
+   consent flow once as an admin so the stored token includes Sheets access.
 
 ---
 
@@ -132,9 +135,14 @@ This is the flow the whole project exists for.
 | 7.7 | Publish a draft | Trello card moves to Completed Events, attached issue cards move to Completed Issues, and only then does it leave Drafts |
 | 7.8 | Publish with the Trello board unreachable | Fails, and the event **stays** in Drafts so it can be retried |
 | 7.9 | Home screen Past Events | Shows real published events with a "Completed" pill — not the old placeholder list, not "Not started" |
+| 7.10 | Publish a completed event with several nonzero metrics | An `Events` row appears with event details, hours, and all 15 metric columns |
+| 7.11 | Inspect the `Improvements` tab | One row appears per nonzero, dashboard-supported metric, with category/count/unit |
+| 7.12 | Force a Sheets failure, edit the still-open draft, and retry publish | The retry reflects the latest metrics without duplicate event/metric rows |
+| 7.13 | Use the configured Drive sharing option | Intended volunteers can open and edit the spreadsheet |
 
 **7.5 is the regression check** for the `endDate` clobber.
 **7.8 is the regression check** for the publish-ordering bug.
+**7.10–7.13** verify the Sheets export, reconciliation, and access setup.
 
 ## 8. Albums
 
