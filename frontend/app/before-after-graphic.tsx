@@ -14,11 +14,13 @@ import type { TrailDocumentIssueItem } from "@/types/trail-types";
 import { getErrorMessage } from "@/utils/errors";
 import { useRouter } from "expo-router";
 import { Check, House, X } from "lucide-react-native";
+import Slider from "@react-native-community/slider";
 import Svg, { Path } from "react-native-svg";
 import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Image,
+    Modal,
     ScrollView,
     StyleSheet,
     Text,
@@ -113,6 +115,8 @@ export default function BeforeAfterGraphicScreen() {
     const [step, setStep] = useState<Step>("select");
     const [loadingEvents, setLoadingEvents] = useState(true);
     const [loadingEventData, setLoadingEventData] = useState(false);
+    const [alignmentVisible, setAlignmentVisible] = useState(false);
+    const [alignmentOpacity, setAlignmentOpacity] = useState(0.35);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loadedPreviewIds, setLoadedPreviewIds] = useState<Set<string>>(
@@ -188,6 +192,7 @@ export default function BeforeAfterGraphicScreen() {
         setSelectedIssue(null);
         setIssues([]);
         setPhotos([]);
+        setAlignmentVisible(false);
         setBeforePhoto(null);
         setAfterPhoto(null);
         setActiveSlot("before");
@@ -195,6 +200,7 @@ export default function BeforeAfterGraphicScreen() {
     };
 
     const selectIssue = (issue: TrailDocumentIssueItem | null) => {
+        setAlignmentVisible(false);
         setSelectedIssue(issue);
         setBeforePhoto(null);
         setAfterPhoto(null);
@@ -220,6 +226,7 @@ export default function BeforeAfterGraphicScreen() {
     };
 
     const rejectPair = () => {
+        setAlignmentVisible(false);
         setBeforePhoto(null);
         setAfterPhoto(null);
         setActiveSlot("before");
@@ -289,6 +296,7 @@ export default function BeforeAfterGraphicScreen() {
         loadedPreviewIds.has(afterPhoto.id);
 
     return (
+        <>
         <View style={styles.screen}>
             <ScrollView
                 style={styles.scroll}
@@ -358,6 +366,7 @@ export default function BeforeAfterGraphicScreen() {
                                         onPress={() => {
                                             setSelectedEvent(null);
                                             setSelectedIssue(null);
+                                            setAlignmentVisible(false);
                                             setStep("select");
                                             setError(null);
                                         }}
@@ -519,6 +528,20 @@ export default function BeforeAfterGraphicScreen() {
                                             {selectedIssue.name} ·{" "}
                                             {selectedEvent.title}
                                         </Text>
+                                        <TouchableOpacity
+                                            style={styles.alignmentButton}
+                                            activeOpacity={0.85}
+                                            onPress={() =>
+                                                setAlignmentVisible(true)
+                                            }
+                                            accessibilityRole="button">
+                                            <Text
+                                                style={
+                                                    styles.alignmentButtonText
+                                                }>
+                                                Compare photo alignment
+                                            </Text>
+                                        </TouchableOpacity>
                                         <View
                                             ref={previewRef}
                                             collapsable={false}
@@ -613,12 +636,86 @@ export default function BeforeAfterGraphicScreen() {
                                 )}
                         </>
                     )}
-
                     {error && <Text style={styles.errorText}>{error}</Text>}
                 </View>
             </ScrollView>
             <BottomNav />
         </View>
+            <Modal
+                visible={
+                    alignmentVisible &&
+                    step === "preview" &&
+                    Boolean(beforePhoto && afterPhoto)
+                }
+                transparent
+                animationType="fade"
+                onRequestClose={() => setAlignmentVisible(false)}>
+                {beforePhoto && afterPhoto && (
+                    <View style={styles.alignmentBackdrop}>
+                        <View style={styles.alignmentModal}>
+                            <View style={styles.alignmentHeader}>
+                                <Text style={styles.alignmentTitle}>
+                                    Compare alignment
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={() => setAlignmentVisible(false)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Close alignment preview">
+                                    <X
+                                        size={22}
+                                        color={Palette.primaryBlack70}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                            <Text style={styles.alignmentHelp}>
+                                BEFORE is overlaid on AFTER. Adjust the
+                                reference opacity to compare the framing.
+                            </Text>
+                            <View
+                                style={[
+                                    styles.alignmentFrame,
+                                    {
+                                        aspectRatio:
+                                            compositeAspectRatio(
+                                                beforePhoto,
+                                                afterPhoto,
+                                            ) / 2,
+                                    },
+                                ]}>
+                                <Image
+                                    source={{ uri: afterPhoto.uri }}
+                                    style={StyleSheet.absoluteFill}
+                                    resizeMode="contain"
+                                />
+                                <Image
+                                    source={{ uri: beforePhoto.uri }}
+                                    style={[
+                                        StyleSheet.absoluteFill,
+                                        { opacity: alignmentOpacity },
+                                    ]}
+                                    resizeMode="contain"
+                                />
+                            </View>
+                            <Slider
+                                style={styles.alignmentSlider}
+                                minimumValue={0}
+                                maximumValue={1}
+                                step={0.05}
+                                value={alignmentOpacity}
+                                onValueChange={setAlignmentOpacity}
+                                minimumTrackTintColor={Palette.primaryPurple70}
+                                maximumTrackTintColor="#D8D8D8"
+                                thumbTintColor={Palette.primaryPurple70}
+                                accessibilityLabel="Reference image opacity"
+                            />
+                            <Text style={styles.alignmentOpacity}>
+                                {Math.round(alignmentOpacity * 100)}% reference
+                            </Text>
+                        </View>
+                    </View>
+                )}
+            </Modal>
+        </>
     );
 }
 
@@ -750,8 +847,16 @@ function CompositeHalf({
     onLoad: () => void;
     onError: () => void;
 }) {
+    const [panelHeight, setPanelHeight] = useState(0);
+    // The reference keeps the brush just taller than its lettering. Size it
+    // from the actual panel so portrait and landscape pairs retain that ratio.
+    const labelFontSize = Math.max(12, Math.min(28, panelHeight * 0.083));
     return (
-        <View style={compositeStyles.half}>
+        <View
+            style={compositeStyles.half}
+            onLayout={(event) =>
+                setPanelHeight(event.nativeEvent.layout.height)
+            }>
             <Image
                 source={{ uri: `${photo.baseUrl}=w1200-h1200` }}
                 style={compositeStyles.image}
@@ -759,17 +864,44 @@ function CompositeHalf({
                 onLoad={onLoad}
                 onError={onError}
             />
-            <View style={compositeStyles.labelBrush}>
+            <View
+                style={[
+                    compositeStyles.labelBrush,
+                    {
+                        width:
+                            labelFontSize * (label === "AFTER" ? 4.1 : 4.4),
+                        height: labelFontSize * 1.55,
+                    },
+                ]}>
                 <Svg
                     viewBox="0 0 460 130"
                     preserveAspectRatio="none"
                     style={StyleSheet.absoluteFill}>
                     <Path
-                        d="M0 13 Q22 3 48 9 L405 8 Q424 7 420 18 L438 27 L421 39 L432 50 L415 62 L430 74 L409 85 L422 98 L401 111 L409 122 L0 122 Z"
+                        d="M0 18 C12 13 18 17 26 9 C34 2 42 12 49 8 C60 2 65 10 76 7 C89 4 93 9 106 7 L348 7 C359 7 365 11 374 9 C383 7 389 13 399 13 C406 14 405 21 398 25 L418 30 L403 39 L425 44 L405 53 L432 59 L410 68 L425 76 L402 82 L419 92 L397 98 L408 106 L389 111 C380 115 374 111 367 117 L65 118 C56 118 50 124 43 118 C34 114 26 124 18 118 C12 115 8 120 0 116 Z M121 19 Q139 15 159 18 Q141 21 121 22 Z M264 104 Q281 99 300 103 Q283 107 264 107 Z M335 17 Q346 14 356 17 L347 19 Z"
+                        fillRule="evenodd"
+                        fill="#FFFFFF"
+                    />
+                    <Path
+                        d="M36 7 Q49 1 66 4 L83 6 Q63 8 46 10 Z M390 23 L454 29 Q458 31 448 34 L408 30 Z M400 70 L451 76 Q456 78 446 81 L407 77 Z M372 112 L424 119 Q429 122 417 123 L387 119 Z"
                         fill="#FFFFFF"
                     />
                 </Svg>
-                <Text style={compositeStyles.labelText}>{label}</Text>
+                <Text
+                    numberOfLines={1}
+                    allowFontScaling={false}
+                    style={[
+                        compositeStyles.labelText,
+                        {
+                            fontSize: labelFontSize,
+                            marginLeft:
+                                label === "AFTER"
+                                    ? labelFontSize * 0.05
+                                    : labelFontSize * 0.14,
+                        },
+                    ]}>
+                    {label}
+                </Text>
             </View>
         </View>
     );
@@ -1066,6 +1198,64 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: Palette.primaryBlack70,
     },
+    alignmentButton: {
+        alignSelf: "flex-end",
+        backgroundColor: "#F4EFF8",
+        borderRadius: 10,
+        marginBottom: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+    },
+    alignmentButtonText: {
+        color: Palette.primaryPurple70,
+        fontFamily: "Lato_700Bold",
+        fontSize: 14,
+    },
+    alignmentBackdrop: {
+        flex: 1,
+        justifyContent: "center",
+        backgroundColor: "#000000B3",
+        paddingHorizontal: 20,
+    },
+    alignmentModal: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 18,
+        padding: 16,
+    },
+    alignmentHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 10,
+    },
+    alignmentTitle: {
+        color: Palette.primaryBlack70,
+        fontFamily: "Lato_700Bold",
+        fontSize: 18,
+    },
+    alignmentHelp: {
+        color: Palette.primaryBlack70,
+        fontFamily: "Lato_400Regular",
+        fontSize: 14,
+        lineHeight: 20,
+        marginBottom: 14,
+    },
+    alignmentFrame: {
+        width: "100%",
+        overflow: "hidden",
+        backgroundColor: "#000000",
+    },
+    alignmentSlider: {
+        height: 36,
+        marginTop: 14,
+        width: "100%",
+    },
+    alignmentOpacity: {
+        color: Palette.primaryBlack70,
+        fontFamily: "Lato_700Bold",
+        fontSize: 13,
+        textAlign: "right",
+    },
     composite: {
         flexDirection: "row",
         overflow: "hidden",
@@ -1121,17 +1311,12 @@ const compositeStyles = StyleSheet.create({
         position: "absolute",
         left: 0,
         bottom: 0,
-        width: "47%",
-        height: "21%",
         justifyContent: "center",
     },
     labelText: {
         color: "#302923",
-        fontFamily: "Lato_700Bold",
-        fontSize: 16,
-        letterSpacing: -0.5,
-        marginLeft: 6,
-        marginTop: 1,
+        fontFamily: "Lato_900Black",
+        letterSpacing: -0.9,
     },
 });
 
