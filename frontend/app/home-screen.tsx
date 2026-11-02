@@ -226,9 +226,13 @@ export default function HomeScreen() {
                                 })
                             }
                         />
-                        <MakeBeforeAfterGraphic
-                            onPress={() => router.push("/before-after-graphic")}
-                        />
+                        {isAdmin === true && (
+                            <MakeBeforeAfterGraphic
+                                onPress={() =>
+                                    router.push("/before-after-graphic")
+                                }
+                            />
+                        )}
                         {isAdmin && (
                             <CreateNewEvent
                                 onPress={() => router.push("/setup-event")}
