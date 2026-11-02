@@ -1,14 +1,9 @@
 import { getListId, getTrelloClient } from "./trello-config";
 import type { Card } from "./trello-types";
 import {
-    resolveFirestoreIssueLocation,
-    saveResolvedIssueLocation,
-} from "./issue-location-service";
-import {
     resolvePhotoIssueLocation,
     type LoadIssueImage,
 } from "./photo-issue-location";
-import { getErrorMessage } from "@/utils/errors";
 import {
     resolveTrelloIssueLocation,
     resolveTitleIssueLocation,
@@ -77,28 +72,14 @@ export async function resolveIssueLocation(
     card: Card,
     loadImage?: LoadIssueImage,
 ): Promise<MapLocation | null> {
-    const saved = await resolveFirestoreIssueLocation(card);
-    if (saved) return saved;
     const photo = loadImage
         ? await resolvePhotoIssueLocation(card, loadImage)
         : null;
-    const explicit = photo ? null : resolveTrelloIssueLocation(card);
-    const resolved = photo ?? explicit ?? resolveTitleIssueLocation(card);
-    if (resolved) {
-        try {
-            await saveResolvedIssueLocation(
-                card,
-                resolved,
-                photo ? "photo" : explicit ? "manual" : "title",
-            );
-        } catch (error: unknown) {
-            console.warn(
-                "Could not cache issue location:",
-                getErrorMessage(error),
-            );
-        }
-    }
-    return resolved;
+    return (
+        photo ??
+        resolveTrelloIssueLocation(card) ??
+        resolveTitleIssueLocation(card)
+    );
 }
 
 /** Fetch on map focus/refresh; Intake membership is the pin source of truth. */

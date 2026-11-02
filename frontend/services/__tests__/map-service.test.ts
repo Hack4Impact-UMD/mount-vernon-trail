@@ -10,15 +10,10 @@ jest.mock("../photo-issue-location", () => ({
 }));
 
 import { getListId, getTrelloClient } from "../trello-config";
-import {
-    resolveFirestoreIssueLocation,
-    saveResolvedIssueLocation,
-} from "../issue-location-service";
-
-jest.mock("../issue-location-service", () => ({
-    resolveFirestoreIssueLocation: jest.fn(),
-    saveResolvedIssueLocation: jest.fn(),
-}));
+// Location resolution must not load or access Firestore.
+jest.mock("firebase/firestore", () => {
+    throw new Error("Locations must not access Firestore");
+});
 
 jest.mock("../trello-config", () => ({
     getListId: jest.fn(),
@@ -78,28 +73,6 @@ it("reflects a card moving out of Intake on the next fetch", async () => {
     expect(
         (await fetchMapIssues("key", () => location)).geojson.features,
     ).toEqual([]);
-});
-
-it("uses saved Firestore locations by default, only for current Intake cards", async () => {
-    (resolveFirestoreIssueLocation as jest.Mock).mockResolvedValue(location);
-    const result = await fetchMapIssues("key");
-    expect(resolveFirestoreIssueLocation).toHaveBeenCalledWith(
-        expect.objectContaining({ id: "issue-1" }),
-    );
-    expect(result.geojson.features[0].geometry.coordinates).toEqual([
-        -77.05, 38.8,
-    ]);
-    (resolveFirestoreIssueLocation as jest.Mock).mockClear();
-    getCards.mockResolvedValueOnce([]);
-    expect((await fetchMapIssues("key")).geojson.features).toEqual([]);
-    expect(resolveFirestoreIssueLocation).not.toHaveBeenCalled();
-});
-
-it("propagates Firestore failures rather than reporting an empty map", async () => {
-    (resolveFirestoreIssueLocation as jest.Mock).mockRejectedValueOnce(
-        new Error("Permission denied"),
-    );
-    await expect(fetchMapIssues("key")).rejects.toThrow("Permission denied");
 });
 
 it("propagates Trello failures instead of returning a misleading empty map", async () => {
@@ -167,8 +140,7 @@ it("combines case-insensitive location and event filters without changing the so
     expect(geojson.features).toHaveLength(1);
 });
 
-it("places a source-coordinate card when there is no saved Firestore location", async () => {
-    (resolveFirestoreIssueLocation as jest.Mock).mockResolvedValue(null);
+it("places a card using coordinates in its description", async () => {
     getCards.mockResolvedValueOnce([
         {
             id: "issue-1",
@@ -184,7 +156,6 @@ it("places a source-coordinate card when there is no saved Firestore location", 
 });
 
 it("keeps every Intake card accounted for without adding synthetic pins", async () => {
-    (resolveFirestoreIssueLocation as jest.Mock).mockResolvedValue(null);
     getCards.mockResolvedValueOnce([
         { id: "located-1", name: "Coordinate card", desc: "GPS: 38.8, -77.05" },
         {
@@ -207,17 +178,6 @@ it("keeps every Intake card accounted for without adding synthetic pins", async 
     expect(result.unlocatedIssues).toEqual([
         { cardId: "unlocated", name: "Needs coordinates" },
     ]);
-});
-
-it("prefers a saved location over coordinates in the card description", async () => {
-    (resolveFirestoreIssueLocation as jest.Mock).mockResolvedValue(location);
-    getCards.mockResolvedValueOnce([
-        { id: "issue-1", name: "Issue", desc: "GPS: 38.9, -77.1" },
-    ]);
-    const result = await fetchMapIssues("key");
-    expect(result.geojson.features[0].geometry.coordinates).toEqual(
-        location.coordinates,
-    );
 });
 
 it("records full IDs and short links for located and unlocated Intake cards", async () => {
@@ -244,50 +204,49 @@ it("records full IDs and short links for located and unlocated Intake cards", as
     });
 });
 
-it("preserves saved locations without fetching metadata", async () => {
-    jest.mocked(resolveFirestoreIssueLocation).mockResolvedValueOnce(location);
-    expect(
-        await resolveIssueLocation({ id: "issue" } as never, loadTrelloImage),
-    ).toEqual(location);
-    expect(resolvePhotoIssueLocation).not.toHaveBeenCalled();
-    expect(saveResolvedIssueLocation).not.toHaveBeenCalled();
-});
-it("prefers photo GPS over a title and caches it", async () => {
-    jest.mocked(resolveFirestoreIssueLocation).mockResolvedValueOnce(null);
+it("prefers photo GPS over title and card coordinates", async () => {
     jest.mocked(resolvePhotoIssueLocation).mockResolvedValueOnce(location);
-    const card = { id: "issue", name: "B1 - vines" } as never;
+    const card = {
+        id: "issue",
+        name: "B1 - vines",
+        desc: "GPS: 38.9, -77.1",
+    } as never;
     expect(await resolveIssueLocation(card, loadTrelloImage)).toEqual(location);
-    expect(saveResolvedIssueLocation).toHaveBeenCalledWith(
-        card,
-        location,
-        "photo",
-    );
+});
+it("falls back to explicit coordinates before the title when photo GPS is missing", async () => {
+    jest.mocked(resolvePhotoIssueLocation).mockResolvedValueOnce(null);
+    const card = {
+        id: "issue",
+        name: "B1 - vines",
+        desc: "GPS: 38.9, -77.1",
+    } as never;
+    expect(await resolveIssueLocation(card, loadTrelloImage)).toMatchObject({
+        coordinates: [-77.1, 38.9],
+    });
 });
 it("falls back to a title when photo GPS is missing", async () => {
-    jest.mocked(resolveFirestoreIssueLocation).mockResolvedValueOnce(null);
     jest.mocked(resolvePhotoIssueLocation).mockResolvedValueOnce(null);
-    const card = { id: "issue", name: "B1 - vines" } as never;
-    expect(await resolveIssueLocation(card, loadTrelloImage)).toMatchObject({
-        locationName: "Bridge 1",
-    });
-    expect(saveResolvedIssueLocation).toHaveBeenCalledWith(
-        card,
-        expect.anything(),
-        "title",
-    );
+    expect(
+        await resolveIssueLocation(
+            { id: "issue", name: "B1 - vines" } as never,
+            loadTrelloImage,
+        ),
+    ).toMatchObject({ locationName: "Bridge 1" });
 });
-it("keeps a resolved pin when caching fails", async () => {
-    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-    jest.mocked(resolveFirestoreIssueLocation).mockResolvedValueOnce(null);
-    jest.mocked(saveResolvedIssueLocation).mockRejectedValueOnce(
-        new Error("Offline"),
-    );
+it("resolves titles without Firebase or an image loader", async () => {
     expect(
         await resolveIssueLocation({
             id: "issue",
-            name: "B1 - vines",
+            name: "Gravelly Point: vines",
         } as never),
-    ).toMatchObject({ locationName: "Bridge 1" });
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+    ).toMatchObject({ locationName: "Gravelly Point Park" });
+    expect(resolvePhotoIssueLocation).not.toHaveBeenCalled();
+});
+it("keeps unknown locations unresolved", async () => {
+    expect(
+        await resolveIssueLocation({
+            id: "issue",
+            name: "Unknown place",
+        } as never),
+    ).toBeNull();
 });
