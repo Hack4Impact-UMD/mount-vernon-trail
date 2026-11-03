@@ -367,7 +367,7 @@ export class TrelloClient {
     }
 
     // gets (issue) card IDs that are attachments to an event card
-    async getEventCardAttachmentIDs(eventCard: EventCard): Promise<string[]> {
+    async getEventCardAttachmentIDs(eventCard: Card): Promise<string[]> {
         if (!eventCard.attachments) {
             return [];
         }
