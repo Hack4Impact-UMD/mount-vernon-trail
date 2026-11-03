@@ -57,7 +57,7 @@ export default function TrailEventCard({
                         </Pressable>
 
                         {/* Title */}
-                        <Text style={styles.heading}>Today's Event</Text>
+                        <Text style={styles.heading}>Today&apos;s Event</Text>
                         <View style={styles.divider} />
 
                         {/* Event details */}

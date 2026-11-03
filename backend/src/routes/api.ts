@@ -10,6 +10,23 @@ const UPLOAD_CONCURRENCY = 4;
 
 type FailedUpload = { fileName: string; error: string };
 
+type BatchCreateResult = {
+    newMediaItemResults?: unknown[];
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+}
+
+function batchFailure(result: unknown): string | null {
+    if (!isRecord(result) || !("status" in result)) return null;
+    const status = result.status;
+    if (!isRecord(status)) return "Google Photos did not create this photo";
+    return typeof status.message === "string" && status.message.trim()
+        ? status.message
+        : "Google Photos did not create this photo";
+}
+
 function readString(value: unknown): string | null {
     return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
@@ -108,9 +125,30 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
                     });
                 }
 
-                const created = await photos.batchCreate(token, albumId, items);
+                const created = (await photos.batchCreate(
+                    token,
+                    albumId,
+                    items,
+                )) as BatchCreateResult;
+                const results = created.newMediaItemResults ?? [];
+                const succeeded: string[] = [];
+                for (const [index, item] of items.entries()) {
+                    const result = results[index];
+                    const error = batchFailure(result);
+                    if (result === undefined || error) {
+                        failed.push({
+                            fileName: item.fileName,
+                            error:
+                                error ??
+                                "Google Photos did not return a result for this photo",
+                        });
+                    } else {
+                        succeeded.push(item.fileName);
+                    }
+                }
                 return res.status(failed.length > 0 ? 207 : 201).json({
-                    ...(created as Record<string, unknown>),
+                    created: succeeded.length,
+                    succeeded,
                     failed,
                 });
             } catch (error) {

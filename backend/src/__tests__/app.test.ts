@@ -274,7 +274,7 @@ describe("POST /api/upload", () => {
         mockPhotos.uploadBytes
             .mockResolvedValueOnce("tok-a")
             .mockResolvedValueOnce("tok-b");
-        mockPhotos.batchCreate.mockResolvedValue({ newMediaItemResults: [] });
+        mockPhotos.batchCreate.mockResolvedValue({ newMediaItemResults: [{}, {}] });
 
         const res = await request(h.app)
             .post("/api/upload")
@@ -286,6 +286,7 @@ describe("POST /api/upload", () => {
             .attach("photos", Buffer.from("b"), "after.jpg");
 
         expect(res.status).toBe(201);
+        expect(res.body.succeeded).toEqual(["before.jpg", "after.jpg"]);
         expect(res.body.failed).toEqual([]);
         expect(mockPhotos.batchCreate).toHaveBeenCalledWith(
             "google-access-token",
@@ -311,7 +312,7 @@ describe("POST /api/upload", () => {
         mockPhotos.uploadBytes
             .mockResolvedValueOnce("tok-a")
             .mockRejectedValueOnce(new Error("network reset"));
-        mockPhotos.batchCreate.mockResolvedValue({ newMediaItemResults: [] });
+        mockPhotos.batchCreate.mockResolvedValue({ newMediaItemResults: [{}] });
 
         const res = await request(h.app)
             .post("/api/upload")
@@ -336,6 +337,33 @@ describe("POST /api/upload", () => {
                 },
             ],
         );
+    });
+
+    it("reports a per-item batch creation failure instead of claiming success", async () => {
+        const h = harness();
+        asVolunteer(h);
+        mockPhotos.uploadBytes
+            .mockResolvedValueOnce("tok-a")
+            .mockResolvedValueOnce("tok-b");
+        mockPhotos.batchCreate.mockResolvedValue({
+            newMediaItemResults: [
+                {},
+                { status: { code: 13, message: "media item rejected" } },
+            ],
+        });
+
+        const res = await request(h.app)
+            .post("/api/upload")
+            .set("Authorization", "Bearer good")
+            .field("albumId", "alb1")
+            .attach("photos", Buffer.from("a"), "before.jpg")
+            .attach("photos", Buffer.from("b"), "after.jpg");
+
+        expect(res.status).toBe(207);
+        expect(res.body.succeeded).toEqual(["before.jpg"]);
+        expect(res.body.failed).toEqual([
+            { fileName: "after.jpg", error: "media item rejected" },
+        ]);
     });
 
     it("returns 502 and skips batchCreate when every upload fails", async () => {

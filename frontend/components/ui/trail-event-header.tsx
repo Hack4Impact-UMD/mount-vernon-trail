@@ -15,8 +15,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import EndEventModal from "./end-event-modal";
 
-const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY ?? "";
-
 interface TrailEventHeaderProps {
     event: Event;
     onStop?: () => void;
@@ -42,9 +40,12 @@ export default function TrailEventHeader({
     const [stopping, setStopping] = useState(false);
     const [endModalVisible, setEndModalVisible] = useState(false);
 
+    // An initializer, not render: the React Compiler may skip re-renders, so
+    // reading the clock in render would not be kept up to date anyway.
+    const [mountedAt] = useState(() => Date.now());
     const staticDuration = (() => {
         if (!event.startDate) return 0;
-        const end = event.endDate ? event.endDate.toMillis() : Date.now();
+        const end = event.endDate ? event.endDate.toMillis() : mountedAt;
         return Math.max(
             0,
             Math.floor((end - event.startDate.toMillis()) / 1000),

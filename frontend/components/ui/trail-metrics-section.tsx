@@ -148,7 +148,13 @@ const METRICS: MetricCategory[] = [
     },
 ];
 
-const TOTAL_FIELDS = METRICS.reduce((sum, m) => sum + m.fields.length, 0);
+// Counted from the fields the UI actually renders. Counting Object.values on
+// the model instead let filledCount exceed TOTAL_FIELDS and report "16 of 15"
+// whenever the model carried a key with no input.
+export const METRIC_FIELD_KEYS = METRICS.flatMap((category) =>
+    category.fields.map((field) => field.key),
+);
+const TOTAL_FIELDS = METRIC_FIELD_KEYS.length;
 
 interface TrailMetricsSectionProps {
     eventId: string;
@@ -166,10 +172,7 @@ export default function TrailMetricsSection({
     const [saveError, setSaveError] = useState<string | null>(null);
 
     const filledCount = useMemo(
-        () =>
-            Object.values(metrics).filter(
-                (v) => typeof v === "number" && v > 0,
-            ).length,
+        () => METRIC_FIELD_KEYS.filter((key) => metrics[key] > 0).length,
         [metrics],
     );
 

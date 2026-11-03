@@ -45,16 +45,27 @@ function fakeOAuth(token: string | null = "fresh-token"): {
         getAccessToken,
         generateAuthUrl: jest.fn().mockReturnValue("https://consent.example"),
         getToken: jest.fn().mockResolvedValue({
-            tokens: { refresh_token: "new-refresh", access_token: "new-access" },
+            tokens: {
+                refresh_token: "new-refresh",
+                access_token: "new-access",
+            },
         }),
         credentials: { expiry_date: Date.now() + 3600_000 },
     } as unknown as OAuth2Client;
     return { client, getAccessToken };
 }
 
-function build(env: Partial<Env> = {}, redis = fakeRedis(), oauth = fakeOAuth()) {
+function build(
+    env: Partial<Env> = {},
+    redis = fakeRedis(),
+    oauth = fakeOAuth(),
+) {
     return {
-        store: createTokenStore({ ...BASE_ENV, ...env }, redis as unknown as Redis, oauth.client),
+        store: createTokenStore(
+            { ...BASE_ENV, ...env },
+            redis as unknown as Redis,
+            oauth.client,
+        ),
         redis,
         oauth,
     };
@@ -191,6 +202,34 @@ describe("OAuth state nonces", () => {
         const { store } = build({}, redis);
         await expect(store.consumeState("")).resolves.toBe(false);
         expect(redis.del).not.toHaveBeenCalled();
+    });
+});
+
+describe("exchangeCode", () => {
+    let warn: jest.SpyInstance;
+    beforeEach(() => {
+        warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    });
+    afterEach(() => warn.mockRestore());
+
+    it("never prints the refresh token when using the local in-memory store", async () => {
+        const { store, redis } = build({
+            upstashRedisUrl: "",
+            upstashRedisToken: "",
+        });
+
+        await store.exchangeCode("code");
+
+        expect(redis.set).toHaveBeenCalledWith("refresh_token", "new-refresh");
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it("never prints the refresh token when Upstash holds it", async () => {
+        const { store } = build();
+
+        await store.exchangeCode("code");
+
+        expect(warn).not.toHaveBeenCalled();
     });
 });
 

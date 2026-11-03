@@ -1,5 +1,6 @@
 // One-off migration to the ownership model and the album-title reservation
-// scheme. Documents written by the previous code lack fields the new queries
+// scheme. Run it via docs/runbooks/2026-08-ownership-migration.md, which gives
+// the required order (backup, indexes, backfill, rules). Documents written by the previous code lack fields the new queries
 // and firestore.rules depend on:
 //
 //   events      createdBy / startedBy are absent, so getDraftEvents() and
