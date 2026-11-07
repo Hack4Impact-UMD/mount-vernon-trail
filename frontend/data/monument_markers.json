@@ -9,16 +9,6 @@
         "description": "George Washington’s home on the Potomac River.",
         "id": "mount-vernon-estate-trailhead",
         "abbreviation": "MVE",
-        "amenities": {
-            "parking": true,
-            "phone": true,
-            "restrooms": true,
-            "water": true,
-            "boatLaunch": false,
-            "fishing": false,
-            "picnicking": false,
-            "restaurants": true
-        },
         "reference": "Mount Vernon Trail map (1995)"
     },
     {
@@ -31,16 +21,6 @@
         "description": "Enjoy fishing, picnicking, and views of the Potomac River.",
         "id": "riverside-park-little-hunting-creek",
         "abbreviation": "RP",
-        "amenities": {
-            "parking": true,
-            "phone": false,
-            "restrooms": false,
-            "water": true,
-            "boatLaunch": false,
-            "fishing": true,
-            "picnicking": true,
-            "restaurants": false
-        },
         "reference": "Mount Vernon Trail map (1995)"
     },
     {
@@ -53,16 +33,6 @@
         "description": "156 acres for picnicking, hiking, and ballplaying. Enjoy the park as a starting point for a bike trip.",
         "id": "fort-hunt-park-east-entrance",
         "abbreviation": "FHP",
-        "amenities": {
-            "parking": true,
-            "phone": true,
-            "restrooms": true,
-            "water": true,
-            "boatLaunch": false,
-            "fishing": false,
-            "picnicking": true,
-            "restaurants": false
-        },
         "reference": "Mount Vernon Trail map (1995)"
     },
     {
@@ -75,16 +45,6 @@
         "description": "A lush, 240-acre wetland typical of the Potomac estuary shoreline, where more than 250 bird species have been sighted.",
         "id": "dyke-marsh-wildlife-preserve",
         "abbreviation": "DM",
-        "amenities": {
-            "parking": false,
-            "phone": false,
-            "restrooms": false,
-            "water": false,
-            "boatLaunch": false,
-            "fishing": true,
-            "picnicking": false,
-            "restaurants": false
-        },
         "reference": "Mount Vernon Trail map (1995)"
     },
     {
@@ -97,16 +57,6 @@
         "description": "Once a settlement of Scottish merchants, Belle Haven grew around a tobacco warehouse in the 1730s. There's a great picnic area beside Dyke Marsh and a place to begin a boat trip on the river.",
         "id": "belle-haven-park-and-marina",
         "abbreviation": "BHP",
-        "amenities": {
-            "parking": true,
-            "phone": true,
-            "restrooms": true,
-            "water": true,
-            "boatLaunch": false,
-            "fishing": true,
-            "picnicking": true,
-            "restaurants": false
-        },
         "reference": "Mount Vernon Trail map (1995)"
     },
     {
@@ -119,16 +69,6 @@
         "description": "Jones Point was named after beaver trader Cadwalader Jones, who built his cabin here in 1692. The lighthouse’s small beacon warned mariners from 1863 to 1925. A cornerstone marking the former southern boundary of the District of Columbia can be seen along the seawall.",
         "id": "jones-point-park-woodrow-wilson-bridge",
         "abbreviation": "JPP",
-        "amenities": {
-            "parking": true,
-            "phone": false,
-            "restrooms": false,
-            "water": false,
-            "boatLaunch": false,
-            "fishing": true,
-            "picnicking": true,
-            "restaurants": false
-        },
         "reference": "Mount Vernon Trail map (1995)"
     },
     {
@@ -141,16 +81,6 @@
         "description": "The trail follows city streets through Alexandria, historically a center for tobacco trading and shipbuilding. Sights include Christ Church, Lee’s boyhood home, and Gadsby’s Tavern.",
         "id": "old-town-alexandria-oronoco-bay-park",
         "abbreviation": "OTA",
-        "amenities": {
-            "parking": false,
-            "phone": true,
-            "restrooms": true,
-            "water": false,
-            "boatLaunch": false,
-            "fishing": false,
-            "picnicking": false,
-            "restaurants": true
-        },
         "reference": "Mount Vernon Trail map (1995)"
     },
     {
@@ -163,16 +93,6 @@
         "description": "No longer geographically an island, this 107-acre area lies where Four Mile Run meets the Potomac River. Sailing, fishing, field sports, restaurants, and views of Washington.",
         "id": "daingerfield-island-washington-sailing-marina",
         "abbreviation": "DI",
-        "amenities": {
-            "parking": true,
-            "phone": true,
-            "restrooms": true,
-            "water": true,
-            "boatLaunch": true,
-            "fishing": true,
-            "picnicking": true,
-            "restaurants": true
-        },
         "reference": "Mount Vernon Trail map (1995)"
     },
     {
@@ -185,16 +105,6 @@
         "description": "Take in panoramic views of Washington, the Potomac River, and the airport.",
         "id": "gravelly-point-park",
         "abbreviation": "GPP",
-        "amenities": {
-            "parking": true,
-            "phone": false,
-            "restrooms": false,
-            "water": false,
-            "boatLaunch": true,
-            "fishing": true,
-            "picnicking": false,
-            "restaurants": false
-        },
         "reference": "Mount Vernon Trail map (1995)"
     },
     {
@@ -211,16 +121,6 @@
         "description": "From the living memorial to the 36th President in Lady Bird Johnson Park.",
         "id": "lady-bird-johnson-park-lbj-grove",
         "abbreviation": "LBJ",
-        "amenities": {
-            "parking": true,
-            "phone": true,
-            "restrooms": true,
-            "water": true,
-            "boatLaunch": false,
-            "fishing": false,
-            "picnicking": false,
-            "restaurants": true
-        },
         "reference": "Mount Vernon Trail map (1995)"
     },
     {
@@ -233,16 +133,6 @@
         "description": "Leave bicycles at the racks and explore the island’s 2½ miles of trails and memorial plaza.",
         "id": "theodore-roosevelt-island-trailhead",
         "abbreviation": "TRI",
-        "amenities": {
-            "parking": true,
-            "phone": false,
-            "restrooms": true,
-            "water": true,
-            "boatLaunch": false,
-            "fishing": true,
-            "picnicking": false,
-            "restaurants": false
-        },
         "reference": "Mount Vernon Trail map (1995)"
     }
 ]
