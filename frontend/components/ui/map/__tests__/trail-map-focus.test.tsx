@@ -87,11 +87,13 @@ it("consumes the preview request and does not reopen it after visiting another i
             focusIssueId={focusIssueId}
         />
     );
-    const view = render(screen("first"));
+    const view = await render(screen("first"));
     await waitFor(() => expect(fetchMapIssues).toHaveBeenCalledTimes(1));
     // Native map callbacks can fire separately from the async Trello load.
-    fireEvent(
-        view.UNSAFE_getByType("MockMap" as never),
+    await fireEvent(
+        // UNSAFE_getByType was removed in testing-library v14; the mocked map
+        // is a host element, so find it on the rendered tree by type instead.
+        view.container.queryAll((node) => node.type === "MockMap")[0],
         "onDidFinishLoadingMap",
     );
     await waitFor(() =>
@@ -100,22 +102,22 @@ it("consumes the preview request and does not reopen it after visiting another i
         ),
     );
     expect(mockRouter.setParams).toHaveBeenCalledWith({ issueId: undefined });
-    view.rerender(screen());
+    await view.rerender(screen());
     expect(fetchMapIssues).toHaveBeenCalledTimes(1);
-    fireEvent.press(view.getByTestId("select-second"));
+    await fireEvent.press(view.getByTestId("select-second"));
     expect(onSelectIssue).toHaveBeenLastCalledWith(
         expect.objectContaining({ id: "second" }),
     );
     mockFocused = false;
-    view.rerender(screen());
+    await view.rerender(screen());
     mockFocused = true;
-    view.rerender(screen());
+    await view.rerender(screen());
     await waitFor(() => expect(fetchMapIssues).toHaveBeenCalledTimes(2));
     expect(
         onSelectIssue.mock.calls.filter(([pin]) => pin?.id === "first"),
     ).toHaveLength(1);
     // Explicitly opening the original preview again still focuses that issue.
-    view.rerender(screen("first"));
+    await view.rerender(screen("first"));
     await waitFor(() =>
         expect(
             onSelectIssue.mock.calls.filter(([pin]) => pin?.id === "first"),
