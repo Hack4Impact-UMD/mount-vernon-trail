@@ -45,44 +45,15 @@ function coordinatesFromUrl(value: string): [number, number] | null {
     }
 }
 
-/** Read explicit source coordinates; never geocode an issue title or guess a site. */
+/** Read attached map coordinates without consulting card descriptions. */
 export function resolveTrelloIssueLocation(card: Card): MapLocation | null {
-    const text = `${card.name}\n${card.desc ?? ""}`;
-    const lat = new RegExp(
-        `^\\s*(?:#+\\s*)?(?:latitude|lat)\\s*:\\s*(${NUMBER})\\s*$`,
-        "im",
-    ).exec(text);
-    const lng = new RegExp(
-        `^\\s*(?:#+\\s*)?(?:longitude|lng|lon)\\s*:\\s*(${NUMBER})\\s*$`,
-        "im",
-    ).exec(text);
-    const pair = new RegExp(
-        `^\\s*(?:#+\\s*)?(?:coordinates|gps)\\s*:\\s*(${NUMBER})\\s*,\\s*(${NUMBER})\\s*$`,
-        "im",
-    ).exec(text);
-    let coordinates =
-        lat && lng
-            ? point(lat[1], lng[1])
-            : pair
-              ? point(pair[1], pair[2])
-              : null;
-    const candidates = [
-        ...(text.match(/https?:\/\/[^\s<>\[\]()]+/g) ?? []),
-        ...(card.attachments ?? []).map((attachment) => attachment.url),
-    ];
-    if (!coordinates) {
-        for (const candidate of candidates) {
-            coordinates = coordinatesFromUrl(candidate);
-            if (coordinates) break;
+    for (const attachment of card.attachments ?? []) {
+        const coordinates = coordinatesFromUrl(attachment.url);
+        if (coordinates) {
+            return { coordinates, locationName: card.name, eventNames: [] };
         }
     }
-    if (!coordinates) return null;
-    const name = /^\s*(?:#+\s*)?location\s*:\s*(.+)$/im.exec(card.desc ?? "");
-    return {
-        coordinates,
-        locationName: name?.[1].trim() || card.name,
-        eventNames: [],
-    };
+    return null;
 }
 
 /** Match only a known prefix, with a boundary so B1 never matches B10. */

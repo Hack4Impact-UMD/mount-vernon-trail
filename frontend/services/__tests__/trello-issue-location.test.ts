@@ -21,13 +21,11 @@ it.each([
     "[Site](https://www.google.com/maps/search/?api=1&query=38.8%2C-77.05)",
     "https://maps.apple.com/?ll=38.8,-77.05",
     "https://openstreetmap.org/?mlat=38.8&mlon=-77.05",
-])("reads explicit source coordinates: %s", (desc) => {
-    expect(resolveTrelloIssueLocation(card(desc))?.coordinates).toEqual([
-        -77.05, 38.8,
-    ]);
+])("ignores description coordinates: %s", (desc) => {
+    expect(resolveTrelloIssueLocation(card(desc))).toBeNull();
 });
 
-it("reads an attached map link and preserves the location name", () => {
+it("reads an attached map link and uses the card title", () => {
     expect(
         resolveTrelloIssueLocation(
             card("Location: Trail work site", [
@@ -36,7 +34,7 @@ it("reads an attached map link and preserves the location name", () => {
         ),
     ).toEqual({
         coordinates: [-77.05, 38.8],
-        locationName: "Trail work site",
+        locationName: "Intake issue",
         eventNames: [],
     });
 });

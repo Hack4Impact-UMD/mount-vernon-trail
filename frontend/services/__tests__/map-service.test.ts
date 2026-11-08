@@ -140,24 +140,20 @@ it("combines case-insensitive location and event filters without changing the so
     expect(geojson.features).toHaveLength(1);
 });
 
-it("places a card using coordinates in its description", async () => {
+it("ignores coordinates in card descriptions", async () => {
     getCards.mockResolvedValueOnce([
-        {
-            id: "issue-1",
-            name: "Source issue",
-            desc: "Latitude: 38.8\nLongitude: -77.05",
-        },
+        { id: "issue-1", name: "Source issue", desc: "GPS: 38.8, -77.05" },
     ]);
     const result = await fetchMapIssues("key");
-    expect(result.geojson.features[0].geometry.coordinates).toEqual([
-        -77.05, 38.8,
+    expect(result.geojson.features).toEqual([]);
+    expect(result.unlocatedIssues).toEqual([
+        { cardId: "issue-1", name: "Source issue" },
     ]);
-    expect(result.unlocatedIssues).toEqual([]);
 });
 
 it("keeps every Intake card accounted for without adding synthetic pins", async () => {
     getCards.mockResolvedValueOnce([
-        { id: "located-1", name: "Coordinate card", desc: "GPS: 38.8, -77.05" },
+        { id: "located-1", name: "B1 - vines", desc: "GPS: 38.8, -77.05" },
         {
             id: "located-2",
             name: "Map link card",
@@ -213,7 +209,7 @@ it("prefers photo GPS over title and card coordinates", async () => {
     } as never;
     expect(await resolveIssueLocation(card, loadTrelloImage)).toEqual(location);
 });
-it("falls back to explicit coordinates before the title when photo GPS is missing", async () => {
+it("uses the title and ignores description coordinates when photo GPS is missing", async () => {
     jest.mocked(resolvePhotoIssueLocation).mockResolvedValueOnce(null);
     const card = {
         id: "issue",
@@ -221,7 +217,8 @@ it("falls back to explicit coordinates before the title when photo GPS is missin
         desc: "GPS: 38.9, -77.1",
     } as never;
     expect(await resolveIssueLocation(card, loadTrelloImage)).toMatchObject({
-        coordinates: [-77.1, 38.9],
+        locationName: "Bridge 1",
+        coordinates: [-77.080986, 38.716397],
     });
 });
 it("falls back to a title when photo GPS is missing", async () => {
