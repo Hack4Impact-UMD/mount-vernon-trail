@@ -6,6 +6,7 @@ import {
     waitFor,
     within,
 } from "@testing-library/react-native";
+import { Animated } from "react-native";
 import MapsScreen from "@/app/maps";
 import { MAP_STYLES } from "@/config/map-styles";
 import trail from "@/data/mount-vernon-trail.json";
@@ -106,6 +107,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    jest.restoreAllMocks();
     if (originalKey === undefined)
         delete process.env.EXPO_PUBLIC_TRELLO_API_KEY;
     else process.env.EXPO_PUBLIC_TRELLO_API_KEY = originalKey;
@@ -208,6 +210,15 @@ it("filters pins and heatmap points, updates the camera, and handles an event wi
 });
 
 it("opens a grouped pin, navigates to the chosen issue, and closes the sheet", async () => {
+    // Complete the native animation explicitly so dismissal does not depend on frame timing.
+    let onAnimationEnd: Animated.EndCallback | undefined;
+    jest.spyOn(Animated, "timing").mockImplementation(() => ({
+        start: (callback) => {
+            onAnimationEnd = callback;
+        },
+        stop: jest.fn(),
+        reset: jest.fn(),
+    }));
     render(<MapsScreen />);
     await waitForFilters();
     const groupedPin = screen.getByTestId("pin-vines");
@@ -223,18 +234,16 @@ it("opens a grouped pin, navigates to the chosen issue, and closes the sheet", a
         pathname: "/trail-issue-screen",
         params: { issueId: "fence", issueName: "Repair fence" },
     });
-    await waitFor(() =>
-        expect(screen.queryByLabelText("Issues at this location")).toBeNull(),
-    );
+    act(() => onAnimationEnd?.({ finished: true }));
+    expect(screen.queryByLabelText("Issues at this location")).toBeNull();
 
     fireEvent.press(screen.getByTestId("pin-drain"));
     expect(screen.getByLabelText("Issue details")).toBeOnTheScreen();
     fireEvent.press(
         screen.getByRole("button", { name: "Close issue details" }),
     );
-    await waitFor(() =>
-        expect(screen.queryByLabelText("Issue details")).toBeNull(),
-    );
+    act(() => onAnimationEnd?.({ finished: true }));
+    expect(screen.queryByLabelText("Issue details")).toBeNull();
 });
 
 it("recovers from an intake load failure and shows cards that need locations", async () => {
