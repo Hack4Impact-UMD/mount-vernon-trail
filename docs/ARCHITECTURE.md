@@ -13,16 +13,20 @@ graph LR
     FS[("Firestore<br/>events · albums · albumTitles")]
     BE["backend/<br/>Express proxy"]
     GP["Google Photos<br/>MVT-owned album"]
+    GS["Google Sheets<br/>event metrics"]
     TR["Trello<br/>MVT board"]
 
     App -->|"Firebase web SDK<br/>gated by firestore.rules"| FS
     App -->|"Bearer Firebase ID token"| BE
+    BE -->|"Firebase Admin read<br/>for export"| FS
     BE -->|"MVT refresh token"| GP
+    BE -->|"MVT Sheets scope"| GS
     App -->|"per-volunteer OAuth token"| TR
 ```
 
-Firestore and Trello are reached **directly from the device**. Google Photos never
-is — that indirection is the reason `backend/` exists.
+Firestore client access and Trello are reached **directly from the device**. The
+backend reads the authoritative event from Firestore for export; Google Photos
+and Sheets are reached only through `backend/`, using the MVT account credentials.
 
 ## Sign-in and roles
 
@@ -171,16 +175,20 @@ you must change the other.
 ## Publish ordering
 
 In [frontend/app/edit-draft.tsx](../frontend/app/edit-draft.tsx), publishing runs
-**Trello first, Firestore last**:
+external writes first and **Firestore last**:
 
 1. `moveCardToCompleted(...)`
 2. `moveCardAttachmentsToCompleted(...)`
-3. `publishEvent(eventId)`
+3. `syncEventToSheets(eventId)` — the backend reads the authoritative Firestore
+   event and upserts its Events and Improvements rows
+4. `publishEvent(eventId)`
 
-If a Trello call fails, the event is still `isDraft: true` and still visible in
-Drafts, so the volunteer can retry. The reverse order — which this replaced —
-flipped Firestore first, so a Trello failure left an event published in the app,
-gone from Drafts, and never moved on the board, with no way to retry from the UI.
+If Trello or Sheets fails, the event is still `isDraft: true` and visible in
+Drafts, so the volunteer can retry. Sheets upserts by event ID and metric label,
+so a retry after a partial sheet write reconciles rows instead of duplicating
+them. The reverse order — which this replaced — flipped Firestore first, so a
+failed external write left an event published in the app and gone from Drafts,
+with no way to retry from the UI.
 
 The same reasoning applies anywhere else you sequence a multi-system write: **make
 the recoverable, externally-visible step first and the local state flip last.**
