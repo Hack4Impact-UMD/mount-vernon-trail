@@ -13,7 +13,7 @@ import { fetchDocumentTrailIssues } from "@/services/trello-service";
 import type { TrailDocumentIssueItem } from "@/types/trail-types";
 import { getErrorMessage } from "@/utils/errors";
 import { useRouter } from "expo-router";
-import { Check, House, X } from "lucide-react-native";
+import { Check, ChevronLeft, House, X } from "lucide-react-native";
 import Slider from "@react-native-community/slider";
 import Svg, { Path } from "react-native-svg";
 import React, { useEffect, useRef, useState } from "react";
@@ -304,6 +304,16 @@ export default function BeforeAfterGraphicScreen() {
                 showsVerticalScrollIndicator={false}>
                 <Header />
                 <View style={styles.body}>
+                    <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel="Back to home"
+                        style={styles.backButton}
+                        onPress={() => router.replace("/home-screen")}>
+                        <ChevronLeft
+                            size={28}
+                            color={Palette.primaryPurple70}
+                        />
+                    </TouchableOpacity>
                     <Text style={styles.title}>Before/After Pairing</Text>
                     <Text style={styles.subtitle}>
                         Match photos to a trail issue, review the graphic, and
@@ -338,7 +348,7 @@ export default function BeforeAfterGraphicScreen() {
                     ) : (
                         <>
                             {!selectedEvent ? (
-                                <SelectionSection title="1. Select an event">
+                                <SelectionSection title="Select an Event">
                                     {events.length === 0 ? (
                                         <Text style={styles.messageText}>
                                             No events with photo albums are
@@ -1031,6 +1041,13 @@ const styles = StyleSheet.create({
     body: {
         paddingHorizontal: 20,
         paddingTop: 24,
+    },
+    backButton: {
+        width: 44,
+        height: 44,
+        alignItems: "center",
+        justifyContent: "center",
+        alignSelf: "flex-start",
     },
     title: {
         fontFamily: "Lato_700Bold",
