@@ -27,10 +27,10 @@ describe("useIsAdmin", () => {
         const user = {
             getIdTokenResult: jest.fn(() => claims.promise),
         } as unknown as User;
-        const { result } = renderHook(() => useIsAdmin());
+        const { result } = await renderHook(() => useIsAdmin());
 
-        act(() => mockAuthCallback?.(user));
-        act(() => mockAuthCallback?.(null));
+        await act(() => mockAuthCallback?.(user));
+        await act(() => mockAuthCallback?.(null));
         await act(async () => {
             claims.resolve({ claims: { admin: true } });
             await claims.promise;
@@ -48,10 +48,10 @@ describe("useIsAdmin", () => {
         const secondUser = {
             getIdTokenResult: jest.fn(() => second.promise),
         } as unknown as User;
-        const { result } = renderHook(() => useIsAdmin());
+        const { result } = await renderHook(() => useIsAdmin());
 
-        act(() => mockAuthCallback?.(firstUser));
-        act(() => mockAuthCallback?.(secondUser));
+        await act(() => mockAuthCallback?.(firstUser));
+        await act(() => mockAuthCallback?.(secondUser));
         await act(async () => {
             second.resolve({ claims: { admin: false } });
             first.resolve({ claims: { admin: true } });

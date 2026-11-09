@@ -16,9 +16,9 @@ const first: MapPin = {
 };
 const second: MapPin = { ...first, id: "two", title: "Repair fence" };
 
-it("shows all shared-location issues in a scrollable list and opens the chosen issue", () => {
+it("shows all shared-location issues in a scrollable list and opens the chosen issue", async () => {
     const onClose = jest.fn();
-    const view = render(
+    const view = await render(
         <MapIssueCard
             issue={{ ...first, sameLocationIssues: [first, second] }}
             onClose={onClose}
@@ -27,15 +27,15 @@ it("shows all shared-location issues in a scrollable list and opens the chosen i
     expect(view.getByText("2 issues at this location")).toBeTruthy();
     expect(view.getByLabelText("Issues at this location")).toBeTruthy();
     expect(view.getByText("Clear vines")).toBeTruthy();
-    fireEvent.press(view.getByLabelText("Open issue: Repair fence"));
+    await fireEvent.press(view.getByLabelText("Open issue: Repair fence"));
     expect(onClose).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith({
         pathname: "/trail-issue-screen",
         params: { issueId: "two", issueName: "Repair fence" },
     });
 });
-it("retains the single-issue popup for a location with only one issue", () => {
-    const view = render(
+it("retains the single-issue popup for a location with only one issue", async () => {
+    const view = await render(
         <MapIssueCard
             issue={first}
             onClose={jest.fn()}
