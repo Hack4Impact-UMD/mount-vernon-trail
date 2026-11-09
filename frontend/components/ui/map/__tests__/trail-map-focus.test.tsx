@@ -18,7 +18,11 @@ jest.mock("expo-router", () => ({
     },
 }));
 jest.mock("@maplibre/maplibre-react-native", () => ({
-    Map: "MockMap",
+    Map: (props: Record<string, unknown>) => {
+        const React = require("react");
+        const { View } = require("react-native");
+        return React.createElement(View, { ...props, testID: "trail-map" });
+    },
     Camera: () => null,
     ViewAnnotation: "MockAnnotation",
 }));
@@ -91,9 +95,7 @@ it("consumes the preview request and does not reopen it after visiting another i
     await waitFor(() => expect(fetchMapIssues).toHaveBeenCalledTimes(1));
     // Native map callbacks can fire separately from the async Trello load.
     await fireEvent(
-        // UNSAFE_getByType was removed in testing-library v14; the mocked map
-        // is a host element, so find it on the rendered tree by type instead.
-        view.UNSAFE_root.findAll((node) => String(node.type) === "MockMap")[0],
+        view.getByTestId("trail-map"),
         "onDidFinishLoadingMap",
     );
     await waitFor(() =>
