@@ -103,6 +103,9 @@ export default function TrailMap({
             locationName: feature.properties.locationName,
             imageUrl: feature.properties.imageUrl ?? undefined,
             coordinates: feature.geometry.coordinates,
+            eventStatuses: events
+                .filter((event) => event.issueIds.includes(feature.properties.cardId) && event.status && (effectiveEvent === "all" || effectiveEvent === "unassigned" || event.id === effectiveEvent))
+                .map((event) => ({ name: event.name, status: event.status! })),
         }),
     );
     const unlocatedIssues = filteredData?.unlocatedIssues ?? [];
@@ -230,6 +233,9 @@ export default function TrailMap({
             locationName: feature.properties.locationName,
             imageUrl: feature.properties.imageUrl ?? undefined,
             coordinates: feature.geometry.coordinates,
+            eventStatuses: events
+                .filter((event) => event.issueIds.includes(feature.properties.cardId) && event.status && (effectiveEvent === "all" || effectiveEvent === "unassigned" || event.id === effectiveEvent))
+                .map((event) => ({ name: event.name, status: event.status! })),
             sameLocationIssues: issueData.geojson.features
                 .filter(
                     (item) =>
