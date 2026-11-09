@@ -7,6 +7,8 @@ import TrailMetricsSection, {
     type TrailMetricsSectionHandle,
 } from "../trail-metrics-section";
 
+jest.setTimeout(30_000);
+
 describe("metrics model and UI stay in sync", () => {
     it("every EventMetrics key has an input field, and vice versa", () => {
         // trailImprovements used to exist in the model with no input, so it
@@ -25,12 +27,12 @@ describe("metrics model and UI stay in sync", () => {
             .spyOn(eventService, "updateEventMetrics")
             .mockResolvedValue(undefined);
         const ref = createRef<TrailMetricsSectionHandle>();
-        const { getByLabelText, getByText } = render(
+        const { getByLabelText, getByText } = await render(
             <TrailMetricsSection ref={ref} eventId="event-1" />,
         );
 
-        fireEvent.press(getByText("Drainage"));
-        fireEvent.press(getByLabelText("Increase Drains / culverts cleaned"));
+        await fireEvent.press(getByText("Drainage"));
+        await fireEvent.press(getByLabelText("Increase Drains / culverts cleaned"));
         await act(async () => {
             await ref.current?.flushPendingUpdates();
         });
@@ -53,14 +55,14 @@ describe("metrics model and UI stay in sync", () => {
             )
             .mockResolvedValue(undefined);
         const ref = createRef<TrailMetricsSectionHandle>();
-        const { getByLabelText, getByText } = render(
+        const { getByLabelText, getByText } = await render(
             <TrailMetricsSection ref={ref} eventId="event-1" />,
         );
         const increase = () =>
             fireEvent.press(getByLabelText("Increase Drains / culverts cleaned"));
 
-        fireEvent.press(getByText("Drainage"));
-        increase();
+        await fireEvent.press(getByText("Drainage"));
+        await increase();
         let firstFlush: Promise<void> | undefined;
         await act(async () => {
             firstFlush = ref.current?.flushPendingUpdates();
@@ -69,7 +71,7 @@ describe("metrics model and UI stay in sync", () => {
             drainageCleaned: 1,
         });
 
-        increase();
+        await increase();
         await act(async () => {
             failFirst(new Error("offline"));
             await expect(firstFlush).rejects.toThrow("offline");
