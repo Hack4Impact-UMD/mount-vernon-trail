@@ -4,7 +4,7 @@
     "slug": "mount-vernon-trail",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": "./assets/images/mvt-app-icon.png",
+    "icon": "./assets/images/icon.png",
     "scheme": [
       "mount-vernon-trail",
       "com.googleusercontent.apps.405328478335-jrjdhobgia6q5kp5fo35kspn4immrfn7",
@@ -20,8 +20,10 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#87CEEA",
-        "foregroundImage": "./assets/images/mvt-app-icon.png"
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.hack4impact.mountvernontrail",
