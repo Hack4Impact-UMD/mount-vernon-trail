@@ -203,14 +203,12 @@ export default function MapIssueCard({
                                         contentFit="cover"
                                     />
                                     <View style={styles.rowDetails}>
-                                        <Text style={styles.rowTitle}>
+                                        {item.eventStatuses?.map((event) => (
+                                            <EventStatusRow key={event.name + event.status} event={event} compact />
+                                        ))}
+                                        <Text style={styles.rowTitle} numberOfLines={2} ellipsizeMode="tail">
                                             {item.title ?? "Trail issue"}
                                         </Text>
-                                        {item.eventStatuses?.map((event) => (
-                                            <Text key={event.name + event.status} style={styles.eventStatus}>
-                                                {event.name} · {event.status}
-                                            </Text>
-                                        ))}
                                         {item.status && (
                                             <Text style={styles.location}>
                                                 {item.status}
@@ -240,14 +238,7 @@ export default function MapIssueCard({
                                 }
                             />
                             {issue.eventStatuses?.map((event) => (
-                                <View key={event.name + event.status} style={styles.eventStatusRow}>
-                                    <View style={[styles.badge, event.status === "Completed" && styles.completed]}>
-                                        <Text style={[styles.status, event.status === "Completed" && styles.completedText]}>
-                                            {event.status}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.eventName}>{event.name}</Text>
-                                </View>
+                                <EventStatusRow key={event.name + event.status} event={event} />
                             ))}
                             {(status || issue?.elapsedTime) && (
                                 <View style={styles.metadata}>
@@ -255,14 +246,12 @@ export default function MapIssueCard({
                                         <View
                                             style={[
                                                 styles.badge,
-                                                status === "Completed" &&
-                                                    styles.completed,
+                                                status === "Completed" && styles.completed,
                                             ]}>
                                             <Text
                                                 style={[
                                                     styles.status,
-                                                    status === "Completed" &&
-                                                        styles.completedText,
+                                                    status === "Completed" && styles.completedText,
                                                 ]}>
                                                 {status}
                                             </Text>
@@ -293,6 +282,23 @@ export default function MapIssueCard({
                     )}
                 </ScrollView>
             </Animated.View>
+        </View>
+    );
+}
+
+function EventStatusRow({ event, compact = false }: {
+    event: NonNullable<MapPin["eventStatuses"]>[number];
+    compact?: boolean;
+}) {
+    const completed = event.status === "Completed";
+    return (
+        <View style={[styles.eventStatusRow, compact && styles.compactEventRow]}>
+            <View style={[styles.badge, compact && styles.compactBadge, completed && styles.completed]}>
+                <Text style={[styles.status, compact && styles.compactStatus, completed && styles.completedText]}>
+                    {event.status}
+                </Text>
+            </View>
+            <Text style={[styles.eventName, compact && styles.compactEventName]} numberOfLines={compact ? 2 : undefined} ellipsizeMode="tail">{event.name}</Text>
         </View>
     );
 }
@@ -375,11 +381,10 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: Palette.primaryBlack70,
     },
-    eventStatus: {
-        fontFamily: "Lato_400Regular",
-        fontSize: 14,
-        color: Palette.primaryPurple100,
-    },
+    compactEventRow: { marginBottom: 0, gap: 6 },
+    compactBadge: { paddingHorizontal: 8, paddingVertical: 3 },
+    compactStatus: { fontSize: 12 },
+    compactEventName: { fontSize: 12 },
     metadata: {
         flexDirection: "row",
         alignItems: "center",
