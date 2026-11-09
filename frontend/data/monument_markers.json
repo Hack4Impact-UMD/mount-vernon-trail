@@ -1,12 +1,14 @@
 [
     {
         "location_name": "Mount Vernon Estate Trailhead",
-        "aliases": ["Mount Vernon"],
+        "aliases": [
+            "Mount Vernon"
+        ],
         "coordinates": {
             "latitude": 38.7081,
             "longitude": -77.0861
         },
-        "description": "George Washington’s home on the Potomac River.",
+        "description": "George Washington\u2019s home on the Potomac River.",
         "id": "mount-vernon-estate-trailhead",
         "abbreviation": "MVE",
         "amenities": {
@@ -23,7 +25,9 @@
     },
     {
         "location_name": "Riverside Park / Little Hunting Creek",
-        "aliases": ["Riverside Park"],
+        "aliases": [
+            "Riverside Park"
+        ],
         "coordinates": {
             "latitude": 38.7188,
             "longitude": -77.0672
@@ -45,7 +49,9 @@
     },
     {
         "location_name": "Fort Hunt Park (East Entrance)",
-        "aliases": ["Fort Hunt Park"],
+        "aliases": [
+            "Fort Hunt Park"
+        ],
         "coordinates": {
             "latitude": 38.7153,
             "longitude": -77.0398
@@ -67,7 +73,9 @@
     },
     {
         "location_name": "Dyke Marsh Wildlife Preserve",
-        "aliases": ["Dyke Marsh"],
+        "aliases": [
+            "Dyke Marsh"
+        ],
         "coordinates": {
             "latitude": 38.7615,
             "longitude": -77.0494
@@ -89,7 +97,10 @@
     },
     {
         "location_name": "Belle Haven Park & Marina",
-        "aliases": ["Belle Haven", "Belle Haven Park"],
+        "aliases": [
+            "Belle Haven",
+            "Belle Haven Park"
+        ],
         "coordinates": {
             "latitude": 38.7758,
             "longitude": -77.0512
@@ -111,12 +122,15 @@
     },
     {
         "location_name": "Jones Point Park / Woodrow Wilson Bridge",
-        "aliases": ["Jones Point Park", "Woodrow Wilson Bridge"],
+        "aliases": [
+            "Jones Point Park",
+            "Woodrow Wilson Bridge"
+        ],
         "coordinates": {
             "latitude": 38.7891,
             "longitude": -77.0409
         },
-        "description": "Jones Point was named after beaver trader Cadwalader Jones, who built his cabin here in 1692. The lighthouse’s small beacon warned mariners from 1863 to 1925. A cornerstone marking the former southern boundary of the District of Columbia can be seen along the seawall.",
+        "description": "Jones Point was named after beaver trader Cadwalader Jones, who built his cabin here in 1692. The lighthouse\u2019s small beacon warned mariners from 1863 to 1925. A cornerstone marking the former southern boundary of the District of Columbia can be seen along the seawall.",
         "id": "jones-point-park-woodrow-wilson-bridge",
         "abbreviation": "JPP",
         "amenities": {
@@ -133,12 +147,16 @@
     },
     {
         "location_name": "Old Town Alexandria (Oronoco Bay Park)",
-        "aliases": ["Alexandria", "Old Town Alexandria", "Oronoco Bay Park"],
+        "aliases": [
+            "Alexandria",
+            "Old Town Alexandria",
+            "Oronoco Bay Park"
+        ],
         "coordinates": {
             "latitude": 38.8115,
             "longitude": -77.0378
         },
-        "description": "The trail follows city streets through Alexandria, historically a center for tobacco trading and shipbuilding. Sights include Christ Church, Lee’s boyhood home, and Gadsby’s Tavern.",
+        "description": "The trail follows city streets through Alexandria, historically a center for tobacco trading and shipbuilding. Sights include Christ Church, Lee\u2019s boyhood home, and Gadsby\u2019s Tavern.",
         "id": "old-town-alexandria-oronoco-bay-park",
         "abbreviation": "OTA",
         "amenities": {
@@ -155,7 +173,10 @@
     },
     {
         "location_name": "Daingerfield Island / Washington Sailing Marina",
-        "aliases": ["Daingerfield Island", "Washington Sailing Marina"],
+        "aliases": [
+            "Daingerfield Island",
+            "Washington Sailing Marina"
+        ],
         "coordinates": {
             "latitude": 38.8319,
             "longitude": -77.0411
@@ -177,7 +198,9 @@
     },
     {
         "location_name": "Gravelly Point Park",
-        "aliases": ["Gravelly Point"],
+        "aliases": [
+            "Gravelly Point"
+        ],
         "coordinates": {
             "latitude": 38.8647,
             "longitude": -77.0392
@@ -225,12 +248,14 @@
     },
     {
         "location_name": "Theodore Roosevelt Island Trailhead",
-        "aliases": ["Theodore Roosevelt Island"],
+        "aliases": [
+            "Theodore Roosevelt Island"
+        ],
         "coordinates": {
             "latitude": 38.8953,
             "longitude": -77.0633
         },
-        "description": "Leave bicycles at the racks and explore the island’s 2½ miles of trails and memorial plaza.",
+        "description": "Leave bicycles at the racks and explore the island\u2019s 2\u00bd miles of trails and memorial plaza.",
         "id": "theodore-roosevelt-island-trailhead",
         "abbreviation": "TRI",
         "amenities": {
@@ -244,5 +269,127 @@
             "restaurants": false
         },
         "reference": "Mount Vernon Trail map (1995)"
+    },
+    {
+        "location_name": "Arlington Memorial Bridge",
+        "aliases": [
+            "Memorial Bridge"
+        ],
+        "coordinates": {
+            "latitude": 38.887475,
+            "longitude": -77.055144
+        },
+        "description": "Bridge connecting Arlington and Washington, DC.",
+        "id": "arlington-memorial-bridge",
+        "abbreviation": "AMB",
+        "amenities": {
+            "parking": false,
+            "phone": false,
+            "restrooms": false,
+            "water": false,
+            "boatLaunch": false,
+            "fishing": false,
+            "picnicking": false,
+            "restaurants": false
+        },
+        "reference": "https://www.nps.gov/gwmp/planyourvisit/gps.htm"
+    },
+    {
+        "location_name": "Navy-Marine Memorial",
+        "aliases": [
+            "Navy and Merchant Marine Memorial",
+            "Navy-Merchant Marine Memorial"
+        ],
+        "coordinates": {
+            "latitude": 38.876351,
+            "longitude": -77.047291
+        },
+        "description": "Memorial in Lady Bird Johnson Park honoring Americans lost at sea.",
+        "id": "navy-marine-memorial",
+        "abbreviation": "NMM",
+        "amenities": {
+            "parking": false,
+            "phone": false,
+            "restrooms": false,
+            "water": false,
+            "boatLaunch": false,
+            "fishing": false,
+            "picnicking": false,
+            "restaurants": false
+        },
+        "reference": "https://www.nps.gov/gwmp/planyourvisit/gps.htm"
+    },
+    {
+        "location_name": "Fort Washington Park",
+        "aliases": [
+            "Fort Washington"
+        ],
+        "coordinates": {
+            "latitude": 38.7117,
+            "longitude": -77.0302
+        },
+        "description": "Historic fort across the Potomac River in Maryland; separate from the Mount Vernon Trail.",
+        "id": "fort-washington-park",
+        "abbreviation": "FW",
+        "amenities": {
+            "parking": false,
+            "phone": false,
+            "restrooms": false,
+            "water": false,
+            "boatLaunch": false,
+            "fishing": false,
+            "picnicking": false,
+            "restaurants": false
+        },
+        "reference": "https://www.recreation.gov/camping/gateways/2709"
+    },
+    {
+        "location_name": "Alexandria Avenue",
+        "aliases": [
+            "Alexandria Ave",
+            "Alexandria Ave."
+        ],
+        "coordinates": {
+            "latitude": 38.7466,
+            "longitude": -77.0489
+        },
+        "description": "Alexandria Avenue bridge at the George Washington Memorial Parkway near the trail.",
+        "id": "alexandria-avenue",
+        "abbreviation": "AA",
+        "amenities": {
+            "parking": false,
+            "phone": false,
+            "restrooms": false,
+            "water": false,
+            "boatLaunch": false,
+            "fishing": false,
+            "picnicking": false,
+            "restaurants": false
+        },
+        "reference": "https://www.topoquest.com/place/virginia/bridge/alexandria-avenue-bridge/2099650"
+    },
+    {
+        "location_name": "Jones Point Lighthouse",
+        "aliases": [
+            "Jones Point Light"
+        ],
+        "coordinates": {
+            "latitude": 38.7891,
+            "longitude": -77.0409
+        },
+        "description": "Historic lighthouse at Jones Point Park.",
+        "id": "jones-point-lighthouse",
+        "abbreviation": "JPL",
+        "amenities": {
+            "parking": false,
+            "phone": false,
+            "restrooms": false,
+            "water": false,
+            "boatLaunch": false,
+            "fishing": false,
+            "picnicking": false,
+            "restaurants": false
+        },
+        "reference": "Shared map location with Jones Point Park / Woodrow Wilson Bridge"
     }
 ]

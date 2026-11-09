@@ -501,13 +501,6 @@ export default function TrailMap({
                             <Text style={styles.sheetTitle}>
                                 Cards needing a location
                             </Text>
-                            <Text style={styles.text}>
-                                These cards could not be located automatically.
-                                Photo GPS metadata and recognized location
-                                names, bridge numbers, or mile markers at the
-                                start of their titles are used to find
-                                locations.
-                            </Text>
                             <ScrollView style={styles.unlocatedList}>
                                 {unlocatedIssues.map((issue) => (
                                     <Text

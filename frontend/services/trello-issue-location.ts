@@ -56,7 +56,7 @@ export function resolveTrelloIssueLocation(card: Card): MapLocation | null {
     return null;
 }
 
-/** Match only a known prefix, with a boundary so B1 never matches B10. */
+/** Match a landmark prefix, optionally after an area label and colon. */
 export function resolveTitleIssueLocation(card: Card): MapLocation | null {
     const normalize = (value: string) =>
         value.toLowerCase().replace(/\s+/g, " ").trim();
@@ -82,7 +82,14 @@ export function resolveTitleIssueLocation(card: Card): MapLocation | null {
             })
             .map((alias) => ({ landmark, length: alias.length }));
     }).sort((a, b) => b.length - a.length);
-    if (!matches.length) return null;
+    if (!matches.length) {
+        // Intake titles can use "Area: Bridge 15, direction, issue details".
+        // Only inspect the first field after the area, not arbitrary prose.
+        const separator = card.name.indexOf(":");
+        if (separator < 0) return null;
+        const site = card.name.slice(separator + 1).split(/[:,;]/, 1)[0].trim();
+        return site ? resolveTitleIssueLocation({ ...card, name: site }) : null;
+    }
     const best = matches.filter((match) => match.length === matches[0].length);
     if (new Set(best.map(({ landmark }) => landmark.id)).size !== 1)
         return null;
