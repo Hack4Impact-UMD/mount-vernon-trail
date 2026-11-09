@@ -93,7 +93,7 @@ it("consumes the preview request and does not reopen it after visiting another i
     await fireEvent(
         // UNSAFE_getByType was removed in testing-library v14; the mocked map
         // is a host element, so find it on the rendered tree by type instead.
-        view.container.queryAll((node) => node.type === "MockMap")[0],
+        view.UNSAFE_root.findAll((node) => String(node.type) === "MockMap")[0],
         "onDidFinishLoadingMap",
     );
     await waitFor(() =>

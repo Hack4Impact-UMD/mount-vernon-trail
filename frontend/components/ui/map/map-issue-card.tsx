@@ -293,10 +293,10 @@ const styles = StyleSheet.create({
     },
     card: {
         backgroundColor: Colors.light.background,
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
         borderWidth: 1,
-        borderColor: Palette.primaryBlack30,
+        borderColor: "#99A1AF",
         paddingHorizontal: 24,
         overflow: "hidden",
     },
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     groupTitle: {
         fontSize: 23,
         fontFamily: "Lato_700Bold",
-        color: Palette.primaryBlack100,
+        color: Palette.primaryPurple100,
         marginBottom: 6,
     },
     groupCount: {
