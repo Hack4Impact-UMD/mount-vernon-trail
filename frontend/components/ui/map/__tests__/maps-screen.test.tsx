@@ -113,8 +113,8 @@ afterEach(() => {
     else process.env.EXPO_PUBLIC_TRELLO_API_KEY = originalKey;
 });
 
-function nativeMap(event: string) {
-    fireEvent(screen.getByTestId("native-map"), event);
+async function nativeMap(event: string) {
+    await fireEvent(screen.getByTestId("native-map"), event);
 }
 
 async function waitForFilters() {
@@ -125,15 +125,15 @@ async function waitForFilters() {
     );
 }
 
-function chooseEvent(current: string, option: string) {
-    fireEvent.press(
+async function chooseEvent(current: string, option: string) {
+    await fireEvent.press(
         screen.getByRole("button", { name: `Filter by event: ${current}` }),
     );
-    fireEvent.press(screen.getByRole("radio", { name: option }));
+    await fireEvent.press(screen.getByRole("radio", { name: option }));
 }
 
 it("retries a failed basemap and switches between normal and satellite", async () => {
-    render(<MapsScreen />);
+    await render(<MapsScreen />);
     await waitForFilters();
     const recenter = () => screen.getByRole("button", { name: /Recenter map/ });
     const initialMap = screen.getByTestId("native-map");
@@ -141,24 +141,24 @@ it("retries a failed basemap and switches between normal and satellite", async (
     expect(screen.getByText("Loading map…")).toBeOnTheScreen();
     expect(recenter()).toBeDisabled();
 
-    nativeMap("onDidFailLoadingMap");
+    await nativeMap("onDidFailLoadingMap");
     expect(screen.getByText(/Could not load the map/)).toBeOnTheScreen();
-    fireEvent.press(screen.getByRole("button", { name: "Retry" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Retry" }));
     expect(screen.getByTestId("native-map")).not.toBe(initialMap);
     expect(screen.getByText("Loading map…")).toBeOnTheScreen();
-    nativeMap("onDidFinishLoadingMap");
+    await nativeMap("onDidFinishLoadingMap");
     expect(recenter()).toBeEnabled();
 
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Switch to satellite map" }),
     );
     expect(screen.getByTestId("native-map").props.mapStyle).toBe(
         MAP_STYLES.satellite,
     );
     expect(recenter()).toBeDisabled();
-    nativeMap("onDidFinishLoadingStyle");
+    await nativeMap("onDidFinishLoadingStyle");
     expect(recenter()).toBeEnabled();
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Switch to normal map" }),
     );
     expect(screen.getByTestId("native-map").props.mapStyle).toBe(
@@ -168,10 +168,10 @@ it("retries a failed basemap and switches between normal and satellite", async (
 });
 
 it("filters pins and heatmap points, updates the camera, and handles an event with no pins", async () => {
-    render(<MapsScreen />);
+    await render(<MapsScreen />);
     await waitForFilters();
 
-    chooseEvent("All issues", "Spring cleanup, 4 issues");
+    await chooseEvent("All issues", "Spring cleanup, 4 issues");
     expect(screen.getByText("4 intake cards · 3 pins")).toBeOnTheScreen();
     expect(screen.queryByTestId("pin-litter")).toBeNull();
     expect(screen.getByTestId("pin-vines")).toBeOnTheScreen();
@@ -188,7 +188,7 @@ it("filters pins and heatmap points, updates the camera, and handles an event wi
         expect.objectContaining({ duration: 600 }),
     );
 
-    chooseEvent("Spring cleanup", "Unassigned, 1 issues");
+    await chooseEvent("Spring cleanup", "Unassigned, 1 issues");
     expect(screen.getByTestId("pin-litter")).toBeOnTheScreen();
     expect(screen.queryByTestId("pin-vines")).toBeNull();
     expect(flyTo).toHaveBeenLastCalledWith({
@@ -199,7 +199,7 @@ it("filters pins and heatmap points, updates the camera, and handles an event wi
 
     flyTo.mockClear();
     fitBounds.mockClear();
-    chooseEvent("Unassigned", "Location survey, 1 issues");
+    await chooseEvent("Unassigned", "Location survey, 1 issues");
     expect(
         screen.getByText("No mapped issues for this selection."),
     ).toBeOnTheScreen();
@@ -211,7 +211,9 @@ it("filters pins and heatmap points, updates the camera, and handles an event wi
 
 it("opens a grouped pin, navigates to the chosen issue, and closes the sheet", async () => {
     // Complete the native animation explicitly so dismissal does not depend on frame timing.
-    let onAnimationEnd: Animated.EndCallback | undefined;
+    let onAnimationEnd: Parameters<
+        ReturnType<typeof Animated.timing>["start"]
+    >[0];
     jest.spyOn(Animated, "timing").mockImplementation(() => ({
         start: (callback) => {
             onAnimationEnd = callback;
@@ -219,58 +221,58 @@ it("opens a grouped pin, navigates to the chosen issue, and closes the sheet", a
         stop: jest.fn(),
         reset: jest.fn(),
     }));
-    render(<MapsScreen />);
+    await render(<MapsScreen />);
     await waitForFilters();
     const groupedPin = screen.getByTestId("pin-vines");
     expect(within(groupedPin).getByText("2")).toBeOnTheScreen();
     expect(screen.queryByTestId("pin-fence")).toBeNull();
 
-    fireEvent.press(groupedPin);
+    await fireEvent.press(groupedPin);
     expect(screen.getByText("2 issues at this location")).toBeOnTheScreen();
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("link", { name: "Open issue: Repair fence" }),
     );
     expect(mockRouter.push).toHaveBeenCalledWith({
         pathname: "/trail-issue-screen",
         params: { issueId: "fence", issueName: "Repair fence" },
     });
-    act(() => onAnimationEnd?.({ finished: true }));
+    await act(() => onAnimationEnd?.({ finished: true }));
     expect(screen.queryByLabelText("Issues at this location")).toBeNull();
 
-    fireEvent.press(screen.getByTestId("pin-drain"));
+    await fireEvent.press(screen.getByTestId("pin-drain"));
     expect(screen.getByLabelText("Issue details")).toBeOnTheScreen();
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Close issue details" }),
     );
-    act(() => onAnimationEnd?.({ finished: true }));
+    await act(() => onAnimationEnd?.({ finished: true }));
     expect(screen.queryByLabelText("Issue details")).toBeNull();
 });
 
 it("recovers from an intake load failure and shows cards that need locations", async () => {
-    jest.mocked(fetchMapIssues).mockRejectedValueOnce(
-        new Error("Intake unavailable"),
-    );
-    render(<MapsScreen />);
+    const request = Promise.withResolvers<MapIssueData>();
+    jest.mocked(fetchMapIssues).mockReturnValueOnce(request.promise);
+    await render(<MapsScreen />);
     expect(screen.getByText("Loading trail issues…")).toBeOnTheScreen();
     expect(
         screen.getByRole("button", { name: "Refresh intake cards" }),
     ).toBeDisabled();
-    expect(await screen.findByText("Intake unavailable")).toBeOnTheScreen();
+    await act(() => request.reject(new Error("Intake unavailable")));
+    expect(screen.getByText("Intake unavailable")).toBeOnTheScreen();
 
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Refresh intake cards" }),
     );
     await waitForFilters();
     expect(fetchMapEvents).toHaveBeenCalledWith("test-key", data.issueAliases);
     expect(screen.getByText("5 intake cards · 4 pins")).toBeOnTheScreen();
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "View cards that need a location" }),
     );
     expect(screen.getByText("Inspect fallen branch")).toBeOnTheScreen();
     expect(screen.queryByText("Clear vines")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Close" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByText("Inspect fallen branch")).toBeNull();
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Dismiss issue pin notice" }),
     );
     expect(screen.queryByText("5 intake cards · 4 pins")).toBeNull();
@@ -281,7 +283,7 @@ it("keeps intake pins when event filters fail and drops a removed filter after r
         .mockRejectedValueOnce(new Error("Events unavailable"))
         .mockResolvedValueOnce(events)
         .mockResolvedValueOnce([]);
-    render(<MapsScreen />);
+    await render(<MapsScreen />);
     expect(
         await screen.findByText(/Event filters unavailable/),
     ).toBeOnTheScreen();
@@ -290,37 +292,39 @@ it("keeps intake pins when event filters fail and drops a removed filter after r
     ).toBeDisabled();
     expect(screen.getByTestId("pin-litter")).toBeOnTheScreen();
 
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Refresh intake cards" }),
     );
     await waitForFilters();
-    chooseEvent("All issues", "Spring cleanup, 4 issues");
+    await chooseEvent("All issues", "Spring cleanup, 4 issues");
     expect(screen.queryByTestId("pin-litter")).toBeNull();
 
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Refresh intake cards" }),
     );
     await waitForFilters();
     expect(screen.getByTestId("pin-litter")).toBeOnTheScreen();
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Filter by event: All issues" }),
     );
     expect(screen.queryByRole("radio", { name: /Spring cleanup/ })).toBeNull();
 });
 
 it("opens landmark details from search and native pins and recenters to the full trail", async () => {
-    render(<MapsScreen />);
+    await render(<MapsScreen />);
     await waitForFilters();
-    nativeMap("onDidFinishLoadingMap");
+    await nativeMap("onDidFinishLoadingMap");
 
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Search trail landmarks" }),
     );
-    fireEvent.changeText(
+    await fireEvent.changeText(
         screen.getByLabelText("Landmark name or abbreviation"),
         "M4",
     );
-    fireEvent.press(screen.getByRole("button", { name: "View Mile Marker 4" }));
+    await fireEvent.press(
+        screen.getByRole("button", { name: "View Mile Marker 4" }),
+    );
     expect(
         screen.getByRole("header", { name: "Mile Marker 4" }),
     ).toBeOnTheScreen();
@@ -329,7 +333,7 @@ it("opens landmark details from search and native pins and recenters to the full
         zoom: 14,
         duration: 700,
     });
-    fireEvent.press(screen.getByRole("button", { name: "Back to map" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Back to map" }));
 
     const source = screen.getByTestId("source-trail-landmark-markers");
     const feature = JSON.parse(source.props.data).features.find(
@@ -341,13 +345,13 @@ it("opens landmark details from search and native pins and recenters to the full
         label: "RP",
         kind: "monument",
     });
-    fireEvent(source, "press", {
+    await fireEvent(source, "press", {
         nativeEvent: { features: [] },
         stopPropagation: jest.fn(),
     });
     expect(screen.queryByRole("header")).toBeNull();
     const stopPropagation = jest.fn();
-    fireEvent(source, "press", {
+    await fireEvent(source, "press", {
         nativeEvent: { features: [feature] },
         stopPropagation,
     });
@@ -358,11 +362,11 @@ it("opens landmark details from search and native pins and recenters to the full
         }),
     ).toBeOnTheScreen();
     expect(screen.queryByText(/Amenities shown|Water Fountain/)).toBeNull();
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Close landmark details" }),
     );
 
-    fireEvent.press(screen.getByRole("button", { name: /Recenter map/ }));
+    await fireEvent.press(screen.getByRole("button", { name: /Recenter map/ }));
     const points = trail.features.flatMap(
         ({ geometry }) => geometry.coordinates,
     );
@@ -382,14 +386,14 @@ it("opens landmark details from search and native pins and recenters to the full
 });
 
 it("shows permission feedback, recenters on the next fix once, and keeps tracking the dot", async () => {
-    const view = render(<MapsScreen />);
+    const view = await render(<MapsScreen />);
     await waitForFilters();
-    nativeMap("onDidFinishLoadingMap");
+    await nativeMap("onDidFinishLoadingMap");
     expect(locate).not.toHaveBeenCalled();
     expect(screen.queryByTestId("pin-current-user-location")).toBeNull();
     const locationButton = () =>
         screen.getByRole("button", { name: "Show my current location" });
-    fireEvent.press(locationButton());
+    await fireEvent.press(locationButton());
     expect(locate).toHaveBeenCalledTimes(1);
 
     jest.mocked(useUserLocation).mockReturnValue({
@@ -397,16 +401,16 @@ it("shows permission feedback, recenters on the next fix once, and keeps trackin
         status: "denied",
         error: "Location access is off.",
     });
-    view.rerender(<MapsScreen />);
+    await view.rerender(<MapsScreen />);
     expect(screen.getByText("Location access is off.")).toBeOnTheScreen();
-    fireEvent.press(locationButton());
+    await fireEvent.press(locationButton());
     expect(locate).toHaveBeenCalledTimes(2);
 
     jest.mocked(useUserLocation).mockReturnValue({
         ...location,
         status: "locating",
     });
-    view.rerender(<MapsScreen />);
+    await view.rerender(<MapsScreen />);
     expect(locationButton()).toBeDisabled();
     expect(screen.getByText("Finding location…")).toBeOnTheScreen();
 
@@ -427,7 +431,7 @@ it("shows permission feedback, recenters on the next fix once, and keeps trackin
         },
     });
     jest.mocked(useUserLocation).mockReturnValue(position(-77.05, 38.75));
-    view.rerender(<MapsScreen />);
+    await view.rerender(<MapsScreen />);
     expect(screen.getByLabelText("Your current location")).toBeOnTheScreen();
     expect(flyTo).toHaveBeenCalledWith({
         center: [-77.05, 38.75],
@@ -437,7 +441,7 @@ it("shows permission feedback, recenters on the next fix once, and keeps trackin
     expect(locationButton()).toBeEnabled();
 
     jest.mocked(useUserLocation).mockReturnValue(position(-77.06, 38.76));
-    view.rerender(<MapsScreen />);
+    await view.rerender(<MapsScreen />);
     expect(
         screen.getByTestId("pin-current-user-location").props.lngLat,
     ).toEqual([-77.06, 38.76]);
@@ -446,10 +450,10 @@ it("shows permission feedback, recenters on the next fix once, and keeps trackin
 
 it("opens a preview deep link after the map loads and consumes it once", async () => {
     mockIssueId = "fence";
-    const view = render(<MapsScreen />);
+    const view = await render(<MapsScreen />);
     await waitForFilters();
     expect(screen.queryByLabelText("Issues at this location")).toBeNull();
-    nativeMap("onDidFinishLoadingMap");
+    await nativeMap("onDidFinishLoadingMap");
 
     expect(screen.getByText("2 issues at this location")).toBeOnTheScreen();
     expect(mockRouter.setParams).toHaveBeenCalledWith({ issueId: undefined });
@@ -459,22 +463,22 @@ it("opens a preview deep link after the map loads and consumes it once", async (
         duration: 700,
     });
     mockIssueId = undefined;
-    view.rerender(<MapsScreen />);
+    await view.rerender(<MapsScreen />);
     expect(mockRouter.setParams).toHaveBeenCalledTimes(1);
     expect(fetchMapIssues).toHaveBeenCalledTimes(1);
 });
 
 it("consumes an unavailable preview link and leaves the other pins usable", async () => {
     mockIssueId = "missing";
-    render(<MapsScreen />);
+    await render(<MapsScreen />);
     await waitForFilters();
-    nativeMap("onDidFinishLoadingMap");
+    await nativeMap("onDidFinishLoadingMap");
     expect(
         screen.getByText(/This issue is no longer in Intake/),
     ).toBeOnTheScreen();
     expect(mockRouter.setParams).toHaveBeenCalledWith({ issueId: undefined });
     expect(flyTo).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByTestId("pin-drain"));
+    await fireEvent.press(screen.getByTestId("pin-drain"));
     expect(screen.getByLabelText("Issue details")).toBeOnTheScreen();
 });
 
@@ -486,9 +490,9 @@ it("ignores an event response from before a refresh", async () => {
     jest.mocked(fetchMapEvents)
         .mockReturnValueOnce(oldEvents)
         .mockResolvedValueOnce([]);
-    render(<MapsScreen />);
+    await render(<MapsScreen />);
     await screen.findByText("5 intake cards · 4 pins");
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Refresh intake cards" }),
     );
     await waitForFilters();
@@ -496,7 +500,7 @@ it("ignores an event response from before a refresh", async () => {
         resolveOld(events);
     });
 
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("button", { name: "Filter by event: All issues" }),
     );
     expect(screen.queryByRole("radio", { name: /Spring cleanup/ })).toBeNull();

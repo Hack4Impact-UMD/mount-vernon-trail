@@ -49,11 +49,14 @@ afterEach(() => {
 });
 
 it("resolves the location from a Trello card and links to the focused map", async () => {
-    render(<IssueMapPreview issueId={card.id} />);
+    const request = Promise.withResolvers<Card>();
+    mockGetCardByID.mockReturnValueOnce(request.promise);
+    await render(<IssueMapPreview issueId={card.id} />);
     expect(screen.getByText("Loading issue location…")).toBeOnTheScreen();
     expect(locate).not.toHaveBeenCalled();
 
-    const link = await screen.findByRole("link", {
+    await act(() => request.resolve(card));
+    const link = screen.getByRole("link", {
         name: "Show Bridge 15 on the map",
     });
     expect(mockGetCardByID).toHaveBeenCalledWith(card.id, true);
@@ -65,7 +68,7 @@ it("resolves the location from a Trello card and links to the focused map", asyn
         -77.042314, 38.72585,
     ]);
     expect(locate).toHaveBeenCalledTimes(1);
-    fireEvent.press(link);
+    await fireEvent.press(link);
     expect(mockNavigate).toHaveBeenCalledWith({
         pathname: "/maps",
         params: { issueId: card.id },
@@ -89,12 +92,12 @@ it("fits the preview to both positions once the native map is ready", async () =
             timestamp: 0,
         },
     });
-    render(<IssueMapPreview issueId={card.id} />);
+    await render(<IssueMapPreview issueId={card.id} />);
     await screen.findByRole("link");
     expect(screen.getByLabelText("Your current location")).toBeOnTheScreen();
     expect(fitBounds).not.toHaveBeenCalled();
 
-    fireEvent(screen.getByTestId("native-map"), "onDidFinishLoadingMap");
+    await fireEvent(screen.getByTestId("native-map"), "onDidFinishLoadingMap");
     expect(fitBounds).toHaveBeenCalledWith(
         [-77.06, 38.72585, -77.042314, 38.8],
         expect.objectContaining({ duration: 400 }),
@@ -107,18 +110,18 @@ it("keeps the map link usable when location permission is denied", async () => {
         status: "denied",
         error: "Location access is off.",
     });
-    render(<IssueMapPreview issueId={card.id} />);
+    await render(<IssueMapPreview issueId={card.id} />);
     expect(
         await screen.findByText("Location access is off."),
     ).toBeOnTheScreen();
     expect(screen.queryByLabelText("Your current location")).toBeNull();
-    fireEvent.press(screen.getByRole("link", { name: /Show Bridge 15/ }));
+    await fireEvent.press(screen.getByRole("link", { name: /Show Bridge 15/ }));
     expect(mockNavigate).toHaveBeenCalledTimes(1);
 });
 
 it("explains an unmapped issue without showing a link or requesting GPS", async () => {
     mockGetCardByID.mockResolvedValueOnce({ ...card, name: "Clear branches" });
-    render(<IssueMapPreview issueId={card.id} />);
+    await render(<IssueMapPreview issueId={card.id} />);
     expect(
         await screen.findByText("This issue does not have a map location yet."),
     ).toBeOnTheScreen();
@@ -128,7 +131,7 @@ it("explains an unmapped issue without showing a link or requesting GPS", async 
 
 it("shows a distinct error when the card request fails", async () => {
     mockGetCardByID.mockRejectedValueOnce(new Error("Request failed"));
-    render(<IssueMapPreview issueId={card.id} />);
+    await render(<IssueMapPreview issueId={card.id} />);
     expect(
         await screen.findByText("Could not load this issue’s map location."),
     ).toBeOnTheScreen();
@@ -146,8 +149,8 @@ it("ignores a stale card request after opening a different issue", async () => {
         id: "mile-issue",
         name: "M4 Clear branches",
     });
-    const view = render(<IssueMapPreview issueId={card.id} />);
-    view.rerender(<IssueMapPreview issueId="mile-issue" />);
+    const view = await render(<IssueMapPreview issueId={card.id} />);
+    await view.rerender(<IssueMapPreview issueId="mile-issue" />);
     await screen.findByRole("link", { name: "Show Mile Marker 4 on the map" });
     await act(async () => {
         resolveOld(card);
@@ -155,7 +158,7 @@ it("ignores a stale card request after opening a different issue", async () => {
     expect(
         screen.queryByRole("link", { name: "Show Bridge 15 on the map" }),
     ).toBeNull();
-    fireEvent.press(
+    await fireEvent.press(
         screen.getByRole("link", { name: "Show Mile Marker 4 on the map" }),
     );
     expect(mockNavigate).toHaveBeenCalledWith({

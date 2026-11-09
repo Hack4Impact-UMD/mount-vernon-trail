@@ -7,9 +7,9 @@ const options = [
     { id: "event", name: "River cleanup", count: 2 },
 ];
 
-it("searches, selects an event, and closes the picker", () => {
+it("searches, selects an event, and closes the picker", async () => {
     const onSelect = jest.fn();
-    const view = render(
+    const view = await render(
         <MapEventFilter
             options={options}
             selectedId="all"
@@ -19,16 +19,16 @@ it("searches, selects an event, and closes the picker", () => {
             pinCount={2}
         />,
     );
-    fireEvent.press(view.getByLabelText("Filter by event: All issues"));
-    fireEvent.changeText(view.getByLabelText("Search events"), "river");
+    await fireEvent.press(view.getByLabelText("Filter by event: All issues"));
+    await fireEvent.changeText(view.getByLabelText("Search events"), "river");
     expect(view.queryByLabelText("Unassigned, 1 issues")).toBeNull();
-    fireEvent.press(view.getByLabelText("River cleanup, 2 issues"));
+    await fireEvent.press(view.getByLabelText("River cleanup, 2 issues"));
     expect(onSelect).toHaveBeenCalledWith("event");
     expect(view.queryByLabelText("Search events")).toBeNull();
 });
 
-it("explains a failed event load and prevents choosing misleading filters", () => {
-    const view = render(
+it("explains a failed event load and prevents choosing misleading filters", async () => {
+    const view = await render(
         <MapEventFilter
             options={options}
             selectedId="all"
@@ -45,9 +45,9 @@ it("explains a failed event load and prevents choosing misleading filters", () =
     ).toBe(true);
 });
 
-it("shows a no-match message and clears the search when reopened", () => {
+it("shows a no-match message and clears the search when reopened", async () => {
     const onSelect = jest.fn();
-    const view = render(
+    const view = await render(
         <MapEventFilter
             options={options}
             selectedId="event"
@@ -59,19 +59,24 @@ it("shows a no-match message and clears the search when reopened", () => {
     );
     const open = () =>
         fireEvent.press(view.getByLabelText("Filter by event: River cleanup"));
-    open();
+    await open();
     expect(
         view.getByRole("radio", {
             name: "River cleanup, 2 issues",
             checked: true,
         }),
     ).toBeOnTheScreen();
-    fireEvent.changeText(view.getByLabelText("Search events"), "no such event");
+    await fireEvent.changeText(
+        view.getByLabelText("Search events"),
+        "no such event",
+    );
     expect(view.getByText("No matching events.")).toBeOnTheScreen();
-    fireEvent.press(view.getByRole("button", { name: "Close event filter" }));
+    await fireEvent.press(
+        view.getByRole("button", { name: "Close event filter" }),
+    );
     expect(onSelect).not.toHaveBeenCalled();
 
-    open();
+    await open();
     expect(view.getByLabelText("Search events")).toHaveDisplayValue("");
     expect(
         view.getByRole("radio", { name: "All issues, 3 issues" }),

@@ -1,9 +1,5 @@
 import React from "react";
-import {
-    fireEvent,
-    fireEventAsync,
-    render,
-} from "@testing-library/react-native";
+import { fireEvent, render } from "@testing-library/react-native";
 import TrailMap from "../trail-map";
 import {
     fetchMapIssues,
@@ -95,33 +91,33 @@ it("consumes the preview request and does not reopen it after visiting another i
             focusIssueId={focusIssueId}
         />
     );
-    const view = render(screen("first"));
+    const view = await render(screen("first"));
     expect(fetchMapIssues).toHaveBeenCalledTimes(1);
-    // Flush the native map callback and the pending Trello result together.
-    await fireEventAsync(
-        view.UNSAFE_getByType("MockMap" as never),
+    // Wait for the native map callback before checking the preview selection.
+    await fireEvent(
+        view.container.queryAll((node) => node.type === "MockMap")[0],
         "onDidFinishLoadingMap",
     );
     expect(onSelectIssue).toHaveBeenCalledWith(
         expect.objectContaining({ id: "first" }),
     );
     expect(mockRouter.setParams).toHaveBeenCalledWith({ issueId: undefined });
-    view.rerender(screen());
+    await view.rerender(screen());
     expect(fetchMapIssues).toHaveBeenCalledTimes(1);
-    fireEvent.press(view.getByTestId("select-second"));
+    await fireEvent.press(view.getByTestId("select-second"));
     expect(onSelectIssue).toHaveBeenLastCalledWith(
         expect.objectContaining({ id: "second" }),
     );
     mockFocused = false;
-    view.rerender(screen());
+    await view.rerender(screen());
     mockFocused = true;
-    await view.rerenderAsync(screen());
+    await view.rerender(screen());
     expect(fetchMapIssues).toHaveBeenCalledTimes(2);
     expect(
         onSelectIssue.mock.calls.filter(([pin]) => pin?.id === "first"),
     ).toHaveLength(1);
     // Explicitly opening the original preview again still focuses that issue.
-    await view.rerenderAsync(screen("first"));
+    await view.rerender(screen("first"));
     expect(
         onSelectIssue.mock.calls.filter(([pin]) => pin?.id === "first"),
     ).toHaveLength(2);
