@@ -28,8 +28,8 @@ export default function SetupEventScreen() {
     const router = useRouter();
 
     const [title, setTitle] = useState("");
-    const titleInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
-    const scrollViewRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+    const titleInputRef = useRef<TextInput>(null);
+    const scrollViewRef = useRef<ScrollView>(null);
     const [description, setDescription] = useState("");
     const [dateStr, setDateStr] = useState("");
     const [date, setDate] = useState<Date | null>(null);

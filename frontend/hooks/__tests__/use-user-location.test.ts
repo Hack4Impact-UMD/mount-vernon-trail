@@ -59,24 +59,24 @@ afterEach(() => {
 });
 
 it("requests access only on demand and waits for a fresh fix", async () => {
-    const { result } = await renderHook(() => useUserLocation());
+    const { result } = renderHook(() => useUserLocation());
     expect(LocationManager.requestPermissions).not.toHaveBeenCalled();
     await act(async () => {
         await result.current.locate();
     });
     expect(result.current.status).toBe("locating");
-    await act(() =>
+    act(() =>
         lastListener()({ ...fix(), timestamp: (Date.now() - 60000) / 1000 }),
     );
     expect(result.current.position).toBeNull();
-    await act(() => lastListener()(fix()));
+    act(() => lastListener()(fix()));
     expect(result.current.status).toBe("ready");
     expect(result.current.position?.coords.latitude).toBe(38.78);
 });
 
 it("keeps tracking off when permission is denied", async () => {
     jest.mocked(LocationManager.requestPermissions).mockResolvedValue(false);
-    const { result } = await renderHook(() => useUserLocation());
+    const { result } = renderHook(() => useUserLocation());
     await act(async () => {
         await result.current.locate();
     });
@@ -90,7 +90,7 @@ it("accepts Android approximate location", async () => {
         [PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION]: "granted",
         [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION]: "denied",
     } as Awaited<ReturnType<typeof PermissionsAndroid.requestMultiple>>);
-    const { result } = await renderHook(() => useUserLocation());
+    const { result } = renderHook(() => useUserLocation());
     await act(async () => {
         await result.current.locate();
     });
@@ -99,19 +99,19 @@ it("accepts Android approximate location", async () => {
 });
 
 it("stops in the background, resumes in the foreground, and cleans up on unmount", async () => {
-    const { result, unmount } = await renderHook(() => useUserLocation());
+    const { result, unmount } = renderHook(() => useUserLocation());
     await act(async () => {
         await result.current.locate();
     });
     const listener = lastListener();
-    await act(() => listener(fix()));
-    await act(() => changeAppState("background"));
+    act(() => listener(fix()));
+    act(() => changeAppState("background"));
     expect(LocationManager.removeListener).toHaveBeenCalledWith(listener);
     expect(result.current.position).toBeNull();
-    await act(() => changeAppState("active"));
+    act(() => changeAppState("active"));
     expect(LocationManager.addListener).toHaveBeenCalledTimes(2);
     const resumedListener = lastListener();
-    await unmount();
+    unmount();
     expect(LocationManager.removeListener).toHaveBeenCalledWith(
         resumedListener,
     );
@@ -124,12 +124,12 @@ it("does not start tracking if permission resolves after leaving the map", async
             grant = resolve;
         }),
     );
-    const { result, unmount } = await renderHook(() => useUserLocation());
+    const { result, unmount } = renderHook(() => useUserLocation());
     let request!: Promise<void>;
-    await act(() => {
+    act(() => {
         request = result.current.locate();
     });
-    await unmount();
+    unmount();
     await act(async () => {
         grant(true);
         await request;
@@ -138,12 +138,12 @@ it("does not start tracking if permission resolves after leaving the map", async
 });
 
 it("stops listening and explains a missing position after the timeout", async () => {
-    const { result } = await renderHook(() => useUserLocation());
+    const { result } = renderHook(() => useUserLocation());
     await act(async () => {
         await result.current.locate();
     });
     const listener = lastListener();
-    await act(() => jest.advanceTimersByTime(15000));
+    act(() => jest.advanceTimersByTime(15000));
     expect(result.current.status).toBe("error");
     expect(result.current.error).toContain("Location Services");
     expect(LocationManager.removeListener).toHaveBeenCalledWith(listener);

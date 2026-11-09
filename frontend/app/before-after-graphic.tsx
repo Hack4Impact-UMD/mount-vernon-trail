@@ -30,8 +30,8 @@ export default function BeforeAfterGraphicScreen() {
         writeOnly: true,
         granularPermissions: ["photo"],
     });
-    const previewRef = useRef<React.ComponentRef<typeof View>>(null);
-    const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+    const previewRef = useRef<View>(null);
+    const scrollRef = useRef<ScrollView>(null);
 
     const pickImage = async (slot: "before" | "after") => {
         try {
