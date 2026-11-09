@@ -265,7 +265,9 @@ const TrailMetricsSection = forwardRef<
                     }
                 } catch (error: unknown) {
                     for (const [key, value] of pending) {
-                        pendingUpdates.current.set(key, value);
+                        if (!pendingUpdates.current.has(key)) {
+                            pendingUpdates.current.set(key, value);
+                        }
                     }
                     setSaveError("Couldn't save metrics. Please try again.");
                     throw error;

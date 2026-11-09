@@ -40,4 +40,47 @@ describe("metrics model and UI stay in sync", () => {
         });
         update.mockRestore();
     });
+
+    it("keeps an edit made during a failed flush instead of restoring the older value", async () => {
+        let failFirst: (error: Error) => void = () => undefined;
+        const update = jest
+            .spyOn(eventService, "updateEventMetrics")
+            .mockImplementationOnce(
+                () =>
+                    new Promise<void>((_resolve, reject) => {
+                        failFirst = reject;
+                    }),
+            )
+            .mockResolvedValue(undefined);
+        const ref = createRef<TrailMetricsSectionHandle>();
+        const { getByLabelText, getByText } = render(
+            <TrailMetricsSection ref={ref} eventId="event-1" />,
+        );
+        const increase = () =>
+            fireEvent.press(getByLabelText("Increase Drains / culverts cleaned"));
+
+        fireEvent.press(getByText("Drainage"));
+        increase();
+        let firstFlush: Promise<void> | undefined;
+        await act(async () => {
+            firstFlush = ref.current?.flushPendingUpdates();
+        });
+        expect(update).toHaveBeenLastCalledWith("event-1", {
+            drainageCleaned: 1,
+        });
+
+        increase();
+        await act(async () => {
+            failFirst(new Error("offline"));
+            await expect(firstFlush).rejects.toThrow("offline");
+        });
+        await act(async () => {
+            await ref.current?.flushPendingUpdates();
+        });
+
+        expect(update).toHaveBeenLastCalledWith("event-1", {
+            drainageCleaned: 2,
+        });
+        update.mockRestore();
+    });
 });

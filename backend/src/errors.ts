@@ -56,6 +56,13 @@ export class GoogleSheetsDataError extends Error {
     }
 }
 
+export class ExportInProgressError extends Error {
+    constructor(eventId: string) {
+        super(`An export of event ${eventId} is already in progress; try again shortly.`);
+        this.name = "ExportInProgressError";
+    }
+}
+
 // Single place every /api route funnels failures through, so the 401/502/500
 // mapping stays identical across routes.
 export function sendError(res: Response, context: string, error: unknown): Response {
@@ -83,7 +90,10 @@ export function sendError(res: Response, context: string, error: unknown): Respo
             status: error.status,
         });
     }
-    if (error instanceof GoogleSheetsDataError) {
+    if (
+        error instanceof GoogleSheetsDataError ||
+        error instanceof ExportInProgressError
+    ) {
         return res.status(409).json({ error: error.message });
     }
     console.error(`${context}:`, error);

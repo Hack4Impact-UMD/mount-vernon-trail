@@ -3,9 +3,11 @@ import multer from "multer";
 import { mapSettledWithLimit } from "../concurrency";
 import type { Env } from "../env";
 import { sendError } from "../errors";
+import { withEventLock } from "../event-lock";
 import * as photos from "../google-photos";
 import type { TokenStore } from "../google-tokens";
 import { syncEventToGoogleSheets } from "../google-sheets";
+import type { KeyValueStore } from "../kv-store";
 import type { SheetEvent } from "../sheet-row";
 
 export type EventReader = (
@@ -113,6 +115,7 @@ export function createApiRouter(
     env: Env,
     tokenStore: TokenStore,
     readEvent: EventReader,
+    locks: KeyValueStore,
 ): Router {
     const router = Router();
     const upload = multer({
@@ -169,14 +172,17 @@ export function createApiRouter(
                 });
             }
 
-            const token = await tokenStore.getAccessToken();
-            await syncEventToGoogleSheets(
-                token,
-                env.googleSheetsSpreadsheetId,
-                env.googleSheetsEventsTab,
-                env.googleSheetsImprovementsTab,
-                event,
-            );
+            const spreadsheetId = env.googleSheetsSpreadsheetId;
+            await withEventLock(locks, eventId, async () => {
+                const token = await tokenStore.getAccessToken();
+                await syncEventToGoogleSheets(
+                    token,
+                    spreadsheetId,
+                    env.googleSheetsEventsTab,
+                    env.googleSheetsImprovementsTab,
+                    event,
+                );
+            });
             return res.status(200).json({ synced: true, eventId });
         } catch (error) {
             return sendError(res, "Failed to sync event to Google Sheets", error);

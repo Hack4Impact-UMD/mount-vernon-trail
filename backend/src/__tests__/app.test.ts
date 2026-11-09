@@ -7,6 +7,7 @@ import * as sheets from "../google-sheets";
 import * as photos from "../google-photos";
 import type { EventReader } from "../routes/api";
 import type { TokenStore } from "../google-tokens";
+import { createInMemoryStore, type KeyValueStore } from "../kv-store";
 
 jest.mock("../google-photos");
 jest.mock("../google-sheets");
@@ -38,7 +39,10 @@ type Harness = {
     readEvent: jest.MockedFunction<EventReader>;
 };
 
-function harness(overrides: Partial<Env> = {}): Harness {
+function harness(
+    overrides: Partial<Env> = {},
+    locks: KeyValueStore = createInMemoryStore(),
+): Harness {
     const verifyIdToken = jest.fn();
     const auth = { verifyIdToken } as unknown as Auth;
     const tokenStore: jest.Mocked<TokenStore> = {
@@ -50,7 +54,13 @@ function harness(overrides: Partial<Env> = {}): Harness {
     };
     const readEvent: jest.MockedFunction<EventReader> = jest.fn();
     return {
-        app: createApp({ ...TEST_ENV, ...overrides }, auth, tokenStore, readEvent),
+        app: createApp(
+            { ...TEST_ENV, ...overrides },
+            auth,
+            tokenStore,
+            readEvent,
+            locks,
+        ),
         verifyIdToken,
         tokenStore,
         readEvent,
@@ -169,6 +179,35 @@ describe("CORS", () => {
                     metrics: { trashBagsCollected: 2 },
                 }),
             );
+        });
+
+        it("serializes simultaneous exports of one event across backend instances", async () => {
+            const shared = createInMemoryStore();
+            const replicas = [harness({}, shared), harness({}, shared)];
+            for (const h of replicas) {
+                asVolunteer(h);
+                h.readEvent.mockResolvedValue(completedEvent);
+            }
+            let inFlight = 0;
+            let peak = 0;
+            mockSheets.syncEventToGoogleSheets.mockImplementation(async () => {
+                inFlight++;
+                peak = Math.max(peak, inFlight);
+                await new Promise((resolve) => setTimeout(resolve, 50));
+                inFlight--;
+            });
+
+            const responses = await Promise.all(
+                replicas.map((h) =>
+                    request(h.app)
+                        .post("/api/events/event-1/sheets")
+                        .set("Authorization", "Bearer good"),
+                ),
+            );
+
+            expect(responses.map((res) => res.status)).toEqual([200, 200]);
+            expect(mockSheets.syncEventToGoogleSheets).toHaveBeenCalledTimes(2);
+            expect(peak).toBe(1);
         });
 
         it("does not let a different volunteer export another owner's event", async () => {
