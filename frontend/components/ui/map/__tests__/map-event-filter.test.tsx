@@ -44,3 +44,41 @@ it("explains a failed event load and prevents choosing misleading filters", asyn
             .accessibilityState.disabled,
     ).toBe(true);
 });
+
+it("shows a no-match message and clears the search when reopened", async () => {
+    const onSelect = jest.fn();
+    const view = await render(
+        <MapEventFilter
+            options={options}
+            selectedId="event"
+            onSelect={onSelect}
+            loading={false}
+            error={null}
+            pinCount={2}
+        />,
+    );
+    const open = () =>
+        fireEvent.press(view.getByLabelText("Filter by event: River cleanup"));
+    await open();
+    expect(
+        view.getByRole("radio", {
+            name: "River cleanup, 2 issues",
+            checked: true,
+        }),
+    ).toBeOnTheScreen();
+    await fireEvent.changeText(
+        view.getByLabelText("Search events"),
+        "no such event",
+    );
+    expect(view.getByText("No matching events.")).toBeOnTheScreen();
+    await fireEvent.press(
+        view.getByRole("button", { name: "Close event filter" }),
+    );
+    expect(onSelect).not.toHaveBeenCalled();
+
+    await open();
+    expect(view.getByLabelText("Search events")).toHaveDisplayValue("");
+    expect(
+        view.getByRole("radio", { name: "All issues, 3 issues" }),
+    ).toBeOnTheScreen();
+});

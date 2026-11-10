@@ -1,11 +1,6 @@
 import bridges from "@/data/bridge_markers.json";
 import mileMarkers from "@/data/mile_markers.json";
-import {
-    MONUMENTS,
-    MONUMENT_AMENITIES,
-    type MonumentMarker,
-    type MonumentAmenity,
-} from "./monument-service";
+import monuments from "@/data/monument_markers.json";
 
 export type LandmarkKind = "monument" | "bridge" | "mile-marker";
 export type TrailLandmark = {
@@ -16,7 +11,6 @@ export type TrailLandmark = {
     location_name: string;
     coordinates: { latitude: number; longitude: number };
     description?: string;
-    amenities?: MonumentMarker["amenities"];
 };
 export const LANDMARK_CATEGORIES: {
     id: "all" | LandmarkKind;
@@ -34,7 +28,7 @@ export const LANDMARK_LABELS: Record<LandmarkKind, string> = {
 };
 export const LANDMARK_MIN_ZOOM = 13;
 export const TRAIL_LANDMARKS: TrailLandmark[] = [
-    ...MONUMENTS.map((marker) => ({ ...marker, kind: "monument" as const })),
+    ...monuments.map((marker) => ({ ...marker, kind: "monument" as const })),
     ...bridges.map((marker) => ({ ...marker, kind: "bridge" as const })),
     ...mileMarkers.map((marker) => ({
         ...marker,
@@ -44,21 +38,16 @@ export const TRAIL_LANDMARKS: TrailLandmark[] = [
 
 export function searchLandmarks(
     query: string,
-    amenities: MonumentAmenity[],
     category: "all" | LandmarkKind = "all",
 ): TrailLandmark[] {
     const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return TRAIL_LANDMARKS.filter((marker) => {
-        const labels = MONUMENT_AMENITIES.filter(
-            (item) => marker.amenities?.[item.id],
-        ).map((item) => item.label);
-        const text = [marker.location_name, marker.abbreviation, ...labels]
+        const text = [marker.location_name, marker.abbreviation]
             .join(" ")
             .toLowerCase();
         return (
             (category === "all" || marker.kind === category) &&
-            terms.every((term) => text.includes(term)) &&
-            amenities.every((amenity) => marker.amenities?.[amenity])
+            terms.every((term) => text.includes(term))
         );
     });
 }
