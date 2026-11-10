@@ -391,7 +391,8 @@ export default function EventSummaryScreen() {
                 <Pressable
                     style={[
                         styles.actionCard,
-                        saving && styles.actionCardDisabled,
+                        // Disabled after saving too, so it must look it by being greyed out
+                        (saving || savedDraft) && styles.actionCardDisabled,
                     ]}
                     onPress={() => {
                         handleEditNow().catch(() => undefined);
