@@ -3,16 +3,16 @@ import type { Event } from "@/services/event-service";
 import { saveDraft, setEventInactive } from "@/services/event-service";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Square } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-    Alert,
     Linking,
     Pressable,
     StyleSheet,
     Text,
-    View,
+    View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AlertPopup from "./alert-popup";
 import EndEventModal from "./end-event-modal";
 
 interface TrailEventHeaderProps {
@@ -39,6 +39,10 @@ export default function TrailEventHeader({
     const [elapsed, setElapsed] = useState(0);
     const [stopping, setStopping] = useState(false);
     const [endModalVisible, setEndModalVisible] = useState(false);
+    const [alert, setAlert] = useState<{
+        title: string;
+        message: string;
+    } | null>(null);
 
     // An initializer, not render: the React Compiler may skip re-renders, so
     // reading the clock in render would not be kept up to date anyway.
@@ -80,7 +84,10 @@ export default function TrailEventHeader({
             setEndModalVisible(false);
             onStop?.();
         } catch (e) {
-            Alert.alert("Error", (e as Error).message);
+            setAlert({
+                title: "Error",
+                message: (e as Error).message,
+            });
         } finally {
             setStopping(false);
         }
@@ -125,6 +132,12 @@ export default function TrailEventHeader({
     if (variant === "document") {
         return (
             <>
+                <AlertPopup
+                    visible={alert !== null}
+                    title={alert?.title ?? ""}
+                    message={alert?.message ?? ""}
+                    onClose={() => setAlert(null)}
+                />
                 <View style={docStyles.container}>
                     <View style={docStyles.left}>
                         <View style={docStyles.badgeRow}>
@@ -194,6 +207,12 @@ export default function TrailEventHeader({
 
     return (
         <>
+            <AlertPopup
+                visible={alert !== null}
+                title={alert?.title ?? ""}
+                message={alert?.message ?? ""}
+                onClose={() => setAlert(null)}
+            />
             <View style={[styles.container, { paddingTop: insets.top }]}>
                 <View style={styles.topRow}>
                     <View style={styles.badge}>
