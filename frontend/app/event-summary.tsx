@@ -277,7 +277,7 @@ export default function EventSummaryScreen() {
     // only — the end-event modal already saved the draft and stamped endDate, so
     // nothing here may write those fields a second time.
     const handleEditNow = async () => {
-        if (saving || savedDraft) return;
+        if (saving) return;
         setSaving(true);
         try {
             await updateEventNotes(eventId, notes ?? event.notes ?? "");
@@ -396,7 +396,7 @@ export default function EventSummaryScreen() {
                     onPress={() => {
                         handleEditNow().catch(() => undefined);
                     }}
-                    disabled={saving || savedDraft}>
+                    disabled={saving}>
                     <View style={styles.actionIconWrap}>
                         {saving ? (
                             <ActivityIndicator color={PURPLE} />
@@ -413,7 +413,9 @@ export default function EventSummaryScreen() {
                             Edit event now
                         </Text>
                         <Text style={styles.actionCardSubtitle}>
-                            Complete & upload to Trello
+                            {savedDraft
+                                ? "Continue editing this draft"
+                                : "Complete & upload to Trello"}
                         </Text>
                     </View>
                 </Pressable>
