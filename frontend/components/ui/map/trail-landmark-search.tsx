@@ -11,16 +11,11 @@ import {
 import { Search, X, ChevronRight } from "lucide-react-native";
 import { Colors, Palette } from "@/constants/theme";
 import {
-    MONUMENT_AMENITIES,
-    type MonumentAmenity,
-} from "@/services/monument-service";
-import {
     searchLandmarks,
     LANDMARK_CATEGORIES,
     type LandmarkKind,
     type TrailLandmark,
 } from "@/services/trail-landmark-service";
-import MonumentAmenities, { AMENITY_ICONS } from "./monument-amenities";
 
 export default function TrailLandmarkSearch({
     onSelect,
@@ -29,14 +24,13 @@ export default function TrailLandmarkSearch({
 }) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
-    const [amenities, setAmenities] = useState<MonumentAmenity[]>([]);
     const [category, setCategory] = useState<"all" | LandmarkKind>("all");
-    const results = searchLandmarks(query, amenities, category);
+    const results = searchLandmarks(query, category);
     return (
         <>
             <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Search trail landmarks and amenities"
+                accessibilityLabel="Search trail landmarks"
                 onPress={() => setOpen(true)}
                 style={styles.trigger}>
                 <Search
@@ -85,8 +79,8 @@ export default function TrailLandmarkSearch({
                                     color={Palette.primaryPurple100}
                                 />
                                 <TextInput
-                                    accessibilityLabel="Search trail landmarks or amenities"
-                                    placeholder="Name, B15, M4, or amenity"
+                                    accessibilityLabel="Landmark name or abbreviation"
+                                    placeholder="Name, B15, or M4"
                                     placeholderTextColor={
                                         Palette.primaryBlack70
                                     }
@@ -122,71 +116,17 @@ export default function TrailLandmarkSearch({
                                     </Pressable>
                                 ))}
                             </View>
-                            <View style={styles.filters}>
-                                {MONUMENT_AMENITIES.map((item) => {
-                                    const selected = amenities.includes(
-                                        item.id,
-                                    );
-                                    const Icon = AMENITY_ICONS[item.id];
-                                    return (
-                                        <Pressable
-                                            key={item.id}
-                                            accessibilityRole="checkbox"
-                                            accessibilityLabel={`Filter by ${item.label}`}
-                                            accessibilityState={{
-                                                checked: selected,
-                                            }}
-                                            onPress={() =>
-                                                setAmenities((current) =>
-                                                    selected
-                                                        ? current.filter(
-                                                              (id) =>
-                                                                  id !==
-                                                                  item.id,
-                                                          )
-                                                        : [...current, item.id],
-                                                )
-                                            }
-                                            style={[
-                                                styles.chip,
-                                                selected && styles.chipSelected,
-                                            ]}>
-                                            <Icon
-                                                size={15}
-                                                color={
-                                                    selected
-                                                        ? Colors.light
-                                                              .background
-                                                        : Palette.primaryPurple100
-                                                }
-                                            />
-                                            <Text
-                                                style={[
-                                                    styles.chipText,
-                                                    selected &&
-                                                        styles.chipTextSelected,
-                                                ]}>
-                                                {item.label}
-                                            </Text>
-                                        </Pressable>
-                                    );
-                                })}
-                            </View>
                             <View style={styles.header}>
                                 <Text
                                     accessibilityLiveRegion="polite"
                                     style={styles.caption}>
-                                    {results.length} locations · matches all
-                                    selected amenities
+                                    {results.length} locations
                                 </Text>
-                                {(query ||
-                                    amenities.length > 0 ||
-                                    category !== "all") && (
+                                {(query || category !== "all") && (
                                     <Pressable
                                         accessibilityRole="button"
                                         onPress={() => {
                                             setQuery("");
-                                            setAmenities([]);
                                             setCategory("all");
                                         }}
                                         style={styles.clear}>
@@ -207,16 +147,9 @@ export default function TrailLandmarkSearch({
                                             onSelect(marker);
                                         }}
                                         style={styles.result}>
-                                        <View style={styles.resultText}>
-                                            <Text style={styles.name}>
-                                                {marker.location_name}
-                                            </Text>
-                                            {marker.amenities && (
-                                                <MonumentAmenities
-                                                    amenities={marker.amenities}
-                                                />
-                                            )}
-                                        </View>
+                                        <Text style={styles.name}>
+                                            {marker.location_name}
+                                        </Text>
                                         <ChevronRight
                                             size={18}
                                             color={Palette.primaryPurple100}
@@ -230,9 +163,6 @@ export default function TrailLandmarkSearch({
                                     </Text>
                                 )}
                             </View>
-                            <Text style={styles.caption}>
-                                Amenities recorded from the 1995 MVT map.
-                            </Text>
                         </ScrollView>
                     </View>
                 </View>
@@ -301,9 +231,7 @@ const styles = StyleSheet.create({
     },
     filters: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     chip: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
+        justifyContent: "center",
         borderWidth: 1,
         borderColor: Palette.primaryPurple30,
         borderRadius: 20,
@@ -345,8 +273,8 @@ const styles = StyleSheet.create({
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: Palette.primaryPurple30,
     },
-    resultText: { flex: 1, gap: 7 },
     name: {
+        flex: 1,
         fontFamily: "Lato_700Bold",
         fontSize: 15,
         lineHeight: 21,

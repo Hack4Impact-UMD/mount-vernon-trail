@@ -1,8 +1,16 @@
 import { fetchMapEvents } from "@/services/map-event-service";
 import React from "react";
+<<<<<<< HEAD
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+=======
+import { fireEvent, render } from "@testing-library/react-native";
+>>>>>>> origin/main
 import TrailMap from "../trail-map";
-import { fetchMapIssues } from "@/services/map-service";
+import {
+    fetchMapIssues,
+    type MapIssueData,
+    type MapIssueFeature,
+} from "@/services/map-service";
 import type { MapPin } from "../map-overlays";
 
 let mockFocused = true;
@@ -60,10 +68,10 @@ jest.mock("@/services/map-event-service", () => ({
     fetchMapEvents: jest.fn(async () => []),
     filterIssuesByEvent: (data: unknown) => data,
 }));
-const data = {
+const data: MapIssueData = {
     geojson: {
         type: "FeatureCollection",
-        features: ["first", "second"].map((id, index) => ({
+        features: ["first", "second"].map<MapIssueFeature>((id, index) => ({
             type: "Feature",
             id,
             geometry: { type: "Point", coordinates: [-77, 38 + index] },
@@ -83,7 +91,7 @@ const data = {
 it("consumes the preview request and does not reopen it after visiting another issue", async () => {
     process.env.EXPO_PUBLIC_TRELLO_API_KEY = "test-key";
     mockFocused = true;
-    jest.mocked(fetchMapIssues).mockResolvedValue(data as never);
+    jest.mocked(fetchMapIssues).mockResolvedValue(data);
     const onSelectIssue = jest.fn();
     const screen = (focusIssueId?: string) => (
         <TrailMap
@@ -112,17 +120,15 @@ it("consumes the preview request and does not reopen it after visiting another i
     await view.rerender(screen());
     mockFocused = true;
     await view.rerender(screen());
-    await waitFor(() => expect(fetchMapIssues).toHaveBeenCalledTimes(2));
+    expect(fetchMapIssues).toHaveBeenCalledTimes(2);
     expect(
         onSelectIssue.mock.calls.filter(([pin]) => pin?.id === "first"),
     ).toHaveLength(1);
     // Explicitly opening the original preview again still focuses that issue.
     await view.rerender(screen("first"));
-    await waitFor(() =>
-        expect(
-            onSelectIssue.mock.calls.filter(([pin]) => pin?.id === "first"),
-        ).toHaveLength(2),
-    );
+    expect(
+        onSelectIssue.mock.calls.filter(([pin]) => pin?.id === "first"),
+    ).toHaveLength(2);
 });
 
 const linkedEvent = {

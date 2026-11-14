@@ -1,4 +1,9 @@
-import { mapUi } from "./map-ui-styles";
+import { Palette } from "@/constants/theme";
+import {
+    LANDMARK_LABELS,
+    type TrailLandmark,
+} from "@/services/trail-landmark-service";
+import { MapPin, X } from "lucide-react-native";
 import {
     Modal,
     Pressable,
@@ -7,13 +12,7 @@ import {
     Text,
     View,
 } from "react-native";
-import { MapPin, X } from "lucide-react-native";
-import { Palette } from "@/constants/theme";
-import {
-    LANDMARK_LABELS,
-    type TrailLandmark,
-} from "@/services/trail-landmark-service";
-import MonumentAmenities from "./monument-amenities";
+import { mapUi } from "./map-ui-styles";
 
 export default function TrailLandmarkDetailPopup({
     marker,
@@ -62,18 +61,11 @@ export default function TrailLandmarkDetailPopup({
                         </Pressable>
                     </View>
                     <ScrollView style={styles.content}>
-                        <View style={styles.titleRow}>
-                            <Text
-                                accessibilityRole="header"
-                                style={styles.title}>
-                                {marker?.location_name}
-                            </Text>
-                            {marker?.amenities && (
-                                <MonumentAmenities
-                                    amenities={marker.amenities}
-                                />
-                            )}
-                        </View>
+                        <Text
+                            accessibilityRole="header"
+                            style={styles.title}>
+                            {marker?.location_name}
+                        </Text>
                         <Text style={styles.description}>
                             {marker?.description ??
                                 "Location on the Mount Vernon Trail."}
@@ -82,12 +74,6 @@ export default function TrailLandmarkDetailPopup({
                             <Text style={styles.reference}>
                                 {marker.coordinates.latitude},{" "}
                                 {marker.coordinates.longitude}
-                            </Text>
-                        )}
-                        {marker?.amenities && (
-                            <Text style={styles.reference}>
-                                Amenities shown according to the 1995 MVT map;
-                                availability may have changed.
                             </Text>
                         )}
                     </ScrollView>
@@ -127,13 +113,6 @@ const styles = StyleSheet.create({
     },
     close: { padding: 12, marginRight: -12, minWidth: 44, minHeight: 44 },
     content: { flexGrow: 0 },
-    titleRow: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 12,
-    },
     reference: {
         fontFamily: "Lato_400Regular",
         fontSize: 11,
