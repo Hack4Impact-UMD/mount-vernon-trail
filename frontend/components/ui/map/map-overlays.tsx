@@ -15,6 +15,7 @@ export type MapPin = {
     imageUrl?: string;
     status?: "Not started" | "In Progress" | "Completed";
     elapsedTime?: string;
+    eventStatuses?: { name: string; status: import("@/services/map-event-service").MapEventStatus }[];
     sameLocationIssues?: MapPin[];
 };
 

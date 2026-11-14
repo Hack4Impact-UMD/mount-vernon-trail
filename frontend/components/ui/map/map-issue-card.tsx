@@ -30,7 +30,8 @@ export default function MapIssueCard({
     const { height } = useWindowDimensions();
     const [availableHeight, setAvailableHeight] = useState(height);
     const expandedHeight = availableHeight * 0.9;
-    const compactHeight = Math.min(340, availableHeight * 0.44);
+    const [contentHeight, setContentHeight] = useState(296);
+    const compactHeight = Math.min(contentHeight + 44, expandedHeight);
     const compactOffset = expandedHeight - compactHeight;
     const [translation] = useState(() => new Animated.Value(height));
     const visible = selectedIssue !== null;
@@ -168,6 +169,7 @@ export default function MapIssueCard({
                 </Pressable>
                 <ScrollView
                     style={styles.content}
+                    onContentSizeChange={(_, height) => setContentHeight(height)}
                     contentContainerStyle={{
                         paddingBottom: Math.max(insets.bottom, 24),
                     }}
@@ -201,7 +203,10 @@ export default function MapIssueCard({
                                         contentFit="cover"
                                     />
                                     <View style={styles.rowDetails}>
-                                        <Text style={styles.rowTitle}>
+                                        {item.eventStatuses?.map((event) => (
+                                            <EventStatusRow key={event.name + event.status} event={event} compact />
+                                        ))}
+                                        <Text style={styles.rowTitle} numberOfLines={2} ellipsizeMode="tail">
                                             {item.title ?? "Trail issue"}
                                         </Text>
                                         {item.status && (
@@ -232,20 +237,21 @@ export default function MapIssueCard({
                                     issue?.title ?? "Trail issue photo"
                                 }
                             />
+                            {issue.eventStatuses?.map((event) => (
+                                <EventStatusRow key={event.name + event.status} event={event} />
+                            ))}
                             {(status || issue?.elapsedTime) && (
                                 <View style={styles.metadata}>
                                     {status && (
                                         <View
                                             style={[
                                                 styles.badge,
-                                                status === "Completed" &&
-                                                    styles.completed,
+                                                status === "Completed" && styles.completed,
                                             ]}>
                                             <Text
                                                 style={[
                                                     styles.status,
-                                                    status === "Completed" &&
-                                                        styles.completedText,
+                                                    status === "Completed" && styles.completedText,
                                                 ]}>
                                                 {status}
                                             </Text>
@@ -280,6 +286,23 @@ export default function MapIssueCard({
     );
 }
 
+function EventStatusRow({ event, compact = false }: {
+    event: NonNullable<MapPin["eventStatuses"]>[number];
+    compact?: boolean;
+}) {
+    const completed = event.status === "Completed";
+    return (
+        <View style={[styles.eventStatusRow, compact && styles.compactEventRow]}>
+            <View style={[styles.badge, compact && styles.compactBadge, completed && styles.completed]}>
+                <Text style={[styles.status, compact && styles.compactStatus, completed && styles.completedText]}>
+                    {event.status}
+                </Text>
+            </View>
+            <Text style={[styles.eventName, compact && styles.compactEventName]} numberOfLines={compact ? 2 : undefined} ellipsizeMode="tail">{event.name}</Text>
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
     container: {
         position: "absolute",
@@ -293,10 +316,10 @@ const styles = StyleSheet.create({
     },
     card: {
         backgroundColor: Colors.light.background,
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
         borderWidth: 1,
-        borderColor: Palette.primaryBlack30,
+        borderColor: "#99A1AF",
         paddingHorizontal: 24,
         overflow: "hidden",
     },
@@ -312,7 +335,7 @@ const styles = StyleSheet.create({
     groupTitle: {
         fontSize: 23,
         fontFamily: "Lato_700Bold",
-        color: Palette.primaryBlack100,
+        color: Palette.primaryPurple100,
         marginBottom: 6,
     },
     groupCount: {
@@ -345,6 +368,23 @@ const styles = StyleSheet.create({
         backgroundColor: `${Palette.primaryBlack30}20`,
         marginBottom: 16,
     },
+    eventStatusRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 8,
+        marginBottom: 12,
+    },
+    eventName: {
+        flexShrink: 1,
+        fontFamily: "Lato_400Regular",
+        fontSize: 14,
+        color: Palette.primaryBlack70,
+    },
+    compactEventRow: { marginBottom: 0, gap: 6 },
+    compactBadge: { paddingHorizontal: 8, paddingVertical: 3 },
+    compactStatus: { fontSize: 12 },
+    compactEventName: { fontSize: 12 },
     metadata: {
         flexDirection: "row",
         alignItems: "center",

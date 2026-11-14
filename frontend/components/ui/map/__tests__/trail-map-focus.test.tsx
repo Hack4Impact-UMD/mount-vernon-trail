@@ -1,5 +1,10 @@
+import { fetchMapEvents } from "@/services/map-event-service";
 import React from "react";
+<<<<<<< HEAD
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+=======
 import { fireEvent, render } from "@testing-library/react-native";
+>>>>>>> origin/main
 import TrailMap from "../trail-map";
 import {
     fetchMapIssues,
@@ -22,7 +27,11 @@ jest.mock("expo-router", () => ({
     },
 }));
 jest.mock("@maplibre/maplibre-react-native", () => ({
-    Map: "MockMap",
+    Map: (props: Record<string, unknown>) => {
+        const React = require("react");
+        const { View } = require("react-native");
+        return React.createElement(View, { ...props, testID: "trail-map" });
+    },
     Camera: () => null,
     ViewAnnotation: "MockAnnotation",
 }));
@@ -92,14 +101,13 @@ it("consumes the preview request and does not reopen it after visiting another i
         />
     );
     const view = await render(screen("first"));
-    expect(fetchMapIssues).toHaveBeenCalledTimes(1);
-    // Wait for the native map callback before checking the preview selection.
-    await fireEvent(
-        view.container.queryAll((node) => node.type === "MockMap")[0],
-        "onDidFinishLoadingMap",
-    );
-    expect(onSelectIssue).toHaveBeenCalledWith(
-        expect.objectContaining({ id: "first" }),
+    await waitFor(() => expect(fetchMapIssues).toHaveBeenCalledTimes(1));
+    // Native map callbacks can fire separately from the async Trello load.
+    await fireEvent(view.getByTestId("trail-map"), "onDidFinishLoadingMap");
+    await waitFor(() =>
+        expect(onSelectIssue).toHaveBeenCalledWith(
+            expect.objectContaining({ id: "first" }),
+        ),
     );
     expect(mockRouter.setParams).toHaveBeenCalledWith({ issueId: undefined });
     await view.rerender(screen());
@@ -121,4 +129,130 @@ it("consumes the preview request and does not reopen it after visiting another i
     expect(
         onSelectIssue.mock.calls.filter(([pin]) => pin?.id === "first"),
     ).toHaveLength(2);
+});
+
+const linkedEvent = {
+    id: "event",
+    name: "Cleanup",
+    issueIds: ["first", "second"],
+    status: "In Progress" as const,
+};
+
+it.each([false, true])(
+    "refreshes preview statuses after delayed events (grouped: %s)",
+    async (grouped) => {
+        process.env.EXPO_PUBLIC_TRELLO_API_KEY = "test-key";
+        mockFocused = true;
+        let finishEvents!: (events: (typeof linkedEvent)[]) => void;
+        jest.mocked(fetchMapEvents).mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishEvents = resolve;
+            }),
+        );
+        const issues = grouped
+            ? {
+                  ...data,
+                  geojson: {
+                      ...data.geojson,
+                      features: data.geojson.features.map((feature) => ({
+                          ...feature,
+                          geometry: {
+                              ...feature.geometry,
+                              coordinates: [-77, 38],
+                          },
+                      })),
+                  },
+              }
+            : data;
+        jest.mocked(fetchMapIssues).mockResolvedValue(issues as never);
+        const selections = jest.fn();
+        function Screen() {
+            const [selected, setSelected] = React.useState<MapPin | null>(null);
+            const [focus, setFocus] = React.useState<string | undefined>(
+                "first",
+            );
+            const select = React.useCallback((pin: MapPin | null) => {
+                selections(pin);
+                setSelected(pin);
+                if (pin) setFocus(undefined);
+            }, []);
+            return (
+                <TrailMap
+                    selectedIssue={selected}
+                    onSelectIssue={select}
+                    focusIssueId={focus}
+                />
+            );
+        }
+        const view = await render(<Screen />);
+        await waitFor(() => expect(finishEvents).toBeDefined());
+        await fireEvent(view.getByTestId("trail-map"), "onDidFinishLoadingMap");
+        await waitFor(() =>
+            expect(selections).toHaveBeenCalledWith(
+                expect.objectContaining({ id: "first", eventStatuses: [] }),
+            ),
+        );
+        await act(async () => {
+            finishEvents([linkedEvent]);
+        });
+        await waitFor(() =>
+            expect(selections).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    id: "first",
+                    eventStatuses: [{ name: "Cleanup", status: "In Progress" }],
+                    sameLocationIssues: expect.arrayContaining([
+                        expect.objectContaining({
+                            id: grouped ? "second" : "first",
+                            eventStatuses: [
+                                { name: "Cleanup", status: "In Progress" },
+                            ],
+                        }),
+                    ]),
+                }),
+            ),
+        );
+    },
+);
+
+it("includes event statuses in grouped previews when events have already loaded", async () => {
+    process.env.EXPO_PUBLIC_TRELLO_API_KEY = "test-key";
+    mockFocused = true;
+    jest.mocked(fetchMapEvents).mockResolvedValue([linkedEvent]);
+    jest.mocked(fetchMapIssues).mockResolvedValue({
+        ...data,
+        geojson: {
+            ...data.geojson,
+            features: data.geojson.features.map((feature) => ({
+                ...feature,
+                geometry: { ...feature.geometry, coordinates: [-77, 38] },
+            })),
+        },
+    } as never);
+    const select = jest.fn();
+    const view = await render(
+        <TrailMap
+            selectedIssue={null}
+            onSelectIssue={select}
+            focusIssueId="first"
+        />,
+    );
+    await waitFor(() => expect(fetchMapEvents).toHaveBeenCalled());
+    await act(async () => {});
+    await fireEvent(view.getByTestId("trail-map"), "onDidFinishLoadingMap");
+    await waitFor(() =>
+        expect(select).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                sameLocationIssues: expect.arrayContaining(
+                    ["first", "second"].map((id) =>
+                        expect.objectContaining({
+                            id,
+                            eventStatuses: [
+                                { name: "Cleanup", status: "In Progress" },
+                            ],
+                        }),
+                    ),
+                ),
+            }),
+        ),
+    );
 });

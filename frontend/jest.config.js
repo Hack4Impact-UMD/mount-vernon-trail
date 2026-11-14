@@ -1,6 +1,10 @@
 /** @type {import('jest').Config} */
 module.exports = {
     preset: "jest-expo",
+    // Bound worker contention on CI while React Native modules initialize.
+    maxWorkers: 2,
+    // Cold native-component imports can exceed Jest's five-second default.
+    testTimeout: 15000,
     setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
     moduleNameMapper: {
         "^@/(.*)$": "<rootDir>/$1",

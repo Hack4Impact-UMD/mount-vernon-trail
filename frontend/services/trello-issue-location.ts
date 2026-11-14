@@ -45,47 +45,18 @@ function coordinatesFromUrl(value: string): [number, number] | null {
     }
 }
 
-/** Read explicit source coordinates; never geocode an issue title or guess a site. */
+/** Read attached map coordinates without consulting card descriptions. */
 export function resolveTrelloIssueLocation(card: Card): MapLocation | null {
-    const text = `${card.name}\n${card.desc ?? ""}`;
-    const lat = new RegExp(
-        `^\\s*(?:#+\\s*)?(?:latitude|lat)\\s*:\\s*(${NUMBER})\\s*$`,
-        "im",
-    ).exec(text);
-    const lng = new RegExp(
-        `^\\s*(?:#+\\s*)?(?:longitude|lng|lon)\\s*:\\s*(${NUMBER})\\s*$`,
-        "im",
-    ).exec(text);
-    const pair = new RegExp(
-        `^\\s*(?:#+\\s*)?(?:coordinates|gps)\\s*:\\s*(${NUMBER})\\s*,\\s*(${NUMBER})\\s*$`,
-        "im",
-    ).exec(text);
-    let coordinates =
-        lat && lng
-            ? point(lat[1], lng[1])
-            : pair
-              ? point(pair[1], pair[2])
-              : null;
-    const candidates = [
-        ...(text.match(/https?:\/\/[^\s<>\[\]()]+/g) ?? []),
-        ...(card.attachments ?? []).map((attachment) => attachment.url),
-    ];
-    if (!coordinates) {
-        for (const candidate of candidates) {
-            coordinates = coordinatesFromUrl(candidate);
-            if (coordinates) break;
+    for (const attachment of card.attachments ?? []) {
+        const coordinates = coordinatesFromUrl(attachment.url);
+        if (coordinates) {
+            return { coordinates, locationName: card.name, eventNames: [] };
         }
     }
-    if (!coordinates) return null;
-    const name = /^\s*(?:#+\s*)?location\s*:\s*(.+)$/im.exec(card.desc ?? "");
-    return {
-        coordinates,
-        locationName: name?.[1].trim() || card.name,
-        eventNames: [],
-    };
+    return null;
 }
 
-/** Match only a known prefix, with a boundary so B1 never matches B10. */
+/** Match a landmark prefix, optionally after an area label and colon. */
 export function resolveTitleIssueLocation(card: Card): MapLocation | null {
     const normalize = (value: string) =>
         value.toLowerCase().replace(/\s+/g, " ").trim();
@@ -111,7 +82,14 @@ export function resolveTitleIssueLocation(card: Card): MapLocation | null {
             })
             .map((alias) => ({ landmark, length: alias.length }));
     }).sort((a, b) => b.length - a.length);
-    if (!matches.length) return null;
+    if (!matches.length) {
+        // Intake titles can use "Area: Bridge 15, direction, issue details".
+        // Only inspect the first field after the area, not arbitrary prose.
+        const separator = card.name.indexOf(":");
+        if (separator < 0) return null;
+        const site = card.name.slice(separator + 1).split(/[:,;]/, 1)[0].trim();
+        return site ? resolveTitleIssueLocation({ ...card, name: site }) : null;
+    }
     const best = matches.filter((match) => match.length === matches[0].length);
     if (new Set(best.map(({ landmark }) => landmark.id)).size !== 1)
         return null;

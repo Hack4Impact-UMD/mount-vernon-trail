@@ -1,3 +1,5 @@
+import { getEventByTrelloCardId } from "../event-service";
+jest.mock("../event-service", () => ({ getEventByTrelloCardId: jest.fn() }));
 import {
     fetchMapEvents,
     filterIssuesByEvent,
@@ -61,8 +63,8 @@ it("joins short links and full IDs, deduplicates events, and ignores issues outs
     expect(getCards).toHaveBeenCalledWith("upcomingEvents", false, true);
     expect(getCards).toHaveBeenCalledWith("completedEvents", false, true);
     expect(result).toEqual([
-        { id: "event-2", name: "Another cleanup", issueIds: [] },
-        { id: "event-1", name: "Old cleanup", issueIds: ["one", "two"] },
+        { id: "event-2", name: "Another cleanup", issueIds: [], status: "Not started" },
+        { id: "event-1", name: "Old cleanup", issueIds: ["one", "two"], status: "Not started" },
     ]);
 });
 
@@ -96,4 +98,13 @@ it("propagates event fetch failures so the UI does not label everything Unassign
     await expect(fetchMapEvents("key", {})).rejects.toThrow(
         "Trello unavailable",
     );
+});
+
+it("uses the linked event's active status", async () => {
+    getCards.mockResolvedValue([{ id: "event-1", name: "Cleanup" }]);
+    getEventCardAttachmentIDs.mockResolvedValue(["one"]);
+    jest.mocked(getEventByTrelloCardId).mockResolvedValue({ isActive: true } as never);
+    expect(await fetchMapEvents("key", { one: "one" })).toEqual([
+        { id: "event-1", name: "Cleanup", issueIds: ["one"], status: "In Progress" },
+    ]);
 });

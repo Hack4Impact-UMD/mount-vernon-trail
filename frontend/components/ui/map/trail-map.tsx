@@ -1,3 +1,4 @@
+import { mapUi } from "./map-ui-styles";
 import MapEventFilter from "@/components/ui/map/map-event-filter";
 import MapOverlays, { type MapPin } from "@/components/ui/map/map-overlays";
 import TrailLandmarkDetailPopup from "@/components/ui/map/trail-landmark-detail-popup";
@@ -22,8 +23,8 @@ import {
     type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { LocateFixed, RefreshCw, X } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronRight, LocateFixed, RefreshCw, X } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Modal,
@@ -95,14 +96,35 @@ export default function TrailMap({
     const filteredData = issueData
         ? filterIssuesByEvent(issueData, events, effectiveEvent)
         : null;
-    const issuePins: MapPin[] = (filteredData?.geojson.features ?? []).map(
-        (feature) => ({
-            id: feature.properties.cardId,
-            title: feature.properties.name,
-            locationName: feature.properties.locationName,
-            imageUrl: feature.properties.imageUrl ?? undefined,
-            coordinates: feature.geometry.coordinates,
-        }),
+    const issuePins: MapPin[] = useMemo(
+        () =>
+            (issueData
+                ? filterIssuesByEvent(issueData, events, effectiveEvent).geojson
+                      .features
+                : []
+            ).map((feature) => ({
+                id: feature.properties.cardId,
+                title: feature.properties.name,
+                locationName: feature.properties.locationName,
+                imageUrl: feature.properties.imageUrl ?? undefined,
+                coordinates: feature.geometry.coordinates,
+                eventStatuses: events
+                    .filter(
+                        (event) =>
+                            event.issueIds.includes(
+                                feature.properties.cardId,
+                            ) &&
+                            event.status &&
+                            (effectiveEvent === "all" ||
+                                effectiveEvent === "unassigned" ||
+                                event.id === effectiveEvent),
+                    )
+                    .map((event) => ({
+                        name: event.name,
+                        status: event.status!,
+                    })),
+            })),
+        [issueData, events, effectiveEvent],
     );
     const unlocatedIssues = filteredData?.unlocatedIssues ?? [];
     const options = issueData
@@ -214,43 +236,57 @@ export default function TrailMap({
     const [status, setStatus] = useState<"loading" | "loaded" | "error">(
         "loading",
     );
+    const consumedPreview = useRef<string | null>(null);
     useEffect(() => {
-        if (!focusIssueId || !issueData || status !== "loaded") return;
-        const feature = issueData.geojson.features.find(
-            (item) => item.properties.cardId === focusIssueId,
-        );
-        // The route param is an entry request, not a persistent selection.
-        // Consume missing issues too so a stale ID cannot replay on return.
+        if (!focusIssueId) {
+            consumedPreview.current = null;
+            return;
+        }
+        if (
+            !issueData ||
+            status !== "loaded" ||
+            consumedPreview.current === focusIssueId
+        )
+            return;
+        consumedPreview.current = focusIssueId;
+        const pin = issuePins.find((item) => item.id === focusIssueId);
         router.setParams({ issueId: undefined });
-        if (!feature) return;
+        if (!pin) return;
         onSelectIssue({
-            id: feature.properties.cardId,
-            title: feature.properties.name,
-            locationName: feature.properties.locationName,
-            imageUrl: feature.properties.imageUrl ?? undefined,
-            coordinates: feature.geometry.coordinates,
-            sameLocationIssues: issueData.geojson.features
-                .filter(
-                    (item) =>
-                        item.geometry.coordinates[0] ===
-                            feature.geometry.coordinates[0] &&
-                        item.geometry.coordinates[1] ===
-                            feature.geometry.coordinates[1],
-                )
-                .map((item) => ({
-                    id: item.properties.cardId,
-                    title: item.properties.name,
-                    locationName: item.properties.locationName,
-                    imageUrl: item.properties.imageUrl ?? undefined,
-                    coordinates: item.geometry.coordinates,
-                })),
+            ...pin,
+            sameLocationIssues: issuePins.filter(
+                (item) =>
+                    item.coordinates[0] === pin.coordinates[0] &&
+                    item.coordinates[1] === pin.coordinates[1],
+            ),
         });
         camera.current?.flyTo({
-            center: feature.geometry.coordinates,
+            center: pin.coordinates,
             zoom: 15,
             duration: 700,
         });
-    }, [focusIssueId, issueData, status, onSelectIssue, router]);
+    }, [focusIssueId, issueData, issuePins, status, onSelectIssue, router]);
+
+    // Keep an open popup current when event data arrives after its selection.
+    useEffect(() => {
+        if (!selectedIssue) return;
+        const pin = issuePins.find((item) => item.id === selectedIssue.id);
+        if (!pin) return;
+        const updated = {
+            ...pin,
+            ...(selectedIssue.sameLocationIssues
+                ? {
+                      sameLocationIssues: issuePins.filter(
+                          (item) =>
+                              item.coordinates[0] === pin.coordinates[0] &&
+                              item.coordinates[1] === pin.coordinates[1],
+                      ),
+                  }
+                : {}),
+        };
+        if (JSON.stringify(updated) !== JSON.stringify(selectedIssue))
+            onSelectIssue(updated);
+    }, [issuePins, selectedIssue, onSelectIssue]);
 
     function toggleMap() {
         setStatus("loading");
@@ -501,26 +537,51 @@ export default function TrailMap({
                             <Text style={styles.sheetTitle}>
                                 Cards needing a location
                             </Text>
-                            <Text style={styles.text}>
-                                These cards could not be located automatically.
-                                Photo GPS metadata and recognized location
-                                names, bridge numbers, or mile markers at the
-                                start of their titles are used to find
-                                locations.
-                            </Text>
                             <ScrollView style={styles.unlocatedList}>
-                                {unlocatedIssues.map((issue) => (
-                                    <Text
+                                {unlocatedIssues.map((issue, index) => (
+                                    <Pressable
                                         key={issue.cardId}
-                                        style={styles.unlocatedName}>
-                                        {issue.name}
-                                    </Text>
+                                        style={[
+                                            styles.taskRow,
+                                            index <
+                                                unlocatedIssues.length - 1 &&
+                                                styles.taskDivider,
+                                        ]}
+                                        accessibilityRole="link"
+                                        accessibilityLabel={`Open issue: ${issue.name}`}
+                                        onPress={() => {
+                                            setShowUnlocated(false);
+                                            router.push({
+                                                pathname: "/trail-issue-screen",
+                                                params: {
+                                                    issueId: issue.cardId,
+                                                    issueName: issue.name,
+                                                },
+                                            });
+                                        }}>
+                                        <Text style={styles.unlocatedName}>
+                                            {issue.name}
+                                        </Text>
+                                        <View style={styles.taskArrow}>
+                                            <ChevronRight
+                                                size={20}
+                                                color="#ffffff"
+                                            />
+                                        </View>
+                                    </Pressable>
                                 ))}
                             </ScrollView>
                             <Pressable
                                 accessibilityRole="button"
-                                onPress={() => setShowUnlocated(false)}>
-                                <Text style={styles.retry}>Close</Text>
+                                onPress={() => setShowUnlocated(false)}
+                                style={[mapUi.button, mapUi.primaryButton]}>
+                                <Text
+                                    style={[
+                                        mapUi.buttonText,
+                                        mapUi.primaryButtonText,
+                                    ]}>
+                                    Close
+                                </Text>
                             </Pressable>
                         </View>
                     </View>
@@ -566,37 +627,42 @@ const styles = StyleSheet.create({
     map: { flex: 1 },
     mapRegion: { flex: 1 },
     issueNotice: {
+        ...mapUi.surface,
         position: "absolute",
         bottom: 8,
         left: 16,
         right: 16,
         backgroundColor: "#ffffff",
-        borderRadius: 8,
+        borderRadius: 12,
         paddingHorizontal: 8,
         paddingVertical: 8,
         flexDirection: "row",
         alignItems: "center",
     },
-    modalBackdrop: {
-        flex: 1,
-        backgroundColor: "#00000055",
-        justifyContent: "center",
-        padding: 24,
-    },
-    unlocatedSheet: {
-        backgroundColor: "#ffffff",
-        borderRadius: 16,
-        padding: 20,
-        gap: 16,
-        maxHeight: "80%",
-    },
-    sheetTitle: {
-        fontFamily: "Lato_700Bold",
-        fontSize: 20,
-        color: Palette.primaryBlack100,
-    },
+    modalBackdrop: mapUi.backdrop,
+    unlocatedSheet: mapUi.dialog,
+    sheetTitle: mapUi.heading,
     unlocatedList: { flexGrow: 0 },
+    taskArrow: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: Palette.green,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    taskRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        minHeight: 48,
+    },
+    taskDivider: {
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: "#99A1AF",
+    },
     unlocatedName: {
+        flex: 1,
         fontFamily: "Lato_400Regular",
         paddingVertical: 12,
         color: Palette.primaryBlack100,
@@ -661,12 +727,13 @@ const styles = StyleSheet.create({
     },
 
     notice: {
+        ...mapUi.surface,
         position: "absolute",
         top: 16,
         left: 16,
         right: 16,
         backgroundColor: "#ffffff",
-        borderRadius: 8,
+        borderRadius: 12,
         padding: 12,
         alignItems: "center",
         gap: 8,
