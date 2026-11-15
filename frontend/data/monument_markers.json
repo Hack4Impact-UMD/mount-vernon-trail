@@ -172,16 +172,6 @@
         "description": "Bridge connecting Arlington and Washington, DC.",
         "id": "arlington-memorial-bridge",
         "abbreviation": "AMB",
-        "amenities": {
-            "parking": false,
-            "phone": false,
-            "restrooms": false,
-            "water": false,
-            "boatLaunch": false,
-            "fishing": false,
-            "picnicking": false,
-            "restaurants": false
-        },
         "reference": "https://www.nps.gov/gwmp/planyourvisit/gps.htm"
     },
     {
@@ -197,16 +187,6 @@
         "description": "Memorial in Lady Bird Johnson Park honoring Americans lost at sea.",
         "id": "navy-marine-memorial",
         "abbreviation": "NMM",
-        "amenities": {
-            "parking": false,
-            "phone": false,
-            "restrooms": false,
-            "water": false,
-            "boatLaunch": false,
-            "fishing": false,
-            "picnicking": false,
-            "restaurants": false
-        },
         "reference": "https://www.nps.gov/gwmp/planyourvisit/gps.htm"
     },
     {
@@ -221,16 +201,6 @@
         "description": "Historic fort across the Potomac River in Maryland; separate from the Mount Vernon Trail.",
         "id": "fort-washington-park",
         "abbreviation": "FW",
-        "amenities": {
-            "parking": false,
-            "phone": false,
-            "restrooms": false,
-            "water": false,
-            "boatLaunch": false,
-            "fishing": false,
-            "picnicking": false,
-            "restaurants": false
-        },
         "reference": "https://www.recreation.gov/camping/gateways/2709"
     },
     {
@@ -246,16 +216,6 @@
         "description": "Alexandria Avenue bridge at the George Washington Memorial Parkway near the trail.",
         "id": "alexandria-avenue",
         "abbreviation": "AA",
-        "amenities": {
-            "parking": false,
-            "phone": false,
-            "restrooms": false,
-            "water": false,
-            "boatLaunch": false,
-            "fishing": false,
-            "picnicking": false,
-            "restaurants": false
-        },
         "reference": "https://www.topoquest.com/place/virginia/bridge/alexandria-avenue-bridge/2099650"
     },
     {
@@ -270,16 +230,6 @@
         "description": "Historic lighthouse at Jones Point Park.",
         "id": "jones-point-lighthouse",
         "abbreviation": "JPL",
-        "amenities": {
-            "parking": false,
-            "phone": false,
-            "restrooms": false,
-            "water": false,
-            "boatLaunch": false,
-            "fishing": false,
-            "picnicking": false,
-            "restaurants": false
-        },
         "reference": "Shared map location with Jones Point Park / Woodrow Wilson Bridge"
     }
 ]

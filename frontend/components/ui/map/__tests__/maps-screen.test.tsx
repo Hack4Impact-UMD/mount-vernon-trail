@@ -234,7 +234,7 @@ it("opens a grouped pin, navigates to the chosen issue, and closes the sheet", a
     );
     expect(mockRouter.push).toHaveBeenCalledWith({
         pathname: "/trail-issue-screen",
-        params: { issueId: "fence", issueName: "Repair fence" },
+        params: { issueId: "fence", issueName: "Repair fence", source: "map" },
     });
     await act(() => onAnimationEnd?.({ finished: true }));
     expect(screen.queryByLabelText("Issues at this location")).toBeNull();

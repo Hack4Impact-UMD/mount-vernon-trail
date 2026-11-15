@@ -31,7 +31,7 @@ it("shows all shared-location issues in a scrollable list and opens the chosen i
     expect(onClose).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith({
         pathname: "/trail-issue-screen",
-        params: { issueId: "two", issueName: "Repair fence" },
+        params: { issueId: "two", issueName: "Repair fence", source: "map" },
     });
 });
 it("retains the single-issue popup for a location with only one issue", async () => {

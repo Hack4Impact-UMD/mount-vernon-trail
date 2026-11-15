@@ -467,7 +467,7 @@ export default function TrailMap({
                             {issuesLoading
                                 ? "Loading trail issues…"
                                 : (issueError ??
-                                  `${issuePins.length + unlocatedIssues.length} intake cards · ${issuePins.length} pins`)}
+                                    `${issuePins.length + unlocatedIssues.length} intake cards · ${issuePins.length} pins`)}
                         </Text>
                         {!issuesLoading && unlocatedIssues.length > 0 && (
                             <Pressable
@@ -555,6 +555,7 @@ export default function TrailMap({
                                                 pathname: "/trail-issue-screen",
                                                 params: {
                                                     issueId: issue.cardId,
+                                                    source: "map",
                                                     issueName: issue.name,
                                                 },
                                             });

@@ -113,6 +113,7 @@ export default function MapIssueCard({
             pathname: "/trail-issue-screen",
             params: {
                 issueId: item.id,
+                source: "map",
                 issueName: item.title ?? "Trail issue",
             },
         });
