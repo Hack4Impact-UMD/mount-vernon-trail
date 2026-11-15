@@ -117,7 +117,20 @@ export default function TrailIssueDetailScreen() {
     const initialCardId = isNew === "true" ? null : (issueId ?? null);
     const initial = parseDescription(description ?? "");
 
-    const [event, setEvent] = useState<Event | null>(null);
+    const [eventReload, setEventReload] = useState(0);
+    const [eventResult, setEventResult] = useState<{
+        eventId: string;
+        attempt: number;
+        event: Event | null;
+        error: string | null;
+    } | null>(null);
+    const currentEventResult =
+        eventResult?.eventId === eventId && eventResult?.attempt === eventReload
+            ? eventResult
+            : null;
+    const event = currentEventResult?.event ?? null;
+    const eventLoading = Boolean(eventId && !currentEventResult);
+    const eventError = currentEventResult?.error ?? null;
     const [cardId, setCardId] = useState<string | null>(initialCardId);
     const [name, setName] = useState(issueName ?? "");
     const [notes, setNotes] = useState(initial.notes);
@@ -158,16 +171,52 @@ export default function TrailIssueDetailScreen() {
         );
     }, []);
 
+    // Map issues have no event context. Never silently attach their photos
+    // to some other active event; the volunteer must open the intended event.
+    useEffect(() => {
+        let cancelled = false;
+        if (!eventId) return;
+        getEventById(eventId)
+            .then((loadedEvent) => {
+                if (cancelled) return;
+                setEventResult({
+                    eventId,
+                    attempt: eventReload,
+                    event: loadedEvent,
+                    error: loadedEvent
+                        ? null
+                        : "This event could not be found. Return home and reopen your event.",
+                });
+            })
+            .catch((error: unknown) => {
+                if (!cancelled)
+                    setEventResult({
+                        eventId,
+                        attempt: eventReload,
+                        event: null,
+                        error: `Could not load this event: ${getErrorMessage(error)}`,
+                    });
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [eventId, eventReload]);
+
+    const photoBlockReason = !eventId
+        ? "To add photos, open this issue from an event’s Document Trail screen."
+        : eventLoading
+          ? "Loading event details. Please try again shortly."
+          : (eventError ??
+            (!event
+                ? "This event is unavailable. Return home and reopen it."
+                : !event.albumId
+                  ? "This event has no photo album. Contact your event organizer for help."
+                  : null));
+
     useEffect(() => {
         let cancelled = false;
         async function load() {
             try {
-                if (eventId) {
-                    const loadedEvent = await getEventById(eventId);
-                    if (cancelled) return;
-                    if (!loadedEvent) throw new Error("Event not found.");
-                    setEvent(loadedEvent);
-                }
                 // The drafts screen already hands over the card description;
                 // from anywhere else read it back so previously saved notes
                 // and metrics show up instead of an empty form.
@@ -203,8 +252,12 @@ export default function TrailIssueDetailScreen() {
             setError("Trello API key is missing.");
             return null;
         }
-        if (!name.trim() || !event) {
-            setError("Event data is still loading. Please try again.");
+        if (!name.trim()) {
+            setError("Add an issue name first.");
+            return null;
+        }
+        if (!event) {
+            setError(photoBlockReason ?? "This event is unavailable.");
             return null;
         }
         const newCardId = await createIssueCard(
@@ -219,7 +272,7 @@ export default function TrailIssueDetailScreen() {
         setSavedNotes(notes);
         setSavedMetrics(metrics);
         return newCardId;
-    }, [cardId, event, name, notes, metrics]);
+    }, [cardId, event, name, notes, metrics, photoBlockReason]);
 
     const handleSave = useCallback(async () => {
         if (!API_KEY) {
@@ -266,8 +319,11 @@ export default function TrailIssueDetailScreen() {
     ]);
 
     const handlePhotoPress = async (slot: PhotoSlot) => {
-        if (!event) {
-            Alert.alert("Not ready", "Event data is still loading.");
+        if (photoBlockReason || !event) {
+            Alert.alert(
+                "Photo capture unavailable",
+                photoBlockReason ?? "This event is unavailable.",
+            );
             return;
         }
         let activeId: string | null;
@@ -403,6 +459,50 @@ export default function TrailIssueDetailScreen() {
 
                     {/* PHOTOS */}
                     <Text style={styles.sectionLabel}>PHOTOS</Text>
+                    {!photosLocked && photoBlockReason && (
+                        <View
+                            accessibilityRole="alert"
+                            style={styles.eventNotice}>
+                            <Feather
+                                name="info"
+                                size={20}
+                                color={PURPLE}
+                            />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.eventNoticeTitle}>
+                                    {eventLoading
+                                        ? "Loading event…"
+                                        : !eventId
+                                          ? "Open an event to add photos"
+                                          : "Photos unavailable"}
+                                </Text>
+                                <Text style={styles.eventNoticeText}>
+                                    {photoBlockReason}
+                                </Text>
+                                {!eventLoading && (
+                                    <TouchableOpacity
+                                        accessibilityRole="button"
+                                        style={styles.eventNoticeAction}
+                                        onPress={() =>
+                                            eventId && !event
+                                                ? setEventReload(
+                                                      (value) => value + 1,
+                                                  )
+                                                : router.replace("/home-screen")
+                                        }>
+                                        <Text
+                                            style={
+                                                styles.eventNoticeActionText
+                                            }>
+                                            {eventId && !event
+                                                ? "Retry loading event"
+                                                : "Go to Home"}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </View>
+                    )}
                     <View style={styles.photoRow}>
                         <PhotoCard
                             label="Before"
@@ -696,6 +796,41 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontWeight: "700",
         fontSize: 16,
+    },
+    eventNotice: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 10,
+        padding: 14,
+        marginBottom: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: PURPLE_BORDER,
+        backgroundColor: PURPLE_LIGHT,
+    },
+    eventNoticeTitle: {
+        fontFamily: "Lato_700Bold",
+        color: PURPLE,
+        fontSize: 15,
+        lineHeight: 20,
+    },
+    eventNoticeText: {
+        fontFamily: "Lato_400Regular",
+        color: "#51485D",
+        fontSize: 14,
+        lineHeight: 20,
+        marginTop: 4,
+    },
+    eventNoticeAction: {
+        alignSelf: "flex-start",
+        justifyContent: "center",
+        minHeight: 44,
+        marginTop: 4,
+    },
+    eventNoticeActionText: {
+        fontFamily: "Lato_700Bold",
+        color: PURPLE,
+        fontSize: 14,
     },
     uploadAlert: {
         flexDirection: "row",

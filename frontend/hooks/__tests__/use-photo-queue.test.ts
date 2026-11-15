@@ -22,8 +22,10 @@ it("retries on a timer and foreground return, and cleans up on unmount", async (
         });
     try {
         AppState.currentState = "active";
-        const view = renderHook(() => usePhotoQueue("event-1"));
-        await act(async () => { await Promise.resolve(); });
+        const view = await renderHook(() => usePhotoQueue("event-1"));
+        await act(async () => {
+            await Promise.resolve();
+        });
         expect(flushEventPhotos).toHaveBeenCalledWith("event-1", true);
         jest.mocked(flushEventPhotos).mockClear();
         await act(async () => {
