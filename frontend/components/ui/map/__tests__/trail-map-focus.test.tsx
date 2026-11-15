@@ -1,10 +1,6 @@
 import { fetchMapEvents } from "@/services/map-event-service";
 import React from "react";
-<<<<<<< HEAD
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
-=======
-import { fireEvent, render } from "@testing-library/react-native";
->>>>>>> origin/main
 import TrailMap from "../trail-map";
 import {
     fetchMapIssues,
