@@ -1,3 +1,7 @@
+import {
+    isConflictingUploadMessage,
+    UNCONFIRMED_UPLOAD,
+} from "@/utils/photo-upload-errors";
 import { auth } from "@/config/firebase";
 import { File } from "expo-file-system";
 
@@ -43,6 +47,7 @@ export type PhotoUpload = {
 };
 
 export type UploadFailure = {
+    unconfirmed?: boolean;
     fileName: string;
     error: string;
     retryable?: boolean;
@@ -322,6 +327,23 @@ function encodeMultipart(parts: MultipartPart[], boundary: string): Uint8Array {
     return body;
 }
 
+function normalizeFailures(
+    failures: UploadFailure[],
+    succeeded: string[] = [],
+): UploadFailure[] {
+    return failures
+        .filter((failure) => !succeeded.includes(failure.fileName))
+        .map((failure) =>
+            isConflictingUploadMessage(failure.error)
+                ? {
+                      fileName: failure.fileName,
+                      error: UNCONFIRMED_UPLOAD,
+                      unconfirmed: true,
+                  }
+                : failure,
+        );
+}
+
 async function uploadPhoto(
     albumId: string,
     photo: PhotoUpload,
@@ -376,7 +398,11 @@ async function uploadPhoto(
             Array.isArray(details.failed) &&
             details.failed.length > 0
         ) {
-            return { created: 0, succeeded: [], failed: details.failed };
+            return {
+                created: 0,
+                succeeded: [],
+                failed: normalizeFailures(details.failed),
+            };
         }
         throw await toError(response);
     }
@@ -385,11 +411,12 @@ async function uploadPhoto(
     const succeeded = payload.succeeded?.includes(photo.fileName)
         ? [photo.fileName]
         : [];
-    const failed = payload.failed ?? [];
+    const failed = normalizeFailures(payload.failed ?? [], succeeded);
     if (succeeded.length === 0 && failed.length === 0) {
         failed.push({
             fileName: photo.fileName,
             error: "The server did not confirm that this photo was created",
+            unconfirmed: true,
         });
     }
     return {

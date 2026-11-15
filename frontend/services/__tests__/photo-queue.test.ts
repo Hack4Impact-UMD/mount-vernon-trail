@@ -427,3 +427,45 @@ describe("automatic retries", () => {
         expect(mockUpload).toHaveBeenCalledTimes(1);
     });
 });
+
+it("migrates saved Success errors without resending them until explicitly confirmed", async () => {
+    const queue = await freshModule();
+    const photo = await queue.enqueuePhoto({
+        ...BASE,
+        slot: "before",
+        uri: "file:///b.jpg",
+    });
+    await AsyncStorage.setItem(
+        "photo-queue:v1",
+        JSON.stringify([{ ...photo, status: "failed", error: "Success" }]),
+    );
+    const reloaded = loadModule();
+    expect((await reloaded.getPhotosForEvent(BASE.eventId))[0]).toMatchObject({
+        status: "unconfirmed",
+        error: expect.stringContaining("conflicting"),
+    });
+    await reloaded.flushEventPhotos(BASE.eventId, true);
+    await reloaded.flushEventPhotos(BASE.eventId);
+    expect(mockUpload).not.toHaveBeenCalled();
+    await reloaded.flushEventPhotos(BASE.eventId, false, [photo.id]);
+    expect(mockUpload).toHaveBeenCalledTimes(1);
+    expect((await reloaded.getPhotosForEvent(BASE.eventId))[0].status).toBe(
+        "uploaded",
+    );
+});
+
+it("keeps a newly conflicting result unconfirmed and excludes it from later retries", async () => {
+    const queue = await freshModule();
+    await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
+    mockUpload.mockImplementationOnce(async (_album, photos) => ({
+        created: 0,
+        succeeded: [],
+        failed: [{ fileName: photos[0].fileName, error: "Success" }],
+    }));
+    await queue.flushEventPhotos(BASE.eventId);
+    expect((await queue.getPhotosForEvent(BASE.eventId))[0].status).toBe(
+        "unconfirmed",
+    );
+    await queue.flushEventPhotos(BASE.eventId);
+    expect(mockUpload).toHaveBeenCalledTimes(1);
+});

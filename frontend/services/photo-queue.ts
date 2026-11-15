@@ -1,4 +1,8 @@
 import { uploadPhotos, type PhotoUpload } from "@/api/backend-client";
+import {
+    isConflictingUploadMessage,
+    UNCONFIRMED_UPLOAD,
+} from "@/utils/photo-upload-errors";
 import { getErrorMessage } from "@/utils/errors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -12,7 +16,7 @@ const STORAGE_KEY = "photo-queue:v1";
 
 export type PhotoSlot = "before" | "after";
 
-export type PhotoStatus = "pending" | "uploaded" | "failed";
+export type PhotoStatus = "pending" | "uploaded" | "failed" | "unconfirmed";
 
 export type QueuedPhoto = {
     id: string;
@@ -55,7 +59,19 @@ async function readAll(): Promise<QueuedPhoto[]> {
     if (cache) return cache;
     try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        cache = raw ? (JSON.parse(raw) as QueuedPhoto[]) : [];
+        cache = raw
+            ? (JSON.parse(raw) as QueuedPhoto[]).map((photo) =>
+                  photo.status !== "uploaded" &&
+                  isConflictingUploadMessage(photo.error)
+                      ? {
+                            ...photo,
+                            status: "unconfirmed",
+                            error: UNCONFIRMED_UPLOAD,
+                            retryAt: undefined,
+                        }
+                      : photo,
+              )
+            : [];
     } catch (error) {
         console.error(
             "Could not read the photo queue:",
@@ -157,6 +173,7 @@ export type FlushResult = {
 export async function flushEventPhotos(
     eventId: string,
     automatic = false,
+    retryUnconfirmed: string[] = [],
 ): Promise<FlushResult> {
     // Recheck after waiting: several mounted screens may request a flush.
     while (flushing) await flushing;
@@ -168,6 +185,8 @@ export async function flushEventPhotos(
             (photo) =>
                 photo.eventId === eventId &&
                 photo.status !== "uploaded" &&
+                (photo.status !== "unconfirmed" ||
+                    retryUnconfirmed.includes(photo.id)) &&
                 (!automatic || photo.status === "pending") &&
                 (!photo.retryAt || photo.retryAt <= Date.now()),
         );
@@ -206,14 +225,22 @@ export async function flushEventPhotos(
                     const failure = failures.get(fileName);
                     const uploaded = successes.has(fileName);
                     const attempts = (photo.attempts ?? 0) + 1;
-                    const retryable = !uploaded && failure?.retryable;
+                    const unconfirmed =
+                        !uploaded &&
+                        (!failure ||
+                            failure.unconfirmed ||
+                            isConflictingUploadMessage(failure.error));
+                    const retryable =
+                        !uploaded && !unconfirmed && failure?.retryable;
                     updates.set(photo.id, {
                         ...photo,
                         status: uploaded
                             ? "uploaded"
-                            : retryable
-                              ? "pending"
-                              : "failed",
+                            : unconfirmed
+                              ? "unconfirmed"
+                              : retryable
+                                ? "pending"
+                                : "failed",
                         attempts: uploaded ? 0 : attempts,
                         retryAt: retryable
                             ? Date.now() +
@@ -227,8 +254,10 @@ export async function flushEventPhotos(
                             : undefined,
                         error: uploaded
                             ? undefined
-                            : failure?.error ||
-                              "Upload not confirmed. Check the album before retrying.",
+                            : unconfirmed
+                              ? UNCONFIRMED_UPLOAD
+                              : failure?.error ||
+                                "Upload not confirmed. Check the album before retrying.",
                     });
                     if (uploaded) result.uploaded++;
                     else result.failed++;

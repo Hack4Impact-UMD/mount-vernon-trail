@@ -387,3 +387,45 @@ it("defers remaining files after a rate limit instead of sending a burst", async
         ),
     ).toBe(true);
 });
+
+describe("contradictory upload responses", () => {
+    const photo = {
+        uri: "file:///a.jpg",
+        fileName: "a.jpg",
+        mimeType: "image/jpeg",
+    };
+    it.each([207, 502])(
+        "does not treat Success in failed[] as proof of success or a retryable failure (%i)",
+        async (status) => {
+            fetchMock.mockResolvedValueOnce(
+                json(
+                    { failed: [{ fileName: "a.jpg", error: "Success" }] },
+                    status,
+                ),
+            );
+            const result = await uploadPhotos("album-1", [photo]);
+            expect(result.succeeded).toEqual([]);
+            expect(result.failed[0]).toMatchObject({
+                unconfirmed: true,
+                error: expect.stringContaining("conflicting"),
+            });
+            expect(result.failed[0].retryable).not.toBe(true);
+        },
+    );
+    it("drops a contradictory error for an explicitly confirmed photo", async () => {
+        fetchMock.mockResolvedValueOnce(
+            json(
+                {
+                    succeeded: ["a.jpg"],
+                    failed: [{ fileName: "a.jpg", error: "Success" }],
+                },
+                207,
+            ),
+        );
+        expect(await uploadPhotos("album-1", [photo])).toEqual({
+            created: 1,
+            succeeded: ["a.jpg"],
+            failed: [],
+        });
+    });
+});

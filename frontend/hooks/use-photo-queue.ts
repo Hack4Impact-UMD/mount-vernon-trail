@@ -13,7 +13,7 @@ export type PhotoQueueState = {
     pendingCount: number;
     failedCount: number;
     uploading: boolean;
-    flush: () => Promise<FlushResult>;
+    flush: (retryUnconfirmed?: string[]) => Promise<FlushResult>;
 };
 
 export function usePhotoQueue(eventId: string | undefined): PhotoQueueState {
@@ -62,15 +62,18 @@ export function usePhotoQueue(eventId: string | undefined): PhotoQueueState {
         };
     }, [eventId]);
 
-    const flush = useCallback(async (): Promise<FlushResult> => {
-        if (!eventId) return { uploaded: 0, failed: 0 };
-        setUploading(true);
-        try {
-            return await flushEventPhotos(eventId);
-        } finally {
-            setUploading(false);
-        }
-    }, [eventId]);
+    const flush = useCallback(
+        async (retryUnconfirmed: string[] = []): Promise<FlushResult> => {
+            if (!eventId) return { uploaded: 0, failed: 0 };
+            setUploading(true);
+            try {
+                return await flushEventPhotos(eventId, false, retryUnconfirmed);
+            } finally {
+                setUploading(false);
+            }
+        },
+        [eventId],
+    );
 
     const all = Object.values(issuePhotos).flatMap((slots) =>
         [slots.before, slots.after].filter((photo) => photo !== undefined),

@@ -14,6 +14,7 @@ import {
     Alert,
     Dimensions,
     Image,
+    Linking,
     ScrollView,
     StyleSheet,
     Text,
@@ -359,6 +360,7 @@ export default function TrailIssueDetailScreen() {
         if (!photo) return undefined;
         if (photo.status === "uploaded") return "Uploaded";
         if (photo.status === "failed") return "Upload needs attention";
+        if (photo.status === "unconfirmed") return "Upload not confirmed";
         return photo.retryAt
             ? "Saved — retrying automatically"
             : "Waiting to upload";
@@ -368,7 +370,7 @@ export default function TrailIssueDetailScreen() {
     const status = isUnsaved
         ? "Not saved"
         : photoUri("before") && photoUri("after")
-          ? "Complete"
+          ? "Photos captured"
           : photoUri("before")
             ? "In Progress"
             : "Not started";
@@ -378,8 +380,11 @@ export default function TrailIssueDetailScreen() {
             photo?.status !== "uploaded" && !!photo?.error,
     );
     const failedPhotos = failed.filter(
-        (photo) => photo.status === "failed",
+        (photo) => photo.status === "failed" || photo.status === "unconfirmed",
     ).length;
+    const hasUnconfirmed = failed.some(
+        (photo) => photo.status === "unconfirmed",
+    );
     // The thumbnail caption has no room for the reason, and without it every
     // failure — offline, signed out, Google rejecting the album — looked alike.
     const uploadErrors = [
@@ -532,9 +537,35 @@ export default function TrailIssueDetailScreen() {
                         <TouchableOpacity
                             style={styles.retryButton}
                             onPress={() => {
-                                flush().catch((e: unknown) =>
-                                    setError(getErrorMessage(e)),
-                                );
+                                const retry = () =>
+                                    flush(
+                                        failed
+                                            .filter(
+                                                (photo) =>
+                                                    photo.status ===
+                                                    "unconfirmed",
+                                            )
+                                            .map((photo) => photo.id),
+                                    ).catch((e: unknown) =>
+                                        setError(getErrorMessage(e)),
+                                    );
+                                if (hasUnconfirmed) {
+                                    Alert.alert(
+                                        "Check the album first",
+                                        "These photos may already be uploaded. Retrying can create duplicates. Only retry if they are missing from the album.",
+                                        [
+                                            { text: "Cancel", style: "cancel" },
+                                            {
+                                                text: "Retry anyway",
+                                                onPress: () => {
+                                                    void retry();
+                                                },
+                                            },
+                                        ],
+                                    );
+                                } else {
+                                    void retry();
+                                }
                             }}>
                             <Feather
                                 name="upload-cloud"
@@ -559,15 +590,38 @@ export default function TrailIssueDetailScreen() {
                             />
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.uploadAlertTitle}>
-                                    {failedPhotos > 0
-                                        ? "Photo uploads need attention"
-                                        : "Photos saved — waiting to retry"}
+                                    {hasUnconfirmed
+                                        ? "Check your photo album"
+                                        : failedPhotos > 0
+                                          ? "Photo uploads need attention"
+                                          : "Photos saved — waiting to retry"}
                                 </Text>
                                 <Text style={styles.uploadAlertText}>
                                     {failedPhotos > 0
                                         ? "Upload not confirmed. Check the album before retrying."
                                         : "Keep this event open. Uploads retry automatically when the connection or Google Photos recovers."}
                                 </Text>
+                                {hasUnconfirmed && event?.albumUrl && (
+                                    <TouchableOpacity
+                                        accessibilityRole="link"
+                                        style={styles.eventNoticeAction}
+                                        onPress={() => {
+                                            void Linking.openURL(
+                                                event.albumUrl,
+                                            ).catch(() =>
+                                                setError(
+                                                    "Could not open the photo album.",
+                                                ),
+                                            );
+                                        }}>
+                                        <Text
+                                            style={
+                                                styles.eventNoticeActionText
+                                            }>
+                                            Open Google Photos album
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                                 {uploadErrors.map((message) => (
                                     <Text
                                         key={message}
@@ -772,7 +826,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         gap: 8,
-        backgroundColor: "#B3261E",
+        backgroundColor: PURPLE,
         borderRadius: 12,
         paddingVertical: 12,
         marginBottom: 24,

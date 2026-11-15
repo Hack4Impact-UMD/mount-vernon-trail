@@ -285,7 +285,10 @@ describe("POST /api/upload", () => {
             .mockResolvedValueOnce("tok-b");
         mockPhotos.batchCreate.mockResolvedValue({
             newMediaItemResults: [
-                { status: { code: 0 }, mediaItem: { id: "a" } },
+                {
+                    status: { code: 0, message: "Success" },
+                    mediaItem: { id: "a" },
+                },
                 { status: {}, mediaItem: { id: "b" } },
             ],
         });
@@ -518,7 +521,10 @@ describe("upload result accuracy and rate limits", () => {
         mockPhotos.uploadBytes.mockResolvedValue("tok-a");
         mockPhotos.batchCreate.mockResolvedValueOnce({
             newMediaItemResults: [
-                { status: { code: 0 }, mediaItem: { id: "a" } },
+                {
+                    status: { code: 0, message: "Success" },
+                    mediaItem: { id: "a" },
+                },
                 { status: { code: 8, message: "Busy" } },
             ],
         });
