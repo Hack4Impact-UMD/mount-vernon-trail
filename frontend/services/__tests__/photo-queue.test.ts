@@ -299,7 +299,9 @@ describe("flushEventPhotos", () => {
         });
 
         await queue.flushEventPhotos("event-1");
-        const names = mockUpload.mock.calls[0][1].map((photo) => photo.fileName);
+        const names = mockUpload.mock.calls[0][1].map(
+            (photo) => photo.fileName,
+        );
         expect(new Set(names).size).toBe(2);
     });
 });
@@ -325,5 +327,103 @@ describe("subscribers", () => {
             uri: "file:///a.jpg",
         });
         expect(listener).not.toHaveBeenCalled();
+    });
+});
+
+describe("automatic retries", () => {
+    it("persists a rate-limit cooldown and retries only the pending photo", async () => {
+        jest.useFakeTimers();
+        try {
+            let queue = await freshModule();
+            await queue.enqueuePhoto({
+                ...BASE,
+                slot: "before",
+                uri: "file:///b.jpg",
+            });
+            await queue.enqueuePhoto({
+                ...BASE,
+                slot: "after",
+                uri: "file:///a.jpg",
+            });
+            mockUpload.mockImplementationOnce(async (_albumId, photos) => ({
+                created: 1,
+                succeeded: [photos[0].fileName],
+                failed: [
+                    {
+                        fileName: photos[1].fileName,
+                        error: "Busy",
+                        retryable: true,
+                        retryAfterMs: 30_000,
+                    },
+                ],
+            }));
+            await queue.flushEventPhotos(BASE.eventId);
+            queue = loadModule();
+            expect(
+                (await queue.getPhotosForEvent(BASE.eventId))[1],
+            ).toMatchObject({ status: "pending", attempts: 1 });
+            // Neither automatic nor manual requests bypass Google's cooldown.
+            await queue.flushEventPhotos(BASE.eventId, true);
+            await queue.flushEventPhotos(BASE.eventId);
+            expect(mockUpload).toHaveBeenCalledTimes(1);
+            jest.advanceTimersByTime(30_000);
+            await queue.flushEventPhotos(BASE.eventId, true);
+            expect(mockUpload).toHaveBeenCalledTimes(2);
+            expect(mockUpload.mock.calls[1][1]).toHaveLength(1);
+            expect(await queue.getPendingCount(BASE.eventId)).toBe(0);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it("backs off after repeated connection failures", async () => {
+        jest.useFakeTimers();
+        try {
+            const queue = await freshModule();
+            await queue.enqueuePhoto({
+                ...BASE,
+                slot: "before",
+                uri: "file:///b.jpg",
+            });
+            mockUpload.mockImplementation(async (_albumId, photos) => ({
+                created: 0,
+                succeeded: [],
+                failed: photos.map((photo) => ({
+                    fileName: photo.fileName,
+                    error: "Offline",
+                    retryable: true,
+                })),
+            }));
+            await queue.flushEventPhotos(BASE.eventId, true);
+            jest.advanceTimersByTime(5_000);
+            await queue.flushEventPhotos(BASE.eventId, true);
+            expect(
+                (await queue.getPhotosForEvent(BASE.eventId))[0].retryAt,
+            ).toBe(Date.now() + 10_000);
+            jest.advanceTimersByTime(5_000);
+            await queue.flushEventPhotos(BASE.eventId, true);
+            expect(mockUpload).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it("leaves permanent failures for manual attention", async () => {
+        const queue = await freshModule();
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
+        mockUpload.mockImplementationOnce(async (_albumId, photos) => ({
+            created: 0,
+            succeeded: [],
+            failed: [
+                { fileName: photos[0].fileName, error: "Retake the photo" },
+            ],
+        }));
+        await queue.flushEventPhotos(BASE.eventId, true);
+        await queue.flushEventPhotos(BASE.eventId, true);
+        expect(mockUpload).toHaveBeenCalledTimes(1);
     });
 });

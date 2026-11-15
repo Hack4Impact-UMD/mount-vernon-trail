@@ -30,7 +30,11 @@ async function request(
         },
     });
     if (!response.ok) {
-        throw new GooglePhotosError(response.status, await response.text());
+        throw new GooglePhotosError(
+            response.status,
+            await response.text(),
+            response.headers.get("Retry-After"),
+        );
     }
     return response.json();
 }
@@ -53,7 +57,11 @@ export async function uploadBytes(
         body: new Blob([bytes]),
     });
     if (!response.ok) {
-        throw new GooglePhotosError(response.status, await response.text());
+        throw new GooglePhotosError(
+            response.status,
+            await response.text(),
+            response.headers.get("Retry-After"),
+        );
     }
     return response.text();
 }

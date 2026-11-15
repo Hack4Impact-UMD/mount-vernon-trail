@@ -2,13 +2,18 @@ import { Router, type Request, type Response } from "express";
 import multer from "multer";
 import { mapSettledWithLimit } from "../concurrency";
 import type { Env } from "../env";
-import { sendError } from "../errors";
+import { GooglePhotosError, sendError } from "../errors";
 import * as photos from "../google-photos";
 import type { TokenStore } from "../google-tokens";
 
 const UPLOAD_CONCURRENCY = 4;
 
-type FailedUpload = { fileName: string; error: string };
+type FailedUpload = {
+    fileName: string;
+    error: string;
+    retryable?: boolean;
+    retryAfterMs?: number;
+};
 
 type BatchCreateResult = {
     newMediaItemResults?: unknown[];
@@ -19,16 +24,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function batchFailure(result: unknown): string | null {
-    if (!isRecord(result) || !("status" in result)) return null;
+    if (!isRecord(result)) return "Google Photos did not confirm this upload";
     const status = result.status;
-    if (!isRecord(status)) return "Google Photos did not create this photo";
-    return typeof status.message === "string" && status.message.trim()
-        ? status.message
-        : "Google Photos did not create this photo";
+    if (isRecord(status) && status.code !== undefined && status.code !== 0) {
+        return typeof status.message === "string" && status.message.trim()
+            ? status.message
+            : "Google Photos did not create this photo";
+    }
+    // A successful response can contain status: {code: 0} or status: {}.
+    // Require a media item, rather than treating an empty result as success.
+    return isRecord(result.mediaItem) &&
+        typeof result.mediaItem.id === "string" &&
+        result.mediaItem.id
+        ? null
+        : "Google Photos did not confirm this upload";
 }
 
 function readString(value: unknown): string | null {
-    return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+    return typeof value === "string" && value.trim() !== ""
+        ? value.trim()
+        : null;
 }
 
 // Express 5 types a route param as string | string[]; these routes only ever
@@ -61,7 +76,11 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
                 .status(200)
                 .json({ authenticated: await tokenStore.isAuthenticated() });
         } catch (error) {
-            return sendError(res, "Could not check authentication status", error);
+            return sendError(
+                res,
+                "Could not check authentication status",
+                error,
+            );
         }
     });
 
@@ -108,6 +127,13 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
                     } else {
                         failed.push({
                             fileName: file.originalname,
+                            ...(result.error instanceof GooglePhotosError &&
+                            result.error.status === 429
+                                ? {
+                                      retryable: true,
+                                      retryAfterMs: result.error.retryAfterMs,
+                                  }
+                                : {}),
                             error:
                                 result.error instanceof Error
                                     ? result.error.message
@@ -138,6 +164,11 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
                     if (result === undefined || error) {
                         failed.push({
                             fileName: item.fileName,
+                            ...(isRecord(result) &&
+                            isRecord(result.status) &&
+                            result.status.code === 8
+                                ? { retryable: true, retryAfterMs: 30_000 }
+                                : {}),
                             error:
                                 error ??
                                 "Google Photos did not return a result for this photo",
@@ -174,7 +205,9 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
         try {
             const token = await tokenStore.getAccessToken();
             const pageToken = readString(req.query.pageToken) ?? undefined;
-            return res.status(200).json(await photos.listAlbums(token, pageToken));
+            return res
+                .status(200)
+                .json(await photos.listAlbums(token, pageToken));
         } catch (error) {
             return sendError(res, "Failed to list albums", error);
         }
@@ -185,29 +218,34 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
             const token = await tokenStore.getAccessToken();
             return res
                 .status(200)
-                .json(await photos.getAlbum(token, readParam(req.params.albumId)));
+                .json(
+                    await photos.getAlbum(token, readParam(req.params.albumId)),
+                );
         } catch (error) {
             return sendError(res, "Failed to fetch album", error);
         }
     });
 
-    router.get("/albums/:albumId/photos", async (req: Request, res: Response) => {
-        try {
-            const token = await tokenStore.getAccessToken();
-            const pageToken = readString(req.query.pageToken) ?? undefined;
-            return res
-                .status(200)
-                .json(
-                    await photos.searchAlbumPhotos(
-                        token,
-                        readParam(req.params.albumId),
-                        pageToken,
-                    ),
-                );
-        } catch (error) {
-            return sendError(res, "Failed to list photos", error);
-        }
-    });
+    router.get(
+        "/albums/:albumId/photos",
+        async (req: Request, res: Response) => {
+            try {
+                const token = await tokenStore.getAccessToken();
+                const pageToken = readString(req.query.pageToken) ?? undefined;
+                return res
+                    .status(200)
+                    .json(
+                        await photos.searchAlbumPhotos(
+                            token,
+                            readParam(req.params.albumId),
+                            pageToken,
+                        ),
+                    );
+            } catch (error) {
+                return sendError(res, "Failed to list photos", error);
+            }
+        },
+    );
 
     router.get("/photos/:photoId", async (req: Request, res: Response) => {
         try {
@@ -215,7 +253,10 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
             return res
                 .status(200)
                 .json(
-                    await photos.getMediaItem(token, readParam(req.params.photoId)),
+                    await photos.getMediaItem(
+                        token,
+                        readParam(req.params.photoId),
+                    ),
                 );
         } catch (error) {
             return sendError(res, "Failed to fetch photo", error);

@@ -6,6 +6,7 @@ import {
     type IssuePhotos,
 } from "@/services/photo-queue";
 import { useCallback, useEffect, useState } from "react";
+import { AppState } from "react-native";
 
 export type PhotoQueueState = {
     issuePhotos: IssuePhotos;
@@ -41,6 +42,25 @@ export function usePhotoQueue(eventId: string | undefined): PhotoQueueState {
             unsubscribe();
         };
     }, [refresh]);
+
+    useEffect(() => {
+        if (!eventId) return;
+        const retry = () => {
+            if (AppState.currentState && AppState.currentState !== "active")
+                return;
+            flushEventPhotos(eventId, true).catch((error: unknown) =>
+                console.error("Could not retry photos:", error),
+            );
+        };
+        retry();
+        // Poll only the local queue; network requests happen when a retry is due.
+        const timer = setInterval(retry, 5_000);
+        const subscription = AppState.addEventListener("change", retry);
+        return () => {
+            clearInterval(timer);
+            subscription.remove();
+        };
+    }, [eventId]);
 
     const flush = useCallback(async (): Promise<FlushResult> => {
         if (!eventId) return { uploaded: 0, failed: 0 };

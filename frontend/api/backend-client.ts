@@ -42,7 +42,12 @@ export type PhotoUpload = {
     description?: string;
 };
 
-export type UploadFailure = { fileName: string; error: string };
+export type UploadFailure = {
+    fileName: string;
+    error: string;
+    retryable?: boolean;
+    retryAfterMs?: number;
+};
 
 export type UploadResult = {
     created: number;
@@ -57,12 +62,14 @@ export type BackendErrorCode =
     | "FORBIDDEN"
     | "NOT_FOUND"
     | "UPSTREAM"
+    | "RATE_LIMITED"
     | "NETWORK"
     | "UNKNOWN";
 
 export class BackendError extends Error {
     readonly code: BackendErrorCode;
     readonly status: number | null;
+    retryAfterMs?: number;
 
     constructor(
         code: BackendErrorCode,
@@ -100,7 +107,9 @@ async function idToken(forceRefresh: boolean): Promise<string> {
         return await user.getIdToken(forceRefresh);
     } catch (error) {
         throw new BackendError(
-            "NOT_SIGNED_IN",
+            isRecord(error) && error.code === "auth/network-request-failed"
+                ? "NETWORK"
+                : "NOT_SIGNED_IN",
             error instanceof Error
                 ? error.message
                 : "Could not get an ID token.",
@@ -124,6 +133,28 @@ async function toError(response: Response): Promise<BackendError> {
         payload,
         `Request failed with status ${response.status}`,
     );
+    if (response.status === 429) {
+        const error = new BackendError(
+            "RATE_LIMITED",
+            "Google Photos is busy. Your photos will retry automatically.",
+            429,
+        );
+        const header = response.headers?.get("Retry-After");
+        const seconds = header ? Number(header) : NaN;
+        const delay = Number.isFinite(seconds)
+            ? seconds * 1000
+            : header
+              ? Date.parse(header) - Date.now()
+              : 0;
+        error.retryAfterMs = Math.max(
+            30_000,
+            Number.isFinite(delay) ? delay : 0,
+            isRecord(payload) && typeof payload.retryAfterMs === "number"
+                ? payload.retryAfterMs
+                : 0,
+        );
+        return error;
+    }
     if (response.status === 403)
         return new BackendError("FORBIDDEN", message, 403);
     if (response.status === 404)
@@ -335,7 +366,20 @@ async function uploadPhoto(
         },
         () => encodeMultipart(parts, boundary) as unknown as BodyInit,
     );
-    if (!response.ok && response.status !== 207) throw await toError(response);
+    if (!response.ok) {
+        const details = (await response
+            .clone()
+            .json()
+            .catch(() => null)) as UploadResponse | null;
+        if (
+            details &&
+            Array.isArray(details.failed) &&
+            details.failed.length > 0
+        ) {
+            return { created: 0, succeeded: [], failed: details.failed };
+        }
+        throw await toError(response);
+    }
 
     const payload = (await response.json()) as UploadResponse;
     const succeeded = payload.succeeded?.includes(photo.fileName)
@@ -362,7 +406,7 @@ export async function uploadPhotos(
     photos: PhotoUpload[],
 ): Promise<UploadResult> {
     const result: UploadResult = { created: 0, succeeded: [], failed: [] };
-    for (const photo of photos) {
+    for (const [index, photo] of photos.entries()) {
         try {
             const uploaded = await uploadPhoto(albumId, photo);
             result.created += uploaded.created;
@@ -371,11 +415,27 @@ export async function uploadPhotos(
         } catch (error) {
             result.failed.push({
                 fileName: photo.fileName,
+                ...(error instanceof BackendError &&
+                (error.code === "NETWORK" || error.code === "RATE_LIMITED")
+                    ? { retryable: true, retryAfterMs: error.retryAfterMs }
+                    : {}),
                 error:
                     error instanceof Error
                         ? error.message
                         : "Photo upload failed",
             });
+        }
+        const deferred = result.failed.find((failure) => failure.retryable);
+        if (deferred) {
+            // Don't hammer Google (or a dead connection) with the rest of this
+            // queue. Give the unsent files the same cooldown as this attempt.
+            result.failed.push(
+                ...photos.slice(index + 1).map((pending) => ({
+                    ...deferred,
+                    fileName: pending.fileName,
+                })),
+            );
+            break;
         }
     }
     return result;

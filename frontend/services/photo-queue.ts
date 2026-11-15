@@ -25,6 +25,8 @@ export type QueuedPhoto = {
     createdAt: number;
     status: PhotoStatus;
     error?: string;
+    attempts?: number;
+    retryAt?: number;
 };
 
 export type IssuePhotos = Record<
@@ -149,17 +151,25 @@ export type FlushResult = {
     failed: number;
 };
 
-// Uploads everything still pending for an event, grouped by album so each
-// album needs only one request. Safe to call repeatedly; already-uploaded
-// photos are skipped and a failure leaves the photo queued for the next try.
-export async function flushEventPhotos(eventId: string): Promise<FlushResult> {
-    if (flushing) await flushing;
+// Group photos by album for the bounded uploader. Confirmed successes are
+// skipped; transient failures stay pending with a persisted retry deadline.
+// Manual retries include permanent failures but cannot bypass the cooldown.
+export async function flushEventPhotos(
+    eventId: string,
+    automatic = false,
+): Promise<FlushResult> {
+    // Recheck after waiting: several mounted screens may request a flush.
+    while (flushing) await flushing;
 
     let result: FlushResult = { uploaded: 0, failed: 0 };
     flushing = (async () => {
         const photos = await readAll();
         const pending = photos.filter(
-            (photo) => photo.eventId === eventId && photo.status !== "uploaded",
+            (photo) =>
+                photo.eventId === eventId &&
+                photo.status !== "uploaded" &&
+                (!automatic || photo.status === "pending") &&
+                (!photo.retryAt || photo.retryAt <= Date.now()),
         );
         if (pending.length === 0) return;
         const pendingById = new Map(pending.map((photo) => [photo.id, photo]));
@@ -181,24 +191,44 @@ export async function flushEventPhotos(eventId: string): Promise<FlushResult> {
                 description: `${photo.issueName} — ${photo.slot}`,
             }));
             try {
-                const { failed, succeeded } = await uploadPhotos(albumId, payload);
+                const { failed, succeeded } = await uploadPhotos(
+                    albumId,
+                    payload,
+                );
                 // Keep the backend's per-file reason: a bare "Upload failed"
                 // left nothing to diagnose a partial failure with.
                 const failures = new Map(
-                    failed.map((entry) => [entry.fileName, entry.error]),
+                    failed.map((entry) => [entry.fileName, entry]),
                 );
                 const successes = new Set(succeeded);
                 for (const photo of albumPhotos) {
                     const fileName = fileNameFor(photo);
                     const failure = failures.get(fileName);
                     const uploaded = successes.has(fileName);
+                    const attempts = (photo.attempts ?? 0) + 1;
+                    const retryable = !uploaded && failure?.retryable;
                     updates.set(photo.id, {
                         ...photo,
-                        status: uploaded ? "uploaded" : "failed",
-                        error:
-                            !uploaded
-                                ? failure || "Upload failed"
-                                : undefined,
+                        status: uploaded
+                            ? "uploaded"
+                            : retryable
+                              ? "pending"
+                              : "failed",
+                        attempts: uploaded ? 0 : attempts,
+                        retryAt: retryable
+                            ? Date.now() +
+                              Math.max(
+                                  failure.retryAfterMs ?? 0,
+                                  Math.min(
+                                      300_000,
+                                      5_000 * 2 ** Math.min(attempts - 1, 6),
+                                  ),
+                              )
+                            : undefined,
+                        error: uploaded
+                            ? undefined
+                            : failure?.error ||
+                              "Upload not confirmed. Check the album before retrying.",
                     });
                     if (uploaded) result.uploaded++;
                     else result.failed++;
@@ -246,7 +276,7 @@ export async function flushEventPhotos(eventId: string): Promise<FlushResult> {
 // already gone by the time the volunteer finishes the issue, and if not it just
 // stays queued.
 export function flushInBackground(eventId: string): void {
-    flushEventPhotos(eventId).catch((error: unknown) => {
+    flushEventPhotos(eventId, true).catch((error: unknown) => {
         console.error(
             "Background photo upload failed:",
             getErrorMessage(error),

@@ -302,8 +302,10 @@ export default function TrailIssueDetailScreen() {
         const photo = queued[slot];
         if (!photo) return undefined;
         if (photo.status === "uploaded") return "Uploaded";
-        if (photo.status === "failed") return "Upload failed — tap Retry";
-        return "Waiting to upload";
+        if (photo.status === "failed") return "Upload needs attention";
+        return photo.retryAt
+            ? "Saved — retrying automatically"
+            : "Waiting to upload";
     };
 
     // Derived rather than hardcoded: an issue is done once both photos exist.
@@ -316,9 +318,12 @@ export default function TrailIssueDetailScreen() {
             : "Not started";
 
     const failed = [queued.before, queued.after].filter(
-        (photo): photo is QueuedPhoto => photo?.status === "failed",
+        (photo): photo is QueuedPhoto =>
+            photo?.status !== "uploaded" && !!photo?.error,
     );
-    const failedPhotos = failed.length;
+    const failedPhotos = failed.filter(
+        (photo) => photo.status === "failed",
+    ).length;
     // The thumbnail caption has no room for the reason, and without it every
     // failure — offline, signed out, Google rejecting the album — looked alike.
     const uploadErrors = [
@@ -437,18 +442,42 @@ export default function TrailIssueDetailScreen() {
                                 color="#fff"
                             />
                             <Text style={styles.retryButtonText}>
-                                Retry {failedPhotos} failed upload
+                                Retry {failedPhotos} upload
                                 {failedPhotos === 1 ? "" : "s"}
                             </Text>
                         </TouchableOpacity>
                     )}
-                    {uploadErrors.map((message) => (
-                        <Text
-                            key={message}
-                            style={styles.errorText}>
-                            {message}
-                        </Text>
-                    ))}
+                    {uploadErrors.length > 0 && (
+                        <View
+                            accessibilityRole="alert"
+                            accessibilityLiveRegion="polite"
+                            style={styles.uploadAlert}>
+                            <Feather
+                                name="alert-circle"
+                                size={22}
+                                color="#805500"
+                            />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.uploadAlertTitle}>
+                                    {failedPhotos > 0
+                                        ? "Photo uploads need attention"
+                                        : "Photos saved — waiting to retry"}
+                                </Text>
+                                <Text style={styles.uploadAlertText}>
+                                    {failedPhotos > 0
+                                        ? "Upload not confirmed. Check the album before retrying."
+                                        : "Keep this event open. Uploads retry automatically when the connection or Google Photos recovers."}
+                                </Text>
+                                {uploadErrors.map((message) => (
+                                    <Text
+                                        key={message}
+                                        style={styles.uploadAlertText}>
+                                        {message}
+                                    </Text>
+                                ))}
+                            </View>
+                        </View>
+                    )}
 
                     {/* NOTES */}
                     <Text style={styles.sectionLabel}>NOTES</Text>
@@ -667,6 +696,28 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontWeight: "700",
         fontSize: 16,
+    },
+    uploadAlert: {
+        flexDirection: "row",
+        gap: 10,
+        padding: 14,
+        marginVertical: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#E7CB85",
+        backgroundColor: "#FFF8E6",
+    },
+    uploadAlertTitle: {
+        fontFamily: "Lato_700Bold",
+        color: "#624500",
+        fontSize: 15,
+        marginBottom: 4,
+    },
+    uploadAlertText: {
+        fontFamily: "Lato_400Regular",
+        color: "#624500",
+        fontSize: 14,
+        marginTop: 3,
     },
     errorText: {
         color: "#B3261E",
