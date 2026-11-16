@@ -1,3 +1,9 @@
+import { Palette } from "@/constants/theme";
+import {
+    LANDMARK_LABELS,
+    type TrailLandmark,
+} from "@/services/trail-landmark-service";
+import { MapPin, X } from "lucide-react-native";
 import {
     Modal,
     Pressable,
@@ -6,12 +12,7 @@ import {
     Text,
     View,
 } from "react-native";
-import { MapPin, X } from "lucide-react-native";
-import { Colors, Palette } from "@/constants/theme";
-import {
-    LANDMARK_LABELS,
-    type TrailLandmark,
-} from "@/services/trail-landmark-service";
+import { mapUi } from "./map-ui-styles";
 
 export default function TrailLandmarkDetailPopup({
     marker,
@@ -92,26 +93,8 @@ export default function TrailLandmarkDetailPopup({
 }
 
 const styles = StyleSheet.create({
-    backdrop: {
-        flex: 1,
-        justifyContent: "center",
-        padding: 24,
-        backgroundColor: "#00000066",
-    },
-    card: {
-        backgroundColor: Colors.light.background,
-        borderRadius: 24,
-        padding: 24,
-        gap: 20,
-        maxHeight: "80%",
-        borderWidth: 1,
-        borderColor: Palette.primaryPurple30,
-        shadowColor: Palette.primaryPurple100,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.15,
-        shadowRadius: 24,
-        elevation: 8,
-    },
+    backdrop: mapUi.backdrop,
+    card: mapUi.dialog,
     header: { flexDirection: "row", alignItems: "center", gap: 12 },
     icon: {
         width: 48,
@@ -137,31 +120,14 @@ const styles = StyleSheet.create({
         color: Palette.primaryBlack70,
         marginTop: 16,
     },
-    title: {
-        fontFamily: "Lato_700Bold",
-        fontSize: 23,
-        lineHeight: 30,
-        color: Palette.primaryPurple100,
-        marginBottom: 12,
-    },
+    title: { ...mapUi.heading, flexShrink: 1, flexGrow: 1, flexBasis: 170 },
     description: {
         fontFamily: "Lato_400Regular",
         fontSize: 16,
         lineHeight: 24,
         color: Palette.primaryBlack70,
     },
-    button: {
-        minHeight: 50,
-        borderRadius: 12,
-        padding: 14,
-        backgroundColor: Palette.primaryPurple100,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+    button: { ...mapUi.button, ...mapUi.primaryButton },
     buttonPressed: { opacity: 0.8 },
-    buttonText: {
-        fontFamily: "Lato_700Bold",
-        fontSize: 16,
-        color: Colors.light.background,
-    },
+    buttonText: { ...mapUi.buttonText, ...mapUi.primaryButtonText },
 });

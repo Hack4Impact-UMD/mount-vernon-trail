@@ -31,7 +31,7 @@ it("finds numbered locations, letter suffixes, and abbreviations", () => {
 });
 it("keeps all monument landmarks searchable by name and abbreviation", () => {
     const monuments = searchLandmarks("", "monument");
-    expect(monuments).toHaveLength(11);
+    expect(monuments).toHaveLength(16);
     expect(monuments.every((marker) => !("amenities" in marker))).toBe(true);
     expect(searchLandmarks("riverside rp", "monument")).toEqual([
         expect.objectContaining({ id: "riverside-park-little-hunting-creek" }),

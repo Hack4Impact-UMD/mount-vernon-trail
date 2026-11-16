@@ -101,6 +101,7 @@ export default function TrailIssueDetailScreen() {
         isDraft,
         beforeImageUri,
         afterImageUri,
+        source,
     } = useLocalSearchParams<{
         issueId?: string;
         issueName?: string;
@@ -111,6 +112,7 @@ export default function TrailIssueDetailScreen() {
         isDraft?: string;
         beforeImageUri?: string;
         afterImageUri?: string;
+        source?: string;
     }>();
 
     // A brand new issue carries a placeholder id until its Trello card exists.
@@ -396,34 +398,40 @@ export default function TrailIssueDetailScreen() {
                         placeholderTextColor="#B0A8C0"
                     />
 
-                    {/* PHOTOS */}
-                    <Text style={styles.sectionLabel}>PHOTOS</Text>
-                    <View style={styles.photoRow}>
-                        <PhotoCard
-                            label="Before"
-                            uri={photoUri("before")}
-                            caption={photoCaption("before")}
-                            locked={photosLocked}
-                            onPress={() => {
-                                handlePhotoPress("before").catch((e: unknown) =>
-                                    setError(getErrorMessage(e)),
-                                );
-                            }}
-                        />
-                        <PhotoCard
-                            label="After"
-                            uri={photoUri("after")}
-                            caption={photoCaption("after")}
-                            locked={photosLocked}
-                            onPress={() => {
-                                handlePhotoPress("after").catch((e: unknown) =>
-                                    setError(getErrorMessage(e)),
-                                );
-                            }}
-                        />
-                    </View>
+                    {source !== "map" && (
+                        <>
+                            {/* PHOTOS */}
+                            <Text style={styles.sectionLabel}>PHOTOS</Text>
+                            <View style={styles.photoRow}>
+                                <PhotoCard
+                                    label="Before"
+                                    uri={photoUri("before")}
+                                    caption={photoCaption("before")}
+                                    locked={photosLocked}
+                                    onPress={() => {
+                                        handlePhotoPress("before").catch(
+                                            (e: unknown) =>
+                                                setError(getErrorMessage(e)),
+                                        );
+                                    }}
+                                />
+                                <PhotoCard
+                                    label="After"
+                                    uri={photoUri("after")}
+                                    caption={photoCaption("after")}
+                                    locked={photosLocked}
+                                    onPress={() => {
+                                        handlePhotoPress("after").catch(
+                                            (e: unknown) =>
+                                                setError(getErrorMessage(e)),
+                                        );
+                                    }}
+                                />
+                            </View>
+                        </>
+                    )}
 
-                    {failedPhotos > 0 && (
+                    {source !== "map" && failedPhotos > 0 && (
                         <TouchableOpacity
                             style={styles.retryButton}
                             onPress={() => {
