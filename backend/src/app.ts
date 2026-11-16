@@ -10,9 +10,10 @@ import { MulterError } from "multer";
 import type { Env } from "./env";
 import { CorsRejectedError } from "./errors";
 import type { TokenStore } from "./google-tokens";
+import type { KeyValueStore } from "./kv-store";
 import { requireFirebaseAuth } from "./middleware/auth";
 import { createAdminAuthRouter } from "./routes/admin-auth";
-import { createApiRouter } from "./routes/api";
+import { createApiRouter, type EventReader } from "./routes/api";
 
 function corsOptions(env: Env): CorsOptions {
     return {
@@ -31,6 +32,8 @@ export function createApp(
     env: Env,
     auth: Auth,
     tokenStore: TokenStore,
+    readEvent: EventReader,
+    locks: KeyValueStore,
 ): Express {
     const app = express();
 
@@ -42,7 +45,11 @@ export function createApp(
     });
 
     app.use(createAdminAuthRouter(auth, tokenStore));
-    app.use("/api", requireFirebaseAuth(auth), createApiRouter(env, tokenStore));
+    app.use(
+        "/api",
+        requireFirebaseAuth(auth),
+        createApiRouter(env, tokenStore, readEvent, locks),
+    );
 
     app.use(
         (
