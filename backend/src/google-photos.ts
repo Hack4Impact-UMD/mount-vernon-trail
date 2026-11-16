@@ -1,4 +1,4 @@
-import { GooglePhotosError } from "./errors";
+import { GooglePhotosError, PhotoByteTransferError } from "./errors";
 
 const API_BASE = "https://photoslibrary.googleapis.com/v1";
 
@@ -55,6 +55,8 @@ export async function uploadBytes(
             "X-Goog-Upload-Protocol": "raw",
         },
         body: new Blob([bytes]),
+    }).catch(() => {
+        throw new PhotoByteTransferError();
     });
     if (!response.ok) {
         throw new GooglePhotosError(
@@ -63,7 +65,9 @@ export async function uploadBytes(
             response.headers.get("Retry-After"),
         );
     }
-    return response.text();
+    return response.text().catch(() => {
+        throw new PhotoByteTransferError();
+    });
 }
 
 export async function batchCreate(

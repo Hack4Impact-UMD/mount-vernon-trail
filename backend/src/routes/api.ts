@@ -2,7 +2,11 @@ import { Router, type Request, type Response } from "express";
 import multer from "multer";
 import { mapSettledWithLimit } from "../concurrency";
 import type { Env } from "../env";
-import { GooglePhotosError, sendError } from "../errors";
+import {
+    GooglePhotosError,
+    PhotoByteTransferError,
+    sendError,
+} from "../errors";
 import * as photos from "../google-photos";
 import type { TokenStore } from "../google-tokens";
 
@@ -133,7 +137,15 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
                                       retryable: true,
                                       retryAfterMs: result.error.retryAfterMs,
                                   }
-                                : {}),
+                                : result.error instanceof
+                                        PhotoByteTransferError ||
+                                    (result.error instanceof
+                                        GooglePhotosError &&
+                                        [408, 500, 502, 503, 504].includes(
+                                            result.error.status,
+                                        ))
+                                  ? { retryable: true }
+                                  : {}),
                             error:
                                 result.error instanceof Error
                                     ? result.error.message

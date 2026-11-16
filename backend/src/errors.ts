@@ -79,3 +79,11 @@ export function sendError(
     console.error(`${context}:`, error);
     return res.status(500).json({ error: context });
 }
+
+// Only thrown by the byte-transfer phase, before any media item is created.
+export class PhotoByteTransferError extends Error {
+    constructor() {
+        super("Photo transfer was interrupted. It will retry automatically.");
+        this.name = "PhotoByteTransferError";
+    }
+}

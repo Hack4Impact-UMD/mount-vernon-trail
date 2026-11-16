@@ -2,7 +2,11 @@ import type { Auth } from "firebase-admin/auth";
 import request from "supertest";
 import { createApp } from "../app";
 import type { Env } from "../env";
-import { GooglePhotosError, NotAuthenticatedError } from "../errors";
+import {
+    GooglePhotosError,
+    PhotoByteTransferError,
+    NotAuthenticatedError,
+} from "../errors";
 import * as photos from "../google-photos";
 import type { TokenStore } from "../google-tokens";
 
@@ -543,5 +547,70 @@ describe("upload result accuracy and rate limits", () => {
                 retryAfterMs: 30_000,
             },
         ]);
+    });
+});
+
+describe("safe byte-transfer retries", () => {
+    it.each([
+        new PhotoByteTransferError(),
+        new GooglePhotosError(503, "unavailable"),
+    ])(
+        "marks a total byte-transfer failure retryable without creating media: %s",
+        async (error) => {
+            const h = harness();
+            asVolunteer(h);
+            mockPhotos.uploadBytes.mockRejectedValueOnce(error);
+            const res = await request(h.app)
+                .post("/api/upload")
+                .set("Authorization", "Bearer good")
+                .field("albumId", "alb1")
+                .attach("photos", Buffer.from("a"), "before.jpg");
+            expect(res.status).toBe(502);
+            expect(res.body.failed[0]).toMatchObject({
+                fileName: "before.jpg",
+                retryable: true,
+            });
+            expect(mockPhotos.batchCreate).not.toHaveBeenCalled();
+        },
+    );
+
+    it("only creates the surviving item in a partial byte-transfer failure", async () => {
+        const h = harness();
+        asVolunteer(h);
+        mockPhotos.uploadBytes
+            .mockResolvedValueOnce("token-a")
+            .mockRejectedValueOnce(new PhotoByteTransferError());
+        mockPhotos.batchCreate.mockResolvedValueOnce({
+            newMediaItemResults: [
+                { status: { code: 0 }, mediaItem: { id: "a" } },
+            ],
+        });
+        const res = await request(h.app)
+            .post("/api/upload")
+            .set("Authorization", "Bearer good")
+            .field("albumId", "alb1")
+            .attach("photos", Buffer.from("a"), "before.jpg")
+            .attach("photos", Buffer.from("b"), "after.jpg");
+        expect(res.status).toBe(207);
+        expect(res.body.succeeded).toEqual(["before.jpg"]);
+        expect(res.body.failed[0]).toMatchObject({
+            fileName: "after.jpg",
+            retryable: true,
+        });
+        expect(mockPhotos.batchCreate.mock.calls[0][2]).toHaveLength(1);
+    });
+
+    it("does not retry a permanent byte-upload rejection", async () => {
+        const h = harness();
+        asVolunteer(h);
+        mockPhotos.uploadBytes.mockRejectedValueOnce(
+            new GooglePhotosError(403, "forbidden"),
+        );
+        const res = await request(h.app)
+            .post("/api/upload")
+            .set("Authorization", "Bearer good")
+            .field("albumId", "alb1")
+            .attach("photos", Buffer.from("a"), "before.jpg");
+        expect(res.body.failed[0].retryable).not.toBe(true);
     });
 });

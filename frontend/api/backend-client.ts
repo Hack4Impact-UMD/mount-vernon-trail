@@ -68,6 +68,7 @@ export type BackendErrorCode =
     | "NOT_FOUND"
     | "UPSTREAM"
     | "RATE_LIMITED"
+    | "DELIVERY_UNKNOWN"
     | "NETWORK"
     | "UNKNOWN";
 
@@ -199,10 +200,12 @@ async function send(
             });
         } catch (error) {
             throw new BackendError(
-                "NETWORK",
-                error instanceof Error
-                    ? `Could not reach the server: ${error.message}`
-                    : "Could not reach the server.",
+                path === "/api/upload" ? "DELIVERY_UNKNOWN" : "NETWORK",
+                path === "/api/upload"
+                    ? "The upload response was lost. Your photo may already be in the album. Check before retrying."
+                    : error instanceof Error
+                      ? `Could not reach the server: ${error.message}`
+                      : "Could not reach the server.",
             );
         }
     }
@@ -407,7 +410,13 @@ async function uploadPhoto(
         throw await toError(response);
     }
 
-    const payload = (await response.json()) as UploadResponse;
+    // A successful HTTP status is not enough if reading the result fails.
+    const payload = (await response.json().catch(() => {
+        throw new BackendError(
+            "DELIVERY_UNKNOWN",
+            "The upload response could not be read. Check the album before retrying.",
+        );
+    })) as UploadResponse;
     const succeeded = payload.succeeded?.includes(photo.fileName)
         ? [photo.fileName]
         : [];
@@ -442,6 +451,10 @@ export async function uploadPhotos(
         } catch (error) {
             result.failed.push({
                 fileName: photo.fileName,
+                ...(error instanceof BackendError &&
+                error.code === "DELIVERY_UNKNOWN"
+                    ? { unconfirmed: true }
+                    : {}),
                 ...(error instanceof BackendError &&
                 (error.code === "NETWORK" || error.code === "RATE_LIMITED")
                     ? { retryable: true, retryAfterMs: error.retryAfterMs }

@@ -255,7 +255,10 @@ export async function flushEventPhotos(
                         error: uploaded
                             ? undefined
                             : unconfirmed
-                              ? UNCONFIRMED_UPLOAD
+                              ? isConflictingUploadMessage(failure?.error)
+                                  ? UNCONFIRMED_UPLOAD
+                                  : failure?.error ||
+                                    "Upload not confirmed. Check the album before retrying."
                               : failure?.error ||
                                 "Upload not confirmed. Check the album before retrying.",
                     });
