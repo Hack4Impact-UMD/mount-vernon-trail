@@ -23,7 +23,7 @@ import { warmTrelloCache } from "@/services/trello-config";
 import { fetchEventCards } from "@/services/trello-service";
 import { getErrorMessage } from "@/utils/errors";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
@@ -176,6 +176,9 @@ export default function HomeScreen() {
             if (!isResume) {
                 await startEvent(event.id);
                 await saveActiveEventLocally(event.id);
+                // Home stays mounted under the document screen, so without this
+                // going back still offered "Start Event", which then failed
+                setLocalActiveEventId(event.id);
             }
             // close modal
             setSelectedEvent(null);
