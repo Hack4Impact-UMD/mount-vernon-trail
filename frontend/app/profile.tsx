@@ -1,29 +1,30 @@
+import AlertPopup from "@/components/ui/alert-popup";
 import BottomNav from "@/components/ui/bottom-nav";
 import { Palette } from "@/constants/theme";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
-import React, { useEffect } from "react";
 import {
     ActivityIndicator,
-    Alert,
     Pressable,
     StyleSheet,
     Text,
-    View,
+    View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
     const { user, loading, error, handleSignOut } = useGoogleAuth();
 
-    useEffect(() => {
-        if (error) {
-            Alert.alert("Sign Out Failed", error.message);
-        }
-    }, [error]);
-
     return (
         <View style={styles.screen}>
-            <SafeAreaView edges={["top", "left", "right"]} style={styles.content}>
+            <AlertPopup
+                visible={!!error}
+                title="Sign Out Failed"
+                message={error?.message ?? ""}
+                onClose={() => {}}
+            />
+            <SafeAreaView
+                edges={["top", "left", "right"]}
+                style={styles.content}>
                 <Text style={styles.name}>{user?.displayName ?? "User"}</Text>
                 <Text style={styles.email}>{user?.email}</Text>
                 <Pressable

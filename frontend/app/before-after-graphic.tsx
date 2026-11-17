@@ -3,18 +3,18 @@ import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
 import * as ImagePicker from "expo-image-picker";
 // SDK 56 moved these calls to /legacy; the root import now throws at runtime.
+import AlertPopup from "@/components/ui/alert-popup";
 import * as MediaLibrary from "expo-media-library/legacy";
 import { useRouter } from "expo-router";
 import { Check, Download, House, Plus, X } from "lucide-react-native";
 import React, { useRef, useState } from "react";
 import {
-    Alert,
     Image,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from "react-native";
 import { captureRef } from "react-native-view-shot";
 
@@ -32,6 +32,10 @@ export default function BeforeAfterGraphicScreen() {
     });
     const previewRef = useRef<React.ComponentRef<typeof View>>(null);
     const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+    const [alert, setAlert] = useState<{
+        title: string;
+        message: string;
+    } | null>(null);
 
     const pickImage = async (slot: "before" | "after") => {
         try {
@@ -50,10 +54,10 @@ export default function BeforeAfterGraphicScreen() {
             if (step === "select" && other) setStep("preview");
         } catch (e) {
             console.error("Error picking image:", e);
-            Alert.alert(
-                "Unable to open photo library",
-                "Please check photo permissions and try again.",
-            );
+            setAlert({
+                title: "Unable to open photo library",
+                message: "Please check photo permissions and try again.",
+            });
         }
     };
 
@@ -75,10 +79,11 @@ export default function BeforeAfterGraphicScreen() {
         try {
             const perm = await requestMediaPermission();
             if (!perm.granted) {
-                Alert.alert(
-                    "Permission required",
-                    "Please allow access to your photos to save the comparison image.",
-                );
+                setAlert({
+                    title: "Permission required",
+                    message:
+                        "Please allow access to your photos to save the comparison image.",
+                });
                 return;
             }
             const uri = await captureRef(previewRef, {
@@ -90,7 +95,10 @@ export default function BeforeAfterGraphicScreen() {
             setStep("success");
         } catch (e) {
             console.error("Error saving image:", e);
-            Alert.alert("Error", "Failed to save the comparison image.");
+            setAlert({
+                title: "Error",
+                message: "Failed to save the comparison image.",
+            });
         } finally {
             setSaving(false);
         }
@@ -99,6 +107,12 @@ export default function BeforeAfterGraphicScreen() {
     return (
         <>
             <View style={styles.screen}>
+                <AlertPopup
+                    visible={alert !== null}
+                    title={alert?.title ?? ""}
+                    message={alert?.message ?? ""}
+                    onClose={() => setAlert(null)}
+                />
                 <ScrollView
                     ref={scrollRef}
                     style={styles.scroll}

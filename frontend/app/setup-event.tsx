@@ -1,3 +1,4 @@
+import AlertPopup from "@/components/ui/alert-popup";
 import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
@@ -6,12 +7,13 @@ import { addNotesToCard } from "@/services/trello-service";
 import { getDateString, parseAndValidateDate } from "@/utils/date";
 import { getErrorMessage } from "@/utils/errors";
 import { Feather } from "@expo/vector-icons";
-import RNDateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import RNDateTimePicker, {
+    DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     Linking,
     Pressable,
     ScrollView,
@@ -44,6 +46,11 @@ export default function SetupEventScreen() {
     const creatingRef = useRef(false);
     const [canceling, setCanceling] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [alert, setAlert] = useState<{
+        title: string;
+        message: string;
+        cardUrl?: string;
+    } | null>(null);
 
     useEffect(() => {
         const wait = setTimeout(() => {
@@ -62,7 +69,7 @@ export default function SetupEventScreen() {
         // No back history to return to, so the screen stays put — clear the
         // spinner rather than leaving the buttons locked.
         setCanceling(false);
-    }
+    };
 
     const handleCreate = async () => {
         if (creatingRef.current) return;
@@ -118,7 +125,9 @@ export default function SetupEventScreen() {
                 .filter(([, value]) => value.trim())
                 .map(([label, value]) => `${label}: ${value.trim()}`)
                 .join("\n");
-            const cardNotes = [roster, notes.trim()].filter(Boolean).join("\n\n");
+            const cardNotes = [roster, notes.trim()]
+                .filter(Boolean)
+                .join("\n\n");
 
             // The event and its card already exist by now, so a failure here is
             // a degraded card rather than a failed setup — surface it without
@@ -132,17 +141,11 @@ export default function SetupEventScreen() {
                 }
             }
 
-            Alert.alert(
-                "Event Created",
-                `"${title.trim()}" has been set up!${cardNotesWarning}`,
-                [
-                    {
-                        text: "Open Trello Card",
-                        onPress: () => Linking.openURL(result.cardUrl),
-                    },
-                    { text: "OK", onPress: () => router.back() },
-                ],
-            );
+            setAlert({
+                title: "Event Created",
+                message: `"${title.trim()}" has been set up!${cardNotesWarning}`,
+                cardUrl: result.cardUrl,
+            });
         } catch (e) {
             setError(getErrorMessage(e));
         } finally {
@@ -151,7 +154,10 @@ export default function SetupEventScreen() {
         }
     };
 
-    const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    const handleDateChange = (
+        event: DateTimePickerEvent,
+        selectedDate?: Date,
+    ) => {
         // hide picker after selection
         setShowDatePicker(false);
         if (event.type === "set" && selectedDate) {
@@ -165,20 +171,50 @@ export default function SetupEventScreen() {
         <>
             <Stack.Screen options={{ headerShown: false }} />
             <View style={styles.screen}>
+                <AlertPopup
+                    visible={alert !== null}
+                    title={alert?.title ?? ""}
+                    message={alert?.message ?? ""}
+                    onClose={() => setAlert(null)}
+                    cancelText="OK"
+                    onCancel={() => {
+                        setAlert(null);
+                        router.back();
+                    }}
+                    confirmText="Open Trello Card"
+                    onConfirm={() => {
+                        const cardUrl = alert?.cardUrl;
+                        setAlert(null);
+
+                        if (cardUrl) {
+                            Linking.openURL(cardUrl);
+                        }
+                    }}
+                />
                 <View style={styles.content}>
                     <Header />
                     <ScrollView
                         ref={scrollViewRef}
                         style={styles.scrollContent}
                         contentContainerStyle={styles.scrollContentContainer}
-                        keyboardShouldPersistTaps="handled"
-                    >
+                        keyboardShouldPersistTaps="handled">
                         <View style={styles.headerSection}>
                             {/* Event Title */}
                             <View style={styles.titleRow}>
-                                <Pressable style={styles.editPencilContainer} onPress={() => titleInputRef.current?.focus()}>
-                                    <Svg height="32px" viewBox="0 -960 960 960" width="32px" style={styles.editPencil}>
-                                        <Path fill={Palette.primaryPurple50} d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
+                                <Pressable
+                                    style={styles.editPencilContainer}
+                                    onPress={() =>
+                                        titleInputRef.current?.focus()
+                                    }>
+                                    <Svg
+                                        height="32px"
+                                        viewBox="0 -960 960 960"
+                                        width="32px"
+                                        style={styles.editPencil}>
+                                        <Path
+                                            fill={Palette.primaryPurple50}
+                                            d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"
+                                        />
                                     </Svg>
                                 </Pressable>
                                 <TextInput
@@ -192,9 +228,17 @@ export default function SetupEventScreen() {
                                 />
                             </View>
                             {/* Date Input */}
-                            <Pressable style={styles.dateInputContainer} onPress={() => setShowDatePicker(true)}>
-                                <Feather name="calendar" size={18} color={Palette.primaryPurple50} />
-                                <Text style={styles.dateInput}>{dateStr || "Select date"}</Text>
+                            <Pressable
+                                style={styles.dateInputContainer}
+                                onPress={() => setShowDatePicker(true)}>
+                                <Feather
+                                    name="calendar"
+                                    size={18}
+                                    color={Palette.primaryPurple50}
+                                />
+                                <Text style={styles.dateInput}>
+                                    {dateStr || "Select date"}
+                                </Text>
                             </Pressable>
                             {showDatePicker && (
                                 <View style={styles.datePickerContainer}>
@@ -213,13 +257,25 @@ export default function SetupEventScreen() {
                             <View style={styles.column}>
                                 <Text style={styles.label}>Event Leader</Text>
                                 <View style={styles.inputPill}>
-                                    <TextInput style={styles.input} placeholder="Enter leader..." placeholderTextColor="#aaa" value={eventLeader} onChangeText={setEventLeader} />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Enter leader..."
+                                        placeholderTextColor="#aaa"
+                                        value={eventLeader}
+                                        onChangeText={setEventLeader}
+                                    />
                                 </View>
                             </View>
                             <View style={styles.column}>
                                 <Text style={styles.label}>Zone Leaders</Text>
                                 <View style={styles.inputPill}>
-                                    <TextInput style={styles.input} placeholder="Enter leaders (optional)..." placeholderTextColor="#aaa" value={zoneLeaders} onChangeText={setZoneLeaders} />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Enter leaders (optional)..."
+                                        placeholderTextColor="#aaa"
+                                        value={zoneLeaders}
+                                        onChangeText={setZoneLeaders}
+                                    />
                                 </View>
                             </View>
                         </View>
@@ -228,13 +284,25 @@ export default function SetupEventScreen() {
                             <View style={styles.column}>
                                 <Text style={styles.label}>Tool Haulers</Text>
                                 <View style={styles.inputPill}>
-                                    <TextInput style={styles.input} placeholder="Select tool haulers (optional)..." placeholderTextColor="#aaa" value={toolHaulers} onChangeText={setToolHaulers} />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Select tool haulers (optional)..."
+                                        placeholderTextColor="#aaa"
+                                        value={toolHaulers}
+                                        onChangeText={setToolHaulers}
+                                    />
                                 </View>
                             </View>
                             <View style={styles.column}>
                                 <Text style={styles.label}>Glover Lover</Text>
                                 <View style={styles.inputPill}>
-                                    <TextInput style={styles.input} placeholder="Select glover lover (optional)..." placeholderTextColor="#aaa" value={gloverLover} onChangeText={setGloverLover} />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Select glover lover (optional)..."
+                                        placeholderTextColor="#aaa"
+                                        value={gloverLover}
+                                        onChangeText={setGloverLover}
+                                    />
                                 </View>
                             </View>
                         </View>
@@ -242,7 +310,11 @@ export default function SetupEventScreen() {
                         <View style={{ height: 4 }} />
                         {/* Work Scope */}
                         <Text style={styles.label}>Work Scope</Text>
-                        <View style={[styles.textAreaContainer, styles.inputPill]}>
+                        <View
+                            style={[
+                                styles.textAreaContainer,
+                                styles.inputPill,
+                            ]}>
                             <TextInput
                                 style={[styles.textArea, styles.input]}
                                 value={description}
@@ -255,7 +327,11 @@ export default function SetupEventScreen() {
                         </View>
                         {/* Notes */}
                         <Text style={styles.label}>Notes</Text>
-                        <View style={[styles.textAreaContainer, styles.inputPill]}>
+                        <View
+                            style={[
+                                styles.textAreaContainer,
+                                styles.inputPill,
+                            ]}>
                             <TextInput
                                 style={[styles.textArea, styles.input]}
                                 value={notes}
@@ -275,7 +351,8 @@ export default function SetupEventScreen() {
                         <Pressable
                             style={[
                                 styles.cancelButton,
-                                (creating || canceling) && styles.cancelButtonDisabled,
+                                (creating || canceling) &&
+                                    styles.cancelButtonDisabled,
                             ]}
                             onPress={handleCancel}
                             disabled={creating || canceling}>
@@ -291,7 +368,8 @@ export default function SetupEventScreen() {
                         <Pressable
                             style={[
                                 styles.createButton,
-                                (creating || canceling) && styles.createButtonDisabled,
+                                (creating || canceling) &&
+                                    styles.createButtonDisabled,
                             ]}
                             onPress={handleCreate}
                             disabled={creating || canceling}>
@@ -314,7 +392,7 @@ export default function SetupEventScreen() {
 const styles = StyleSheet.create({
     screen: {
         flex: 1,
-        backgroundColor: "#fff"
+        backgroundColor: "#fff",
     },
     content: {
         flex: 1,
@@ -481,5 +559,5 @@ const styles = StyleSheet.create({
         fontFamily: "Lato_700Bold",
         marginVertical: 6,
         paddingHorizontal: 20,
-    }
+    },
 });

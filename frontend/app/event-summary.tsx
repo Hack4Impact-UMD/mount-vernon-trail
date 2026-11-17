@@ -1,3 +1,4 @@
+import AlertPopup from "@/components/ui/alert-popup";
 import HomeHeader from "@/components/ui/header";
 import TrailEventHeader from "@/components/ui/trail-event-header";
 import type { Event, EventMetricsWithHours } from "@/services/event-service";
@@ -14,13 +15,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     Animated,
     Pressable,
     ScrollView,
     StyleSheet,
     Text,
-    View,
+    View
 } from "react-native";
 
 const PURPLE = "#693894";
@@ -230,6 +230,10 @@ export default function EventSummaryScreen() {
     const [error, setError] = useState<string | undefined>(() =>
         eventId ? undefined : "No event ID provided.",
     );
+    const [alert, setAlert] = useState<{
+        title: string;
+        message: string;
+    } | null>(null);
 
     useEffect(() => {
         if (!eventId) return;
@@ -266,7 +270,10 @@ export default function EventSummaryScreen() {
             await clearActiveEventLocally();
             setSavedDraft(true);
         } catch {
-            Alert.alert("Error", "Could not save event to drafts.");
+            setAlert({
+                title: "Error",
+                message: "Could not save event to drafts.",
+            });
         } finally {
             setSaving(false);
         }
@@ -288,10 +295,10 @@ export default function EventSummaryScreen() {
             );
             router.replace({ pathname: "/edit-draft", params: { eventId } });
         } catch {
-            Alert.alert(
-                "Error",
-                "Could not save your notes. Please try again.",
-            );
+            setAlert({
+                title: "Error",
+                message: "Could not save your notes. Please try again.",
+            });
         } finally {
             setSaving(false);
         }
@@ -299,6 +306,12 @@ export default function EventSummaryScreen() {
 
     return (
         <View style={styles.screen}>
+            <AlertPopup
+                visible={alert !== null}
+                title={alert?.title ?? ""}
+                message={alert?.message ?? ""}
+                onClose={() => setAlert(null)}
+            />
             <View>
                 <HomeHeader />
                 <TrailEventHeader
