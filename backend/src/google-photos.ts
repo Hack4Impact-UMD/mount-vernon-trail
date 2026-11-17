@@ -1,4 +1,4 @@
-import { GooglePhotosError } from "./errors";
+import { GooglePhotosError, PhotoByteTransferError } from "./errors";
 
 const API_BASE = "https://photoslibrary.googleapis.com/v1";
 
@@ -30,7 +30,11 @@ async function request(
         },
     });
     if (!response.ok) {
-        throw new GooglePhotosError(response.status, await response.text());
+        throw new GooglePhotosError(
+            response.status,
+            await response.text(),
+            response.headers.get("Retry-After"),
+        );
     }
     return response.json();
 }
@@ -51,11 +55,19 @@ export async function uploadBytes(
             "X-Goog-Upload-Protocol": "raw",
         },
         body: new Blob([bytes]),
+    }).catch(() => {
+        throw new PhotoByteTransferError();
     });
     if (!response.ok) {
-        throw new GooglePhotosError(response.status, await response.text());
+        throw new GooglePhotosError(
+            response.status,
+            await response.text(),
+            response.headers.get("Retry-After"),
+        );
     }
-    return response.text();
+    return response.text().catch(() => {
+        throw new PhotoByteTransferError();
+    });
 }
 
 export async function batchCreate(

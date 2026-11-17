@@ -2,7 +2,11 @@ import type { Auth } from "firebase-admin/auth";
 import request from "supertest";
 import { createApp } from "../app";
 import type { Env } from "../env";
-import { GooglePhotosError, NotAuthenticatedError } from "../errors";
+import {
+    GooglePhotosError,
+    PhotoByteTransferError,
+    NotAuthenticatedError,
+} from "../errors";
 import * as photos from "../google-photos";
 import type { TokenStore } from "../google-tokens";
 
@@ -36,7 +40,9 @@ function harness(overrides: Partial<Env> = {}): Harness {
     const tokenStore: jest.Mocked<TokenStore> = {
         getAccessToken: jest.fn().mockResolvedValue("google-access-token"),
         isAuthenticated: jest.fn().mockResolvedValue(true),
-        createAuthUrl: jest.fn().mockResolvedValue("https://accounts.google.com/o"),
+        createAuthUrl: jest
+            .fn()
+            .mockResolvedValue("https://accounts.google.com/o"),
         consumeState: jest.fn().mockResolvedValue(true),
         exchangeCode: jest.fn().mockResolvedValue(undefined),
     };
@@ -160,7 +166,10 @@ describe("POST /api/albums", () => {
     it("creates an album", async () => {
         const h = harness();
         asVolunteer(h);
-        mockPhotos.createAlbum.mockResolvedValue({ id: "alb1", title: "Cleanup" });
+        mockPhotos.createAlbum.mockResolvedValue({
+            id: "alb1",
+            title: "Cleanup",
+        });
         const res = await request(h.app)
             .post("/api/albums")
             .set("Authorization", "Bearer good")
@@ -194,7 +203,9 @@ describe("POST /api/albums", () => {
     it("maps a missing MVT refresh token to 401", async () => {
         const h = harness();
         asVolunteer(h);
-        h.tokenStore.getAccessToken.mockRejectedValue(new NotAuthenticatedError());
+        h.tokenStore.getAccessToken.mockRejectedValue(
+            new NotAuthenticatedError(),
+        );
         const res = await request(h.app)
             .post("/api/albums")
             .set("Authorization", "Bearer good")
@@ -223,7 +234,9 @@ describe("GET /api/albums", () => {
         const h = harness();
         asVolunteer(h);
         mockPhotos.listAlbums.mockResolvedValue({ albums: [] });
-        await request(h.app).get("/api/albums").set("Authorization", "Bearer good");
+        await request(h.app)
+            .get("/api/albums")
+            .set("Authorization", "Bearer good");
         expect(mockPhotos.listAlbums).toHaveBeenCalledWith(
             "google-access-token",
             undefined,
@@ -274,7 +287,15 @@ describe("POST /api/upload", () => {
         mockPhotos.uploadBytes
             .mockResolvedValueOnce("tok-a")
             .mockResolvedValueOnce("tok-b");
-        mockPhotos.batchCreate.mockResolvedValue({ newMediaItemResults: [{}, {}] });
+        mockPhotos.batchCreate.mockResolvedValue({
+            newMediaItemResults: [
+                {
+                    status: { code: 0, message: "Success" },
+                    mediaItem: { id: "a" },
+                },
+                { status: {}, mediaItem: { id: "b" } },
+            ],
+        });
 
         const res = await request(h.app)
             .post("/api/upload")
@@ -312,7 +333,9 @@ describe("POST /api/upload", () => {
         mockPhotos.uploadBytes
             .mockResolvedValueOnce("tok-a")
             .mockRejectedValueOnce(new Error("network reset"));
-        mockPhotos.batchCreate.mockResolvedValue({ newMediaItemResults: [{}] });
+        mockPhotos.batchCreate.mockResolvedValue({
+            newMediaItemResults: [{ mediaItem: { id: "a" } }],
+        });
 
         const res = await request(h.app)
             .post("/api/upload")
@@ -347,7 +370,7 @@ describe("POST /api/upload", () => {
             .mockResolvedValueOnce("tok-b");
         mockPhotos.batchCreate.mockResolvedValue({
             newMediaItemResults: [
-                {},
+                { mediaItem: { id: "a" } },
                 { status: { code: 13, message: "media item rejected" } },
             ],
         });
@@ -424,16 +447,170 @@ describe("admin OAuth bootstrap", () => {
     it("rejects a callback whose state nonce is unknown or already used", async () => {
         const h = harness();
         h.tokenStore.consumeState.mockResolvedValue(false);
-        const res = await request(h.app).get("/auth/callback?code=c&state=stale");
+        const res = await request(h.app).get(
+            "/auth/callback?code=c&state=stale",
+        );
         expect(res.status).toBe(401);
         expect(h.tokenStore.exchangeCode).not.toHaveBeenCalled();
     });
 
     it("exchanges the code when the state nonce is valid", async () => {
         const h = harness();
-        const res = await request(h.app).get("/auth/callback?code=abc&state=fresh");
+        const res = await request(h.app).get(
+            "/auth/callback?code=abc&state=fresh",
+        );
         expect(res.status).toBe(200);
         expect(h.tokenStore.consumeState).toHaveBeenCalledWith("fresh");
         expect(h.tokenStore.exchangeCode).toHaveBeenCalledWith("abc");
+    });
+});
+
+describe("upload result accuracy and rate limits", () => {
+    it.each([{}, null, { status: { code: 0 } }])(
+        "does not claim success without a media item: %j",
+        async (result) => {
+            const h = harness();
+            asVolunteer(h);
+            mockPhotos.uploadBytes.mockResolvedValue("tok-a");
+            mockPhotos.batchCreate.mockResolvedValue({
+                newMediaItemResults: [result],
+            });
+            const res = await request(h.app)
+                .post("/api/upload")
+                .set("Authorization", "Bearer good")
+                .field("albumId", "alb1")
+                .attach("photos", Buffer.from("a"), "before.jpg");
+            expect(res.status).toBe(207);
+            expect(res.body.succeeded).toEqual([]);
+            expect(res.body.failed).toHaveLength(1);
+        },
+    );
+
+    it("preserves a byte-upload rate limit as a retryable per-file result", async () => {
+        const h = harness();
+        asVolunteer(h);
+        mockPhotos.uploadBytes.mockRejectedValue(
+            new GooglePhotosError(429, "busy", "90"),
+        );
+        const res = await request(h.app)
+            .post("/api/upload")
+            .set("Authorization", "Bearer good")
+            .field("albumId", "alb1")
+            .attach("photos", Buffer.from("a"), "before.jpg");
+        expect(res.body.failed[0]).toMatchObject({
+            retryable: true,
+            retryAfterMs: 90_000,
+        });
+    });
+
+    it("returns HTTP 429 and Retry-After when batch creation is throttled", async () => {
+        const h = harness();
+        asVolunteer(h);
+        mockPhotos.uploadBytes.mockResolvedValue("tok-a");
+        mockPhotos.batchCreate.mockRejectedValueOnce(
+            new GooglePhotosError(429, "busy", "90"),
+        );
+        const res = await request(h.app)
+            .post("/api/upload")
+            .set("Authorization", "Bearer good")
+            .field("albumId", "alb1")
+            .attach("photos", Buffer.from("a"), "before.jpg");
+        expect(res.status).toBe(429);
+        expect(res.headers["retry-after"]).toBe("90");
+    });
+
+    it("retries only quota failures from a partially successful batch", async () => {
+        const h = harness();
+        asVolunteer(h);
+        mockPhotos.uploadBytes.mockResolvedValue("tok-a");
+        mockPhotos.batchCreate.mockResolvedValueOnce({
+            newMediaItemResults: [
+                {
+                    status: { code: 0, message: "Success" },
+                    mediaItem: { id: "a" },
+                },
+                { status: { code: 8, message: "Busy" } },
+            ],
+        });
+        const res = await request(h.app)
+            .post("/api/upload")
+            .set("Authorization", "Bearer good")
+            .field("albumId", "alb1")
+            .attach("photos", Buffer.from("a"), "before.jpg")
+            .attach("photos", Buffer.from("b"), "after.jpg");
+        expect(res.body.succeeded).toEqual(["before.jpg"]);
+        expect(res.body.failed).toEqual([
+            {
+                fileName: "after.jpg",
+                error: "Busy",
+                retryable: true,
+                retryAfterMs: 30_000,
+            },
+        ]);
+    });
+});
+
+describe("safe byte-transfer retries", () => {
+    it.each([
+        new PhotoByteTransferError(),
+        new GooglePhotosError(503, "unavailable"),
+    ])(
+        "marks a total byte-transfer failure retryable without creating media: %s",
+        async (error) => {
+            const h = harness();
+            asVolunteer(h);
+            mockPhotos.uploadBytes.mockRejectedValueOnce(error);
+            const res = await request(h.app)
+                .post("/api/upload")
+                .set("Authorization", "Bearer good")
+                .field("albumId", "alb1")
+                .attach("photos", Buffer.from("a"), "before.jpg");
+            expect(res.status).toBe(502);
+            expect(res.body.failed[0]).toMatchObject({
+                fileName: "before.jpg",
+                retryable: true,
+            });
+            expect(mockPhotos.batchCreate).not.toHaveBeenCalled();
+        },
+    );
+
+    it("only creates the surviving item in a partial byte-transfer failure", async () => {
+        const h = harness();
+        asVolunteer(h);
+        mockPhotos.uploadBytes
+            .mockResolvedValueOnce("token-a")
+            .mockRejectedValueOnce(new PhotoByteTransferError());
+        mockPhotos.batchCreate.mockResolvedValueOnce({
+            newMediaItemResults: [
+                { status: { code: 0 }, mediaItem: { id: "a" } },
+            ],
+        });
+        const res = await request(h.app)
+            .post("/api/upload")
+            .set("Authorization", "Bearer good")
+            .field("albumId", "alb1")
+            .attach("photos", Buffer.from("a"), "before.jpg")
+            .attach("photos", Buffer.from("b"), "after.jpg");
+        expect(res.status).toBe(207);
+        expect(res.body.succeeded).toEqual(["before.jpg"]);
+        expect(res.body.failed[0]).toMatchObject({
+            fileName: "after.jpg",
+            retryable: true,
+        });
+        expect(mockPhotos.batchCreate.mock.calls[0][2]).toHaveLength(1);
+    });
+
+    it("does not retry a permanent byte-upload rejection", async () => {
+        const h = harness();
+        asVolunteer(h);
+        mockPhotos.uploadBytes.mockRejectedValueOnce(
+            new GooglePhotosError(403, "forbidden"),
+        );
+        const res = await request(h.app)
+            .post("/api/upload")
+            .set("Authorization", "Bearer good")
+            .field("albumId", "alb1")
+            .attach("photos", Buffer.from("a"), "before.jpg");
+        expect(res.body.failed[0].retryable).not.toBe(true);
     });
 });

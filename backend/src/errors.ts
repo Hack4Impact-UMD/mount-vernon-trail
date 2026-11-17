@@ -28,18 +28,33 @@ export class CorsRejectedError extends Error {
 export class GooglePhotosError extends Error {
     readonly status: number;
     readonly body: string;
+    readonly retryAfterMs: number;
 
-    constructor(status: number, body: string) {
+    constructor(status: number, body: string, retryAfter?: string | null) {
         super(`Google Photos API error (${status})`);
         this.name = "GooglePhotosError";
         this.status = status;
         this.body = body;
+        const seconds = retryAfter ? Number(retryAfter) : NaN;
+        const delay = Number.isFinite(seconds)
+            ? seconds * 1000
+            : retryAfter
+              ? Date.parse(retryAfter) - Date.now()
+              : 0;
+        this.retryAfterMs = Math.max(
+            30_000,
+            Number.isFinite(delay) ? delay : 0,
+        );
     }
 }
 
 // Single place every /api route funnels failures through, so the 401/502/500
 // mapping stays identical across routes.
-export function sendError(res: Response, context: string, error: unknown): Response {
+export function sendError(
+    res: Response,
+    context: string,
+    error: unknown,
+): Response {
     if (error instanceof NotAuthenticatedError) {
         return res.status(401).json({ error: error.message });
     }
@@ -49,6 +64,13 @@ export function sendError(res: Response, context: string, error: unknown): Respo
         // volunteer holding an ID token would receive it. The status is enough
         // for a client to branch on.
         console.error(`${context}:`, error.status, error.body);
+        if (error.status === 429) {
+            res.setHeader("Retry-After", Math.ceil(error.retryAfterMs / 1000));
+            return res.status(429).json({
+                error: "Google Photos is busy. Your photos will retry automatically.",
+                retryAfterMs: error.retryAfterMs,
+            });
+        }
         return res.status(error.status === 404 ? 404 : 502).json({
             error: "Google Photos API error",
             status: error.status,
@@ -56,4 +78,12 @@ export function sendError(res: Response, context: string, error: unknown): Respo
     }
     console.error(`${context}:`, error);
     return res.status(500).json({ error: context });
+}
+
+// Only thrown by the byte-transfer phase, before any media item is created.
+export class PhotoByteTransferError extends Error {
+    constructor() {
+        super("Photo transfer was interrupted. It will retry automatically.");
+        this.name = "PhotoByteTransferError";
+    }
 }

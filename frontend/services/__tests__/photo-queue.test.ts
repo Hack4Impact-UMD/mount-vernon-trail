@@ -299,7 +299,9 @@ describe("flushEventPhotos", () => {
         });
 
         await queue.flushEventPhotos("event-1");
-        const names = mockUpload.mock.calls[0][1].map((photo) => photo.fileName);
+        const names = mockUpload.mock.calls[0][1].map(
+            (photo) => photo.fileName,
+        );
         expect(new Set(names).size).toBe(2);
     });
 });
@@ -326,4 +328,144 @@ describe("subscribers", () => {
         });
         expect(listener).not.toHaveBeenCalled();
     });
+});
+
+describe("automatic retries", () => {
+    it("persists a rate-limit cooldown and retries only the pending photo", async () => {
+        jest.useFakeTimers();
+        try {
+            let queue = await freshModule();
+            await queue.enqueuePhoto({
+                ...BASE,
+                slot: "before",
+                uri: "file:///b.jpg",
+            });
+            await queue.enqueuePhoto({
+                ...BASE,
+                slot: "after",
+                uri: "file:///a.jpg",
+            });
+            mockUpload.mockImplementationOnce(async (_albumId, photos) => ({
+                created: 1,
+                succeeded: [photos[0].fileName],
+                failed: [
+                    {
+                        fileName: photos[1].fileName,
+                        error: "Busy",
+                        retryable: true,
+                        retryAfterMs: 30_000,
+                    },
+                ],
+            }));
+            await queue.flushEventPhotos(BASE.eventId);
+            queue = loadModule();
+            expect(
+                (await queue.getPhotosForEvent(BASE.eventId))[1],
+            ).toMatchObject({ status: "pending", attempts: 1 });
+            // Neither automatic nor manual requests bypass Google's cooldown.
+            await queue.flushEventPhotos(BASE.eventId, true);
+            await queue.flushEventPhotos(BASE.eventId);
+            expect(mockUpload).toHaveBeenCalledTimes(1);
+            jest.advanceTimersByTime(30_000);
+            await queue.flushEventPhotos(BASE.eventId, true);
+            expect(mockUpload).toHaveBeenCalledTimes(2);
+            expect(mockUpload.mock.calls[1][1]).toHaveLength(1);
+            expect(await queue.getPendingCount(BASE.eventId)).toBe(0);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it("backs off after repeated connection failures", async () => {
+        jest.useFakeTimers();
+        try {
+            const queue = await freshModule();
+            await queue.enqueuePhoto({
+                ...BASE,
+                slot: "before",
+                uri: "file:///b.jpg",
+            });
+            mockUpload.mockImplementation(async (_albumId, photos) => ({
+                created: 0,
+                succeeded: [],
+                failed: photos.map((photo) => ({
+                    fileName: photo.fileName,
+                    error: "Offline",
+                    retryable: true,
+                })),
+            }));
+            await queue.flushEventPhotos(BASE.eventId, true);
+            jest.advanceTimersByTime(5_000);
+            await queue.flushEventPhotos(BASE.eventId, true);
+            expect(
+                (await queue.getPhotosForEvent(BASE.eventId))[0].retryAt,
+            ).toBe(Date.now() + 10_000);
+            jest.advanceTimersByTime(5_000);
+            await queue.flushEventPhotos(BASE.eventId, true);
+            expect(mockUpload).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it("leaves permanent failures for manual attention", async () => {
+        const queue = await freshModule();
+        await queue.enqueuePhoto({
+            ...BASE,
+            slot: "before",
+            uri: "file:///b.jpg",
+        });
+        mockUpload.mockImplementationOnce(async (_albumId, photos) => ({
+            created: 0,
+            succeeded: [],
+            failed: [
+                { fileName: photos[0].fileName, error: "Retake the photo" },
+            ],
+        }));
+        await queue.flushEventPhotos(BASE.eventId, true);
+        await queue.flushEventPhotos(BASE.eventId, true);
+        expect(mockUpload).toHaveBeenCalledTimes(1);
+    });
+});
+
+it("migrates saved Success errors without resending them until explicitly confirmed", async () => {
+    const queue = await freshModule();
+    const photo = await queue.enqueuePhoto({
+        ...BASE,
+        slot: "before",
+        uri: "file:///b.jpg",
+    });
+    await AsyncStorage.setItem(
+        "photo-queue:v1",
+        JSON.stringify([{ ...photo, status: "failed", error: "Success" }]),
+    );
+    const reloaded = loadModule();
+    expect((await reloaded.getPhotosForEvent(BASE.eventId))[0]).toMatchObject({
+        status: "unconfirmed",
+        error: expect.stringContaining("conflicting"),
+    });
+    await reloaded.flushEventPhotos(BASE.eventId, true);
+    await reloaded.flushEventPhotos(BASE.eventId);
+    expect(mockUpload).not.toHaveBeenCalled();
+    await reloaded.flushEventPhotos(BASE.eventId, false, [photo.id]);
+    expect(mockUpload).toHaveBeenCalledTimes(1);
+    expect((await reloaded.getPhotosForEvent(BASE.eventId))[0].status).toBe(
+        "uploaded",
+    );
+});
+
+it("keeps a newly conflicting result unconfirmed and excludes it from later retries", async () => {
+    const queue = await freshModule();
+    await queue.enqueuePhoto({ ...BASE, slot: "before", uri: "file:///b.jpg" });
+    mockUpload.mockImplementationOnce(async (_album, photos) => ({
+        created: 0,
+        succeeded: [],
+        failed: [{ fileName: photos[0].fileName, error: "Success" }],
+    }));
+    await queue.flushEventPhotos(BASE.eventId);
+    expect((await queue.getPhotosForEvent(BASE.eventId))[0].status).toBe(
+        "unconfirmed",
+    );
+    await queue.flushEventPhotos(BASE.eventId);
+    expect(mockUpload).toHaveBeenCalledTimes(1);
 });
