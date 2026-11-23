@@ -25,7 +25,14 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue & { onPress?: () 
 
     return (
         <>
-        <View style={styles.outer}>
+        {/* The whole card is the tap target. Only the 32px chevron used to be
+            pressable, and this card is the sole way into an issue. */}
+        <TouchableOpacity
+            style={styles.outer}
+            activeOpacity={0.7}
+            onPress={issues.onPress}
+            accessibilityRole="button"
+            accessibilityLabel={`Open trail issue ${issues.name}`}>
             <View style={styles.cardContainer}>
                 {/* Left: Image */}
                 <View style={styles.imageContainer}>
@@ -47,19 +54,16 @@ export function TrailDocIssuesCard(issues: Readonly<TrailIssue & { onPress?: () 
                     </Text>
                     <Text style={styles.dateText}>{formattedDate}</Text>
                 </View>
-                {/* Right: Green Arrow Button */}
-                <TouchableOpacity
-                    style={styles.arrowButton}
-                    activeOpacity={0.7}
-                    onPress={issues.onPress}>
+                {/* Right: Green Arrow — decorative, the card itself handles the tap */}
+                <View style={styles.arrowButton}>
                     <Feather
                         name="chevron-right"
                         size={18}
                         color="#ffffff"
                     />
-                </TouchableOpacity>
+                </View>
             </View>
-        </View>
+        </TouchableOpacity>
 
         </>
     );

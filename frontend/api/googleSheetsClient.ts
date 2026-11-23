@@ -1,3 +1,14 @@
+// NOT WIRED UP. Kept for the metrics-saving flow (see the Feature Proposals doc,
+// "Publish-to-Sheets impact ledger"); nothing in the app imports it yet.
+//
+// Every function takes a Google OAuth access token, which the app no longer
+// has: volunteers now sign in for identity only (auth/google-auth.ts), and
+// Google API calls go through the backend with the MVT account's credentials.
+// To use this, move it to backend/src/ and give it a token there, either by
+// adding the spreadsheets scope to the backend's OAuth scopes (the admin
+// re-links once) or via the service account with the sheet shared to its
+// email, then expose it through a route in backend/src/routes/api.ts.
+
 const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 const HEADER_SEARCH_LIMIT = 50; // the search limit for headers to prevent an empty sheet
 

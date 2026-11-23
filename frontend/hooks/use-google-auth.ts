@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/utils/errors";
 import { makeRedirectUri } from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
@@ -6,7 +7,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import {
     AuthError,
-    getValidAccessToken,
     googleAuthConfig,
     handleGoogleAuthResponse,
     signOut,
@@ -28,7 +28,7 @@ export function useGoogleAuth() {
         android: makeRedirectUri({
             native: `com.googleusercontent.apps.${googleAuthConfig.androidClientId.split(".apps.")[0]}:/`,
         }),
-        default: makeRedirectUri(),
+        default: makeRedirectUri({ scheme: "mount-vernon-trail" }),
     });
 
     const [request, response, promptAsync] = Google.useAuthRequest({
@@ -61,11 +61,11 @@ export function useGoogleAuth() {
             try {
                 await handleGoogleAuthResponse(response);
             } catch (err) {
-                if (err instanceof AuthError) {
-                    setError(err);
-                } else {
-                    setError(new AuthError("UNKNOWN", (err as Error).message));
-                }
+                setError(
+                    err instanceof AuthError
+                        ? err
+                        : new AuthError("UNKNOWN", getErrorMessage(err)),
+                );
             } finally {
                 setLoading(false);
             }
@@ -82,7 +82,7 @@ export function useGoogleAuth() {
         try {
             await promptAsync();
         } catch (err) {
-            setError(new AuthError("UNKNOWN", (err as Error).message));
+            setError(new AuthError("UNKNOWN", getErrorMessage(err)));
         } finally {
             setLoading(false);
         }
@@ -96,36 +96,10 @@ export function useGoogleAuth() {
             setUser(null);
             setError(null);
         } catch (err) {
-            if (err instanceof AuthError) {
-                setError(err);
-            } else {
-                const code = (err as any)?.code as string | undefined;
-                if (code === "auth/network-request-failed") {
-                    setError(
-                        new AuthError(
-                            "NETWORK",
-                            "No internet connection. Please try again.",
-                        ),
-                    );
-                } else if (code === "auth/user-token-expired") {
-                    setError(
-                        new AuthError(
-                            "SESSION_EXPIRED",
-                            "Your session has expired. Please sign in again.",
-                        ),
-                    );
-                } else {
-                    setError(new AuthError("UNKNOWN", (err as Error).message));
-                }
-            }
+            setError(toAuthError(err));
         } finally {
             setLoading(false);
         }
-    }, []);
-
-    // getter for access token
-    const getAccessToken = useCallback(async () => {
-        return getValidAccessToken();
     }, []);
 
     return {
@@ -135,7 +109,28 @@ export function useGoogleAuth() {
         error,
         promptSignIn,
         handleSignOut,
-        getAccessToken,
         isReady: !!request,
     };
+}
+
+function toAuthError(error: unknown): AuthError {
+    if (error instanceof AuthError) return error;
+
+    const code =
+        typeof error === "object" && error !== null && "code" in error
+            ? String((error as { code: unknown }).code)
+            : "";
+    if (code === "auth/network-request-failed") {
+        return new AuthError(
+            "NETWORK",
+            "No internet connection. Please try again.",
+        );
+    }
+    if (code === "auth/user-token-expired") {
+        return new AuthError(
+            "SESSION_EXPIRED",
+            "Your session has expired. Please sign in again.",
+        );
+    }
+    return new AuthError("UNKNOWN", getErrorMessage(error));
 }

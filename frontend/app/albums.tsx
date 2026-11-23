@@ -1,13 +1,13 @@
-import { listAlbums, type GooglePhotosAlbum } from "@/api/googlePhotosClient";
-import { getValidAccessToken } from "@/auth/google-auth";
+import { listAllAlbums, type GooglePhotosAlbum } from "@/api/backend-client";
 import BottomNav from "@/components/ui/bottom-nav";
 import Header from "@/components/ui/header";
 import { Palette } from "@/constants/theme";
 import { useIsAdmin } from "@/hooks/use-is-admin";
+import { getAlbumCreatedAtMap } from "@/services/album-service";
+import { getErrorMessage } from "@/utils/errors";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
-import { collection, getDocs, getFirestore } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -26,43 +26,22 @@ type NormalizedAlbum = Omit<GooglePhotosAlbum, "mediaItemsCount"> & {
     mediaItemsCount: number | null;
     appCreatedAt?: number;
 };
-async function getAlbumMeta() {
-    const db = getFirestore();
-    const snapshot = await getDocs(collection(db, "albums"));
-    const map: Record<string, number> = {};
-    snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.albumId && data.createdAt) {
-            map[data.albumId] = data.createdAt.toMillis();
-        }
-    });
-    return map;
-}
-
-async function fetchAllAlbums(
-    accessToken: string,
-): Promise<NormalizedAlbum[]> {
-    const all: NormalizedAlbum[] = [];
-    let pageToken: string | undefined;
-    const metaMap = await getAlbumMeta();
-    do {
-        const { albums, nextPageToken } = await listAlbums(
-            accessToken,
-            pageToken,
-        );
-        const normalized = await Promise.all(
-            albums.map(async (a) => {
-                return {
-                    ...a,
-                    mediaItemsCount: a.mediaItemsCount ? Number(a.mediaItemsCount) : null,
-                    appCreatedAt: metaMap[a.id],
-                };
-            })
-        );
-        all.push(...normalized);
-        pageToken = nextPageToken;
-    } while (pageToken);
-    return all;
+// Albums live in the MVT-owned account and are read through the backend proxy,
+// so every volunteer sees the same list. The creation date comes from our own
+// Firestore record — Google Photos does not report one.
+async function fetchAllAlbums(): Promise<NormalizedAlbum[]> {
+    const [albums, createdAtMap] = await Promise.all([
+        listAllAlbums(),
+        getAlbumCreatedAtMap(),
+    ]);
+    return albums.map((album) => ({
+        ...album,
+        mediaItemsCount:
+            album.mediaItemsCount != null
+                ? Number(album.mediaItemsCount)
+                : null,
+        appCreatedAt: createdAtMap[album.id],
+    }));
 }
 
 function formatDate(value?: string | number): string {
@@ -106,21 +85,25 @@ function AlbumCard({ album }: { album: NormalizedAlbum }) {
                             resizeMode="cover"
                         />
                     ) : (
-                        <View style={[styles.coverImage, styles.coverPlaceholder]}>
+                        <View
+                            style={[
+                                styles.coverImage,
+                                styles.coverPlaceholder,
+                            ]}>
                             <Text style={styles.coverPlaceholderCount}>
                                 {photoCount ?? ""}
                             </Text>
                         </View>
                     )}
                     <Pressable
-                    style={[
-                        styles.starBadge,
-                        favorited
-                            ? styles.starBadgeFavorited
-                            : styles.starBadgeUnfavorited,
-                    ]}
-                    onPress={toggleFavorite}
-                    hitSlop={8}>
+                        style={[
+                            styles.starBadge,
+                            favorited
+                                ? styles.starBadgeFavorited
+                                : styles.starBadgeUnfavorited,
+                        ]}
+                        onPress={toggleFavorite}
+                        hitSlop={8}>
                         <MaterialIcons
                             name="star"
                             size={favorited ? 22 : 18}
@@ -142,11 +125,17 @@ function AlbumCard({ album }: { album: NormalizedAlbum }) {
                                 color="#6D6E71"
                             />
                             <Text style={styles.albumDate}>
-                                {album.appCreatedAt ? formatDate(album.appCreatedAt) : ""}
+                                {album.appCreatedAt
+                                    ? formatDate(album.appCreatedAt)
+                                    : ""}
                             </Text>
                         </View>
                     </View>
-                    {photoCount && (
+                    {/* Explicit > 0, not truthiness: a count of 0 (which every
+                        new album has) would otherwise render a bare `0` and
+                        crash with "Text strings must be rendered within a
+                        <Text> component". */}
+                    {photoCount !== null && photoCount > 0 && (
                         <View style={styles.photoBadge}>
                             <Text style={styles.photoBadgeText}>
                                 {photoCount} photo{photoCount !== 1 ? "s" : ""}
@@ -167,33 +156,33 @@ export default function AlbumsScreen() {
     const [error, setError] = useState<string | null>(null);
 
     const loadAlbums = useCallback(async () => {
-        setError(null);
         try {
-            const token = await getValidAccessToken();
-            if (!token) {
-                setError(
-                    "Not signed in or session expired. Please sign in again.",
-                );
-                return;
-            }
-            const data = await fetchAllAlbums(token);
-            setAlbums(data);
+            setAlbums(await fetchAllAlbums());
+            setError(null);
         } catch (e) {
-            setError((e as Error).message);
+            setError(getErrorMessage(e));
         }
     }, []);
 
     useEffect(() => {
-        // check if admin status undetermined
-        if (isAdmin === null) return; 
-        if (!isAdmin) {
-            setLoading(false);
-            return;
-        }
-        // start loading albums
-        setLoading(true);
-        loadAlbums().finally(() => setLoading(false));
-    }, [loadAlbums, isAdmin]);
+        // Only an admin loads albums; a non-admin gets the locked message
+        // below, and `loading` stays true only while it can still matter.
+        if (!isAdmin) return;
+        let cancelled = false;
+        fetchAllAlbums()
+            .then((next) => {
+                if (!cancelled) setAlbums(next);
+            })
+            .catch((e: unknown) => {
+                if (!cancelled) setError(getErrorMessage(e));
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [isAdmin]);
 
     const handleRefresh = useCallback(async () => {
         if (!isAdmin) return;
@@ -203,7 +192,7 @@ export default function AlbumsScreen() {
     }, [loadAlbums, isAdmin]);
 
     const renderContent = () => {
-        if (loading) {
+        if (isAdmin === null || (isAdmin && loading)) {
             return (
                 <View style={styles.centered}>
                     <ActivityIndicator

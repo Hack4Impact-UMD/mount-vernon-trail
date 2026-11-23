@@ -7,6 +7,7 @@ import {
     saveTrelloToken,
 } from "../auth/trello-token-storage";
 import { TrelloAuthError } from "../services/trello-auth-error";
+import { invalidateTrelloCache } from "../services/trello-config";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -70,6 +71,7 @@ export function useTrelloAuth() {
                 const accessToken = match ? match[1] : null;
                 if (accessToken) {
                     await saveTrelloToken(accessToken, TOKEN_EXPIRATION_DAYS);
+                    invalidateTrelloCache();
                     setToken(accessToken);
                     return true;
                 } else {
@@ -108,6 +110,7 @@ export function useTrelloAuth() {
         setLoading(true);
         try {
             await clearTrelloToken();
+            invalidateTrelloCache();
             setToken(null);
             setError(null);
         } catch (err) {

@@ -1,4 +1,4 @@
-import { useGoogleAuth } from "@/auth";
+import { useAuth } from "@/auth/auth-context";
 import { Palette } from "@/constants/theme";
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
@@ -10,7 +10,7 @@ export default function HomeHeader({
     showGreeting?: boolean;
 }) {
     const insets = useSafeAreaInsets();
-	const { user } = useGoogleAuth();
+    const { user } = useAuth();
 
     return (
         <View>

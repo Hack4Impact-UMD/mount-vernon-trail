@@ -16,9 +16,16 @@ function main(): void {
         createOAuthClient(env),
     );
 
-    createApp(env, auth, tokenStore).listen(env.port, () => {
+    const server = createApp(env, auth, tokenStore).listen(env.port, () => {
         console.log(`mount-vernon-trail backend listening on port ${env.port}`);
     });
+    // Node drops idle keep-alive sockets after 5s, well inside iOS's idle pool.
+    // A client that reuses a socket Node just closed gets "The network
+    // connection was lost", and NSURLSession does not retry a POST, so a photo
+    // upload shortly after another call could fail at random. Outlive the
+    // client's pool instead; headersTimeout must stay above keepAliveTimeout.
+    server.keepAliveTimeout = 65_000;
+    server.headersTimeout = 66_000;
 }
 
 try {

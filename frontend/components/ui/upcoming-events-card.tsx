@@ -8,20 +8,23 @@ import {
     View,
 } from "react-native";
 
-export interface UpcomingEventItem {
+export type EventStatus = "Not started" | "In progress" | "Completed";
+
+export type UpcomingEventItem = {
     id: string;
     name: string;
     description: string;
     date: Date;
     imageUrl: string | null;
+    status?: EventStatus;
     eventLeader?: string;
     zoneLeaders?: string;
     toolHaulers?: string;
     gloverLover?: string;
     workScope?: string;
-}
+};
 
-interface UpcomingEventsCardProps {
+type UpcomingEventsCardProps = {
     title?: string;
     events: UpcomingEventItem[];
     loading: boolean;
@@ -29,13 +32,35 @@ interface UpcomingEventsCardProps {
     maxItems?: number;
     onShowMore: () => void;
     onPressItem: (event: UpcomingEventItem) => void;
+    // Locally recorded active event (AsyncStorage). Renders instantly and
+    // offline, so the pill flips to "In Progress" the moment an event starts.
     activeEventId?: string | null;
-}
+};
 
-const EVENT_STATUS = {
-    label: "Not started",
-    backgroundColor: "#D4930D18",
-    color: "#D4930D",
+// Was a single hardcoded constant, so published past events rendered as
+// "Not started". `label` is separate from the key so the in-progress pill keeps
+// the exact "In Progress" casing shipped on main.
+const STATUS_STYLES: Record<
+    EventStatus,
+    { label: string; backgroundColor: string; color: string }
+> = {
+    "Not started": {
+        label: "Not started",
+        backgroundColor: "#D4930D18",
+        color: "#D4930D",
+    },
+    // Green rather than the brand purple: this is the colour already shipped on
+    // main for the running event, and volunteers read it as "live".
+    "In progress": {
+        label: "In Progress",
+        backgroundColor: "#1A7A4A18",
+        color: "#1A7A4A",
+    },
+    Completed: {
+        label: "Completed",
+        backgroundColor: "#3BA34C18",
+        color: "#2E7D3A",
+    },
 };
 
 const PLACEHOLDER_IMAGE = require("@/assets/images/mvt-beaver-logo.png");
@@ -46,6 +71,19 @@ export function formatEventDate(date: Date): string {
         day: "numeric",
         year: "numeric",
     });
+}
+
+// The locally tracked active event wins over the item's own status: it is the
+// freshest signal a volunteer has, while `status` is derived from Firestore/
+// Trello data that may still be a fetch behind.
+function resolveStatus(
+    event: UpcomingEventItem,
+    activeEventId?: string | null,
+): EventStatus {
+    if (activeEventId && event.id === activeEventId) {
+        return "In progress";
+    }
+    return event.status ?? "Not started";
 }
 
 export function UpcomingEventsCard({
@@ -86,13 +124,20 @@ export function UpcomingEventsCard({
             {/* Empty State */}
             {!loading && !error && events.length === 0 && (
                 <View style={styles.centeredState}>
-                    <Text style={styles.emptyText}>No upcoming events</Text>
+                    {/* Derived from the section title so the "Past Events"
+                        instance does not claim there are no *upcoming* ones. */}
+                    <Text style={styles.emptyText}>
+                        No {title.toLowerCase().replace(/\s*events$/, "")} events
+                    </Text>
                 </View>
             )}
 
             {!loading &&
                 !error &&
-                visibleEvents.map((event, index) => {
+                visibleEvents.map((event) => {
+                    const status = resolveStatus(event, activeEventId);
+                    const statusStyle = STATUS_STYLES[status];
+
                     return (
                         <Pressable
                             key={event.id}
@@ -124,25 +169,15 @@ export function UpcomingEventsCard({
                                             styles.tagPill,
                                             {
                                                 backgroundColor:
-                                                    event.id === activeEventId
-                                                        ? "#1A7A4A18"
-                                                        : EVENT_STATUS.backgroundColor,
+                                                    statusStyle.backgroundColor,
                                             },
                                         ]}>
                                         <Text
                                             style={[
                                                 styles.tagText,
-                                                {
-                                                    color:
-                                                        event.id ===
-                                                        activeEventId
-                                                            ? "#1A7A4A"
-                                                            : EVENT_STATUS.color,
-                                                },
+                                                { color: statusStyle.color },
                                             ]}>
-                                            {event.id === activeEventId
-                                                ? "In Progress"
-                                                : EVENT_STATUS.label}
+                                            {statusStyle.label}
                                         </Text>
                                     </View>
                                 </View>

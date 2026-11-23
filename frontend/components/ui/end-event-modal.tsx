@@ -1,6 +1,6 @@
 import { Palette } from "@/constants/theme";
 import { Feather } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
     ActivityIndicator,
     Modal,
@@ -27,10 +27,8 @@ export default function EndEventModal({
     initialNotes,
     loading = false,
 }: Props) {
-    const [notes, setNotes] = useState(initialNotes ?? "");
-    useEffect(() => {
-        setNotes(initialNotes ?? "");
-    }, [initialNotes]);
+    // Passed straight through; this modal has no notes field of its own.
+    const notes = initialNotes ?? "";
 
     return (
         <Modal
