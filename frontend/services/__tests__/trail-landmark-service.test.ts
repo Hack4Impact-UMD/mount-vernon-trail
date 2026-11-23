@@ -1,8 +1,8 @@
 import { TRAIL_LANDMARKS, searchLandmarks } from "../trail-landmark-service";
 
 it("includes all supplied bridges and miles with unique IDs and valid coordinates", () => {
-    expect(searchLandmarks("", [], "bridge")).toHaveLength(34);
-    expect(searchLandmarks("", [], "mile-marker")).toHaveLength(8);
+    expect(searchLandmarks("", "bridge")).toHaveLength(34);
+    expect(searchLandmarks("", "mile-marker")).toHaveLength(8);
     expect(new Set(TRAIL_LANDMARKS.map((marker) => marker.id)).size).toBe(
         TRAIL_LANDMARKS.length,
     );
@@ -14,25 +14,27 @@ it("includes all supplied bridges and miles with unique IDs and valid coordinate
     }
 });
 it("finds numbered locations, letter suffixes, and abbreviations", () => {
-    expect(searchLandmarks(" b29a ", []).map((marker) => marker.id)).toEqual([
+    expect(searchLandmarks(" b29a ").map((marker) => marker.id)).toEqual([
         "bridge-29a",
     ]);
     expect(
-        searchLandmarks("mile marker 13", []).map((marker) => marker.id),
+        searchLandmarks("mile marker 13").map((marker) => marker.id),
     ).toEqual(["mile-marker-13"]);
-    expect(searchLandmarks("M4", [])[0].coordinates).toEqual({
+    expect(searchLandmarks("M4")[0].coordinates).toEqual({
         latitude: 38.730911,
         longitude: -77.045972,
     });
-    expect(searchLandmarks("bridge 15", [])[0].coordinates).toEqual({
+    expect(searchLandmarks("bridge 15")[0].coordinates).toEqual({
         latitude: 38.72585,
         longitude: -77.042314,
     });
 });
-it("does not infer amenities for bridges or miles and preserves monument search", () => {
-    expect(searchLandmarks("", ["parking"], "bridge")).toEqual([]);
-    expect(searchLandmarks("", ["water"], "mile-marker")).toEqual([]);
-    expect(searchLandmarks("riverside", ["parking"], "monument")).toHaveLength(
-        1,
-    );
+it("keeps all monument landmarks searchable by name and abbreviation", () => {
+    const monuments = searchLandmarks("", "monument");
+    expect(monuments).toHaveLength(11);
+    expect(monuments.every((marker) => !("amenities" in marker))).toBe(true);
+    expect(searchLandmarks("riverside rp", "monument")).toEqual([
+        expect.objectContaining({ id: "riverside-park-little-hunting-creek" }),
+    ]);
+    expect(searchLandmarks("water fountain", "monument")).toEqual([]);
 });
