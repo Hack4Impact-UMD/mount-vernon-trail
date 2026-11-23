@@ -28,6 +28,10 @@ export type GooglePhotosMediaItem = {
     baseUrl?: string;
     mimeType?: string;
     filename?: string;
+    mediaMetadata?: {
+        width?: string;
+        height?: string;
+    };
 };
 
 export type GooglePhotosMediaPage = {
@@ -353,6 +357,44 @@ async function uploadPhoto(
         succeeded,
         failed,
     };
+}
+
+export async function uploadGraphic(
+    albumId: string,
+    photo: PhotoUpload,
+): Promise<void> {
+    const file = new File(photo.uri);
+    if (!file.exists) {
+        throw new BackendError(
+            "UNKNOWN",
+            "The generated graphic is no longer available. Please preview it again.",
+        );
+    }
+
+    const parts: MultipartPart[] = [
+        { name: "albumId", value: albumId },
+        {
+            name: "photo",
+            fileName: photo.fileName,
+            mimeType: photo.mimeType,
+            bytes: await file.bytes(),
+        },
+        { name: "description", value: photo.description ?? "" },
+    ];
+    const boundary = `----MVTGraphicBoundary${Date.now().toString(16)}${Math.random()
+        .toString(16)
+        .slice(2)}`;
+    const response = await send(
+        "/api/graphics",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": `multipart/form-data; boundary=${boundary}`,
+            },
+        },
+        () => encodeMultipart(parts, boundary) as unknown as BodyInit,
+    );
+    if (!response.ok) throw await toError(response);
 }
 
 // A request holds one file plus one encoded copy in JS memory. Sending photos
