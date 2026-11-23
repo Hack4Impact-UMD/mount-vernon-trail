@@ -4,7 +4,7 @@ import {
     initializeTestEnvironment,
     type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, deleteDoc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, deleteDoc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
@@ -409,6 +409,21 @@ describe("albumTitles — the duplicate-name reservation", () => {
     it("denies releasing a reservation held by someone else", async () => {
         await seed("albumTitles", "t_x", reservation());
         await assertFails(deleteDoc(doc(admin(OTHER_ADMIN), "albumTitles", "t_x")));
+    });
+});
+
+describe("retired issue location cache", () => {
+    it("denies access to legacy issueLocations documents for every role", async () => {
+        await seed("issueLocations", "card-1", {
+            location: { latitude: 38.8, longitude: -77 },
+        });
+        for (const db of [admin(), volunteer(), anonymous()]) {
+            const ref = doc(db, "issueLocations", "card-1");
+            await assertFails(getDoc(ref));
+            await assertFails(setDoc(ref, { location: null }));
+            await assertFails(updateDoc(ref, { location: null }));
+            await assertFails(deleteDoc(ref));
+        }
     });
 });
 

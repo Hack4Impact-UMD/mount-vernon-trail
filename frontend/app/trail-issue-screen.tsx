@@ -1,4 +1,5 @@
 import HomeHeader from "@/components/ui/header";
+import IssueMapPreview from "@/components/ui/map/issue-map-preview";
 import { usePhotoQueue } from "@/hooks/use-photo-queue";
 import { getEventById, type Event } from "@/services/event-service";
 import type { PhotoSlot, QueuedPhoto } from "@/services/photo-queue";
@@ -474,6 +475,8 @@ export default function TrailIssueDetailScreen() {
                     />
 
                     {error && <Text style={styles.errorText}>{error}</Text>}
+
+                    {cardId && <IssueMapPreview issueId={cardId} />}
 
                     {(isNew === "true" || issueId) && (
                         <TouchableOpacity

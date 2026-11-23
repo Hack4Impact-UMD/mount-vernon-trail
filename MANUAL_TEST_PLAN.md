@@ -174,7 +174,35 @@ This is the flow the whole project exists for.
 | 11.4 | Revoke the MVT Google grant, then upload | `401` "Not authenticated. Admin must sign in." |
 | 11.5 | Upload a file over the size limit | `413` with a readable message **[auto]** |
 
-## 12. Not covered here
+## 12. Mount Vernon Trail map
+
+Run the automated map checks from `frontend`:
+
+```bash
+npm test -- --runInBand --no-watchman components/ui/map services/__tests__/map \
+  services/__tests__/trail-landmark-service services/__tests__/photo-issue-location \
+  hooks/__tests__/use-user-location utils/__tests__/map-pins utils/__tests__/issue-sheet
+```
+
+The automated tests use the real React screens and simulate the native map
+callbacks, location updates, and Trello responses. Run the checks below on iOS
+and Android development builds to verify the native rendering and interactions.
+Use a test board with two located Intake cards at the same coordinates, another
+at a different location, and a card with no coordinates or recognized location.
+Link some of the cards to an event and leave one unassigned.
+
+| # | Step | Expected |
+|---|---|---|
+| 12.1 | Open Maps, pan and pinch along the trail, rotate or tilt, then tap Recenter | Tiles, trail line, pins, and heatmap remain aligned. Recenter fits the trail and resets bearing and pitch. Controls stay reachable on a small screen. |
+| 12.2 | Switch between Normal and Satellite. On a cold launch without network, open Maps, reconnect, and tap Retry if the basemap reports an error | Both styles display the same trail and pins. Retry brings back the map after connectivity returns. |
+| 12.3 | Search for an event, select it, then select Unassigned and All issues. Open Details for cards needing a location | Only matching pins and heatmap points appear. Counts include unmapped cards where applicable. Details lists the affected cards and closes back to the map. |
+| 12.4 | Tap the shared-location pin, scroll its issue list, and open the second issue. Try expanding, collapsing, and dismissing a single-issue sheet by dragging its handle | The shared pin shows its count and opens the selected card. The single-issue sheet responds to touch and leaves the map usable when closed. |
+| 12.5 | Search for a monument, bridge, and mile marker. Zoom in and tap their native markers, then close each detail view | Search moves to the correct landmark. The zoomed-in markers open the corresponding details. Monument filters and details contain no amenity badges. |
+| 12.6 | With location permission undecided, tap My location. Try denial, then enable access and retry with a simulated or real fix. On Android also try approximate location | The OS prompt and denial feedback appear as appropriate. A fix shows the current location and centers the camera once. Moving updates the dot without snapping the camera back. |
+| 12.7 | Open a located issue preview, tap it, then open another issue pin. Return to Maps | The preview opens the requested Intake pin once. Returning to Maps does not reopen the old request. An issue without a resolvable location explains why the preview is unavailable. |
+| 12.8 | Use VoiceOver or TalkBack and a larger text setting to open, search, and dismiss the event and landmark pickers and issue details | Controls have readable labels and selected states. Focus can reach dismissal controls and the main map controls remain usable after closing a sheet. |
+
+## 13. Not covered here
 
 - **EAS builds.** `eas init` and the expo.dev environment variables need your
   Expo account; until they exist, cloud builds ship undefined config.
