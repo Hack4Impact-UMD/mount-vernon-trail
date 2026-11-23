@@ -70,7 +70,7 @@ beforeEach(() => {
 });
 
 it("opens a saved draft from the event summary", async () => {
-    render(<EventSummaryScreen />);
+    await render(<EventSummaryScreen />);
 
     fireEvent.press(await screen.findByText("Save as draft"));
     await screen.findByText("Saved as draft!");
