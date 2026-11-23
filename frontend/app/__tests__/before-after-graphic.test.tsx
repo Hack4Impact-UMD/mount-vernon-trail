@@ -25,8 +25,8 @@ beforeEach(() => {
 });
 
 describe("before/after graphic navigation", () => {
-    it("returns to the previous screen when there is back history", () => {
-        render(<BeforeAfterGraphicScreen />);
+    it("returns to the previous screen when there is back history", async () => {
+        await render(<BeforeAfterGraphicScreen />);
 
         fireEvent.press(screen.getByLabelText("Go back"));
 
@@ -34,9 +34,9 @@ describe("before/after graphic navigation", () => {
         expect(mockRouter.replace).not.toHaveBeenCalled();
     });
 
-    it("returns home when there is no back history", () => {
+    it("returns home when there is no back history", async () => {
         mockRouter.canGoBack.mockReturnValue(false);
-        render(<BeforeAfterGraphicScreen />);
+        await render(<BeforeAfterGraphicScreen />);
 
         fireEvent.press(screen.getByLabelText("Go back"));
 
