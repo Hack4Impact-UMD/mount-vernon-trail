@@ -5,7 +5,14 @@ import * as ImagePicker from "expo-image-picker";
 // SDK 56 moved these calls to /legacy; the root import now throws at runtime.
 import * as MediaLibrary from "expo-media-library/legacy";
 import { useRouter } from "expo-router";
-import { Check, Download, House, Plus, X } from "lucide-react-native";
+import {
+    Check,
+    ChevronLeft,
+    Download,
+    House,
+    Plus,
+    X,
+} from "lucide-react-native";
 import React, { useRef, useState } from "react";
 import {
     Alert,
@@ -105,6 +112,20 @@ export default function BeforeAfterGraphicScreen() {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}>
                     <Header />
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => {
+                            if (router.canGoBack()) router.back();
+                            else router.replace("/home-screen");
+                        }}
+                        activeOpacity={0.8}
+                        accessibilityLabel="Go back"
+                        accessibilityRole="button">
+                        <ChevronLeft
+                            size={24}
+                            color={Palette.primaryPurple100}
+                        />
+                    </TouchableOpacity>
                     {step === "success" && beforeUri && afterUri ? (
                         <SuccessView
                             beforeUri={beforeUri}
@@ -395,6 +416,12 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingBottom: 100,
+    },
+    backButton: {
+        alignSelf: "flex-start",
+        marginTop: 16,
+        marginLeft: 20,
+        padding: 8,
     },
     body: {
         paddingHorizontal: 20,
