@@ -122,7 +122,7 @@ export default function BeforeAfterGraphicScreen() {
     const [loadedPreviewIds, setLoadedPreviewIds] = useState<Set<string>>(
         new Set(),
     );
-    const previewRef = useRef<View>(null);
+    const previewRef = useRef<React.ComponentRef<typeof View>>(null);
 
     useEffect(() => {
         if (isAdmin !== true) return;
