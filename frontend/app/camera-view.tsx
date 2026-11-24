@@ -7,16 +7,17 @@ import { getErrorMessage } from "@/utils/errors";
 import Slider from "@react-native-community/slider";
 import * as MediaLibrary from "expo-media-library/legacy";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     Animated,
-    Button,
+    AppState,
     Dimensions,
     Image,
+    Linking,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
 } from "react-native";
 import {
     Gesture,
@@ -31,6 +32,16 @@ import CameraSwitch from "@/components/icons/camera-switch";
 import Checkbox from "@/components/icons/checkbox";
 import Refresh from "@/components/icons/refresh";
 import AlertPopup from "@/components/ui/alert-popup";
+import CameraPermissionPrompt from "@/components/ui/camera-permission-prompt";
+
+const LIBRARY_ALBUM_NAME = "mount-vernon-trail";
+
+type CameraAlert = {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+};
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 // Zoom change per doubling of finger distance; 0 to 1 is the expo-camera's full range
@@ -41,8 +52,9 @@ export default function CameraViewScreen() {
     const insets = useSafeAreaInsets();
     const [showGrid, setShowGrid] = useState(false);
     const [facing, setFacing] = useState<CameraType>("back");
-    const [permission, requestPermission] = useCameraPermissions();
-    const [mediaPermission, requestMediaPermission] =
+    const [permission, requestPermission, getPermission] =
+        useCameraPermissions();
+    const [mediaPermission, requestMediaPermission, getMediaPermission] =
         MediaLibrary.usePermissions({
             writeOnly: true,
             granularPermissions: ["photo"],
@@ -82,10 +94,54 @@ export default function CameraViewScreen() {
     const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(
         null,
     );
-    const [alert, setAlert] = useState<{
-        title: string;
-        message: string;
-    } | null>(null);
+    const [capturedFromLibrary, setCapturedFromLibrary] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [alert, setAlert] = useState<CameraAlert | null>(null);
+    const alertResolver = useRef<((confirmed: boolean) => void) | null>(null);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener("change", (state) => {
+            if (state !== "active") return;
+            getPermission();
+            getMediaPermission();
+        });
+        return () => subscription.remove();
+    }, [getPermission, getMediaPermission]);
+
+    function showAlert(next: CameraAlert): Promise<boolean> {
+        return new Promise((resolve) => {
+            alertResolver.current?.(false);
+            alertResolver.current = resolve;
+            setAlert(next);
+        });
+    }
+
+    function closeAlert(confirmed: boolean) {
+        setAlert(null);
+        alertResolver.current?.(confirmed);
+        alertResolver.current = null;
+    }
+
+    function leaveCamera() {
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+        router.replace("/home-screen");
+    }
+
+    const alertPopup = (
+        <AlertPopup
+            visible={alert !== null}
+            title={alert?.title ?? ""}
+            message={alert?.message ?? ""}
+            onClose={() => closeAlert(false)}
+            confirmText={alert?.confirmText}
+            onConfirm={() => closeAlert(true)}
+            cancelText={alert?.cancelText}
+            onCancel={() => closeAlert(false)}
+        />
+    );
 
     if (!permission) {
         // camera perms are still loading
@@ -93,17 +149,20 @@ export default function CameraViewScreen() {
     }
 
     if (!permission.granted) {
-        // user denies camera perms
         return (
-            <View style={styles.container}>
-                <Text style={styles.message}>
-                    We need your permission to show the camera
-                </Text>
-                <Button
-                    onPress={requestPermission}
-                    title="grant permission"
-                />
-            </View>
+            <CameraPermissionPrompt
+                canAskAgain={permission.canAskAgain}
+                onRequest={requestPermission}
+                onOpenSettings={() => {
+                    Linking.openSettings().catch((error: unknown) => {
+                        console.error(
+                            "Could not open settings:",
+                            getErrorMessage(error),
+                        );
+                    });
+                }}
+                onBack={leaveCamera}
+            />
         );
     }
 
@@ -156,10 +215,15 @@ export default function CameraViewScreen() {
             if (!photo) return;
 
             setCapturedPhotoUri(photo.uri);
+            setCapturedFromLibrary(false);
             setRecentPhoto(photo.uri);
             setViewState("confirmation");
-        } catch (error) {
-            console.error("Error taking photo:", error);
+        } catch (error: unknown) {
+            console.error("Error taking photo:", getErrorMessage(error));
+            showAlert({
+                title: "Could not take photo",
+                message: getErrorMessage(error),
+            });
         } finally {
             setIsCapturing(false);
         }
@@ -177,51 +241,115 @@ export default function CameraViewScreen() {
             const selectedPhoto = result.assets?.[0]?.uri;
             if (resolveMode === "before") {
                 setCapturedPhotoUri(selectedPhoto);
+                setCapturedFromLibrary(true);
                 setRecentPhoto(selectedPhoto);
                 setViewState("confirmation");
             } else {
                 setOverlayUri(selectedPhoto);
             }
-        } catch (error) {
-            console.error("Error opening photo library:", error);
-        }
-    }
-    // Best-effort copy into the device camera roll. A refusal here must not
-    // cost the volunteer the photo — the queued upload is the real destination.
-    async function saveToCameraRoll(uri: string) {
-        if (!mediaPermission?.granted) {
-            const permissionResponse = await requestMediaPermission();
-            if (!permissionResponse.granted) {
-                setAlert({
-                    title: "Photo not saved to your library",
-                    message:
-                        "Without photo permission the picture will not appear in your camera roll. It is still attached to this trail issue.",
-                });
-                return;
-            }
-        }
-        const asset = await MediaLibrary.createAssetAsync(uri);
-        const album = await MediaLibrary.getAlbumAsync("mount-vernon-trail");
-        // createAlbumAsync unconditionally would make a new album per photo.
-        if (album) {
-            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-        } else {
-            await MediaLibrary.createAlbumAsync("mount-vernon-trail", asset);
-        }
-    }
-
-    // Captured photo confirmation buttons
-    async function handleDone() {
-        if (!capturedPhotoUri) return;
-
-        try {
-            await saveToCameraRoll(capturedPhotoUri);
-        } catch (error) {
-            // Non-fatal: keep going so the photo still reaches the album.
+        } catch (error: unknown) {
             console.error(
-                "Error saving photo to camera roll:",
+                "Error opening photo library:",
                 getErrorMessage(error),
             );
+            showAlert({
+                title: "Could not open your photo library",
+                message: getErrorMessage(error),
+            });
+        }
+    }
+
+    async function writeToLibrary(uri: string) {
+        const asset = await MediaLibrary.createAssetAsync(uri);
+        try {
+            const album = await MediaLibrary.getAlbumAsync(LIBRARY_ALBUM_NAME);
+            // createAlbumAsync unconditionally would make a new album per photo.
+            if (album) {
+                await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+            } else {
+                await MediaLibrary.createAlbumAsync(
+                    LIBRARY_ALBUM_NAME,
+                    asset,
+                    false,
+                );
+            }
+        } catch (error: unknown) {
+            console.error(
+                "Photo saved to the library but not filed in the album:",
+                getErrorMessage(error),
+            );
+        }
+    }
+
+    async function keepInLibrary(
+        uri: string,
+        attachedToIssue: boolean,
+    ): Promise<boolean> {
+        const skipText = attachedToIssue ? "Continue" : "Discard";
+        const consequence = attachedToIssue
+            ? "It is still attached to this trail issue."
+            : "This photo is not attached to a trail issue, so it will be lost.";
+
+        for (;;) {
+            const access = mediaPermission?.granted
+                ? mediaPermission
+                : await requestMediaPermission();
+
+            if (access.granted) {
+                try {
+                    await writeToLibrary(uri);
+                    return true;
+                } catch (error: unknown) {
+                    console.error(
+                        "Error saving photo to the library:",
+                        getErrorMessage(error),
+                    );
+                    const retry = await showAlert({
+                        title: "Photo not saved to your phone",
+                        message: `${consequence} (${getErrorMessage(error)})`,
+                        confirmText: "Try again",
+                        cancelText: skipText,
+                    });
+                    if (!retry) return true;
+                    continue;
+                }
+            }
+
+            const fix = await showAlert({
+                title: "Allow photo access",
+                message: `Photos are saved to your phone only with photo access. ${consequence}`,
+                confirmText: access.canAskAgain ? "Allow" : "Open Settings",
+                cancelText: skipText,
+            });
+            if (!fix) return true;
+            if (!access.canAskAgain) {
+                await Linking.openSettings().catch((error: unknown) => {
+                    console.error(
+                        "Could not open settings:",
+                        getErrorMessage(error),
+                    );
+                });
+                return false;
+            }
+        }
+    }
+
+    async function handleDone() {
+        if (!capturedPhotoUri || isSaving) return;
+        setIsSaving(true);
+        try {
+            await finishCapture(capturedPhotoUri);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    async function finishCapture(uri: string) {
+        const attachedToIssue = Boolean(eventId && albumId && activeIssueId);
+
+        if (!capturedFromLibrary) {
+            const proceed = await keepInLibrary(uri, attachedToIssue);
+            if (!proceed) return;
         }
 
         // Issue-scoped capture. The standalone "Take After Picture" flow has no
@@ -234,11 +362,11 @@ export default function CameraViewScreen() {
                     issueId: activeIssueId,
                     issueName: issueName ?? "Trail issue",
                     slot: resolveMode,
-                    uri: capturedPhotoUri,
+                    uri,
                 });
                 flushInBackground(eventId);
-            } catch (error) {
-                setAlert({
+            } catch (error: unknown) {
+                await showAlert({
                     title: "Could not attach photo",
                     message: getErrorMessage(error),
                 });
@@ -250,26 +378,16 @@ export default function CameraViewScreen() {
         // camera, so replacing would spawn a second trail-document behind this
         // one, orphan the first (losing its notes), and re-fetch every issue.
         // The screen that pushed us re-reads the photo queue on focus.
-        if (router.canGoBack()) {
-            router.back();
-            return;
-        }
-        // Nothing to return to (e.g. camera opened as the entry screen).
-        router.replace("/home-screen");
+        leaveCamera();
     }
     function handleRetake() {
         setCapturedPhotoUri(null);
+        setCapturedFromLibrary(false);
         setViewState("camera");
     }
     if (viewState === "confirmation" && capturedPhotoUri) {
         return (
             <View style={styles.container}>
-                <AlertPopup
-                    visible={alert !== null}
-                    title={alert?.title ?? ""}
-                    message={alert?.message ?? ""}
-                    onClose={() => setAlert(null)}
-                />
                 <Image
                     source={{ uri: capturedPhotoUri }}
                     style={styles.camera}
@@ -281,18 +399,30 @@ export default function CameraViewScreen() {
                         { bottom: insets.bottom + 20 },
                     ]}>
                     <TouchableOpacity
-                        style={styles.confirmButton}
-                        onPress={handleDone}>
+                        style={[
+                            styles.confirmButton,
+                            isSaving && styles.confirmButtonDisabled,
+                        ]}
+                        onPress={() => {
+                            void handleDone();
+                        }}
+                        disabled={isSaving}>
                         <Checkbox
                             width={18}
                             height={18}
                         />
-                        <Text style={styles.confirmButtonText}>DONE</Text>
+                        <Text style={styles.confirmButtonText}>
+                            {isSaving ? "SAVING" : "DONE"}
+                        </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.confirmButton}
-                        onPress={handleRetake}>
+                        style={[
+                            styles.confirmButton,
+                            isSaving && styles.confirmButtonDisabled,
+                        ]}
+                        onPress={handleRetake}
+                        disabled={isSaving}>
                         <Refresh
                             width={16}
                             height={16}
@@ -300,17 +430,12 @@ export default function CameraViewScreen() {
                         <Text style={styles.confirmButtonText}>RETAKE</Text>
                     </TouchableOpacity>
                 </View>
+                {alertPopup}
             </View>
         );
     }
     return (
         <>
-            <AlertPopup
-                visible={alert !== null}
-                title={alert?.title ?? ""}
-                message={alert?.message ?? ""}
-                onClose={() => setAlert(null)}
-            />
             <Stack.Screen options={{ headerShown: false }} />
             <GestureHandlerRootView style={styles.container}>
                 <GestureDetector gesture={pinchGesture}>
@@ -454,7 +579,9 @@ export default function CameraViewScreen() {
                                 <TouchableOpacity
                                     style={styles.photoPreview}
                                     onPress={openPhotoLibrary}
-                                    disabled={isCapturing}>
+                                    disabled={isCapturing}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Choose from photo library">
                                     {recentPhoto ? (
                                         <Image
                                             source={{ uri: recentPhoto }}
@@ -483,7 +610,9 @@ export default function CameraViewScreen() {
                                             styles.captureButtonActive,
                                     ]}
                                     onPress={takePhoto}
-                                    disabled={isCapturing}>
+                                    disabled={isCapturing}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Take photo">
                                     <View style={styles.captureButtonInner} />
                                 </TouchableOpacity>
                                 <Text style={styles.captureLabel}>
@@ -518,6 +647,7 @@ export default function CameraViewScreen() {
                     </View>
                 </GestureDetector>
             </GestureHandlerRootView>
+            {alertPopup}
         </>
     );
 }
@@ -527,9 +657,8 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
     },
-    message: {
-        textAlign: "center",
-        paddingBottom: 10,
+    confirmButtonDisabled: {
+        opacity: 0.6,
     },
     camera: {
         flex: 1,
