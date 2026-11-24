@@ -9,15 +9,16 @@
     "typecheck": "tsc --noEmit"
   },
   "overrides": {
-    "universal-analytics": {
-      "uuid": "11.1.0"
-    }
+    "firebase-tools": {
+      "tar": "^7.5.21"
+    },
+    "uuid": "11.1.1"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^4.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/jest": "^29.5.14",
-    "firebase": "^11.10.0",
-    "firebase-tools": "^13.35.1",
+    "firebase": "^12.19.0",
+    "firebase-tools": "^14.27.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.4.12",
     "typescript": "~5.9.2"

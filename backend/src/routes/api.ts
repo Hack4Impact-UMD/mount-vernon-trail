@@ -5,6 +5,7 @@ import type { Env } from "../env";
 import { sendError } from "../errors";
 import * as photos from "../google-photos";
 import type { TokenStore } from "../google-tokens";
+import { requireAdmin } from "../middleware/auth";
 
 const UPLOAD_CONCURRENCY = 4;
 
@@ -28,7 +29,9 @@ function batchFailure(result: unknown): string | null {
 }
 
 function readString(value: unknown): string | null {
-    return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+    return typeof value === "string" && value.trim() !== ""
+        ? value.trim()
+        : null;
 }
 
 // Express 5 types a route param as string | string[]; these routes only ever
@@ -61,7 +64,11 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
                 .status(200)
                 .json({ authenticated: await tokenStore.isAuthenticated() });
         } catch (error) {
-            return sendError(res, "Could not check authentication status", error);
+            return sendError(
+                res,
+                "Could not check authentication status",
+                error,
+            );
         }
     });
 
@@ -157,6 +164,56 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
         },
     );
 
+    router.post(
+        "/graphics",
+        requireAdmin,
+        upload.single("photo"),
+        async (req: Request, res: Response) => {
+            const file = req.file;
+            if (!file) {
+                return res.status(400).json({ error: "photo is required" });
+            }
+            if (!file.mimetype.startsWith("image/")) {
+                return res
+                    .status(400)
+                    .json({ error: "photo must be an image" });
+            }
+            const albumId = readString(req.body?.albumId);
+            if (!albumId) {
+                return res.status(400).json({ error: "albumId is required" });
+            }
+            const description = readString(req.body?.description) ?? "";
+
+            try {
+                const token = await tokenStore.getAccessToken();
+                const uploadToken = await photos.uploadBytes(
+                    token,
+                    new Uint8Array(file.buffer),
+                    file.mimetype,
+                );
+                const created = (await photos.batchCreate(token, albumId, [
+                    {
+                        uploadToken,
+                        fileName: file.originalname,
+                        description,
+                    },
+                ])) as BatchCreateResult;
+                const result = created.newMediaItemResults?.[0];
+                const failure = batchFailure(result);
+                if (result === undefined || failure) {
+                    return res.status(502).json({
+                        error:
+                            failure ??
+                            "Google Photos did not create this graphic",
+                    });
+                }
+                return res.status(201).json({ created: true });
+            } catch (error) {
+                return sendError(res, "Failed to upload graphic", error);
+            }
+        },
+    );
+
     router.post("/albums", async (req: Request, res: Response) => {
         const title = readString(req.body?.title);
         if (!title) {
@@ -174,7 +231,9 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
         try {
             const token = await tokenStore.getAccessToken();
             const pageToken = readString(req.query.pageToken) ?? undefined;
-            return res.status(200).json(await photos.listAlbums(token, pageToken));
+            return res
+                .status(200)
+                .json(await photos.listAlbums(token, pageToken));
         } catch (error) {
             return sendError(res, "Failed to list albums", error);
         }
@@ -185,29 +244,34 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
             const token = await tokenStore.getAccessToken();
             return res
                 .status(200)
-                .json(await photos.getAlbum(token, readParam(req.params.albumId)));
+                .json(
+                    await photos.getAlbum(token, readParam(req.params.albumId)),
+                );
         } catch (error) {
             return sendError(res, "Failed to fetch album", error);
         }
     });
 
-    router.get("/albums/:albumId/photos", async (req: Request, res: Response) => {
-        try {
-            const token = await tokenStore.getAccessToken();
-            const pageToken = readString(req.query.pageToken) ?? undefined;
-            return res
-                .status(200)
-                .json(
-                    await photos.searchAlbumPhotos(
-                        token,
-                        readParam(req.params.albumId),
-                        pageToken,
-                    ),
-                );
-        } catch (error) {
-            return sendError(res, "Failed to list photos", error);
-        }
-    });
+    router.get(
+        "/albums/:albumId/photos",
+        async (req: Request, res: Response) => {
+            try {
+                const token = await tokenStore.getAccessToken();
+                const pageToken = readString(req.query.pageToken) ?? undefined;
+                return res
+                    .status(200)
+                    .json(
+                        await photos.searchAlbumPhotos(
+                            token,
+                            readParam(req.params.albumId),
+                            pageToken,
+                        ),
+                    );
+            } catch (error) {
+                return sendError(res, "Failed to list photos", error);
+            }
+        },
+    );
 
     router.get("/photos/:photoId", async (req: Request, res: Response) => {
         try {
@@ -215,7 +279,10 @@ export function createApiRouter(env: Env, tokenStore: TokenStore): Router {
             return res
                 .status(200)
                 .json(
-                    await photos.getMediaItem(token, readParam(req.params.photoId)),
+                    await photos.getMediaItem(
+                        token,
+                        readParam(req.params.photoId),
+                    ),
                 );
         } catch (error) {
             return sendError(res, "Failed to fetch photo", error);

@@ -56,6 +56,7 @@ jest.mock("firebase/firestore", () => {
 import {
     createDefaultMetrics,
     createEvent,
+    getAllEvents,
     getActiveEvent,
     getDraftEvents,
     publishEvent,
@@ -96,6 +97,18 @@ const BASE_INPUT = {
     notes: "",
     isDraft: false,
 };
+
+describe("getAllEvents", () => {
+    it("returns all signed-in-readable events for admin selection", async () => {
+        const event = { eventId: "event-1", albumId: "album-1" };
+        mockGetDocs.mockResolvedValue({
+            empty: false,
+            docs: [{ data: () => event }],
+        });
+
+        await expect(getAllEvents()).resolves.toEqual([event]);
+    });
+});
 
 describe("createEvent", () => {
     it("updates the album document instead of overwriting it", async () => {
