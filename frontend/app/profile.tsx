@@ -12,7 +12,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
-    const { user, loading, error, handleSignOut } = useGoogleAuth();
+    const { user, loading, error, clearError, handleSignOut } =
+        useGoogleAuth();
 
     return (
         <View style={styles.screen}>
@@ -20,7 +21,7 @@ export default function ProfileScreen() {
                 visible={!!error}
                 title="Sign Out Failed"
                 message={error?.message ?? ""}
-                onClose={() => {}}
+                onClose={clearError}
             />
             <SafeAreaView
                 edges={["top", "left", "right"]}

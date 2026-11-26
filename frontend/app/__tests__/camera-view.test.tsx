@@ -108,6 +108,19 @@ async function captureAndPressDone() {
     await press("DONE");
 }
 
+// Android hardware Back on a visible popup arrives as the Modal's
+// onRequestClose, not as a press on either of its buttons. requestClose does
+// not bubble, so it is fired on the Modal that holds the popup's title.
+async function pressAndroidBack(popupTitle: string) {
+    let modal = screen.getByText(popupTitle).parent;
+    while (modal && modal.type !== "Modal") modal = modal.parent;
+    if (!modal) throw new Error(`No Modal around "${popupTitle}"`);
+    await fireEvent(modal, "requestClose");
+    await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+}
+
 let openSettings: jest.SpyInstance;
 
 beforeEach(() => {
@@ -281,6 +294,50 @@ describe("saving a photo to the phone's library", () => {
         expect(screen.getByText("DONE")).toBeTruthy();
         expect(mockRouter.back).toHaveBeenCalled();
         expect(MediaLibrary.createAssetAsync).not.toHaveBeenCalled();
+    });
+
+    it("returns to the photo when Back dismisses the access prompt on a standalone capture", async () => {
+        mockParams = { mode: "after" };
+        mockMediaPermission = { granted: false, canAskAgain: false };
+        mockRequestMediaPermission.mockResolvedValue({
+            granted: false,
+            canAskAgain: false,
+        });
+        await render(<CameraViewScreen />);
+        await captureAndPressDone();
+
+        await pressAndroidBack("Allow photo access");
+
+        expect(screen.queryByText("Allow photo access")).toBeNull();
+        expect(screen.getByText("DONE")).toBeTruthy();
+        expect(mockRouter.back).not.toHaveBeenCalled();
+        expect(mockRouter.replace).not.toHaveBeenCalled();
+        expect(openSettings).not.toHaveBeenCalled();
+        expect(MediaLibrary.createAssetAsync).not.toHaveBeenCalled();
+    });
+
+    it("does not attach the photo when Back dismisses the save-error prompt", async () => {
+        jest.mocked(MediaLibrary.createAssetAsync).mockRejectedValueOnce(
+            new Error("Disk full"),
+        );
+        const consoleError = jest
+            .spyOn(console, "error")
+            .mockImplementation(() => undefined);
+        await render(<CameraViewScreen />);
+        await captureAndPressDone();
+
+        await pressAndroidBack("Photo not saved to your phone");
+        expect(screen.queryByText("Photo not saved to your phone")).toBeNull();
+
+        expect(screen.getByText("DONE")).toBeTruthy();
+        expect(mockRouter.back).not.toHaveBeenCalled();
+        expect(enqueuePhoto).not.toHaveBeenCalled();
+
+        // The volunteer can still finish from the confirmation screen.
+        await press("DONE");
+        expect(mockRouter.back).toHaveBeenCalled();
+        expect(enqueuePhoto).toHaveBeenCalled();
+        consoleError.mockRestore();
     });
 
     it("does not save a photo picked from the library a second time", async () => {

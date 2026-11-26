@@ -102,11 +102,14 @@ export function useGoogleAuth() {
         }
     }, []);
 
+    const clearError = useCallback(() => setError(null), []);
+
     return {
         user,
         loading,
         initializing,
         error,
+        clearError,
         promptSignIn,
         handleSignOut,
         isReady: !!request,

@@ -72,6 +72,7 @@ export default function EditDraftScreen() {
     const [savingDraft, setSavingDraft] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [publishModalVisible, setPublishModalVisible] = useState(false);
+    const [publishError, setPublishError] = useState<string | null>(null);
     const [alert, setAlert] = useState<{
         title: string;
         message: string;
@@ -142,14 +143,13 @@ export default function EditDraftScreen() {
     const handleConfirmPublish = async () => {
         if (!event || publishing) return;
         if (!API_KEY) {
-            setAlert({
-                title: "Missing Trello credentials",
-                message:
-                    "Please check your Trello API credentials and try again.",
-            });
+            setPublishError(
+                "Missing Trello credentials. Please check your Trello API credentials and try again.",
+            );
             return;
         }
         setPublishing(true);
+        setPublishError(null);
         try {
             // Trello first, Firestore last. Reversed, a failing Trello call
             // left the event already marked published and gone from Drafts,
@@ -161,10 +161,7 @@ export default function EditDraftScreen() {
             setPublishModalVisible(false);
             router.replace("/home-screen");
         } catch (e) {
-            setAlert({
-                title: "Publish failed",
-                message: getErrorMessage(e),
-            });
+            setPublishError(getErrorMessage(e));
             setPublishing(false);
         }
     };
@@ -281,7 +278,10 @@ export default function EditDraftScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        onPress={() => setPublishModalVisible(true)}
+                        onPress={() => {
+                            setPublishError(null);
+                            setPublishModalVisible(true);
+                        }}
                         disabled={savingDraft || publishing}
                         style={[
                             styles.actionBtn,
@@ -305,6 +305,7 @@ export default function EditDraftScreen() {
                 onCancel={() => setPublishModalVisible(false)}
                 onConfirm={handleConfirmPublish}
                 loading={publishing}
+                error={publishError}
             />
         </View>
     );

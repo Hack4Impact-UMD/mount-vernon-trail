@@ -41,7 +41,13 @@ type CameraAlert = {
     message: string;
     confirmText?: string;
     cancelText?: string;
+    cancelVariant?: "danger" | "neutral";
 };
+
+// "dismiss" is Android Back on the popup. It used to resolve the same as the
+// cancel button, so Back on "Allow photo access" acted as Discard and a
+// standalone capture left the camera without saving the photo anywhere.
+type AlertChoice = "confirm" | "cancel" | "dismiss";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 // Zoom change per doubling of finger distance; 0 to 1 is the expo-camera's full range
@@ -94,7 +100,7 @@ export default function CameraViewScreen() {
     const [capturedFromLibrary, setCapturedFromLibrary] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [alert, setAlert] = useState<CameraAlert | null>(null);
-    const alertResolver = useRef<((confirmed: boolean) => void) | null>(null);
+    const alertResolver = useRef<((choice: AlertChoice) => void) | null>(null);
 
     useEffect(() => {
         const subscription = AppState.addEventListener("change", (state) => {
@@ -105,17 +111,17 @@ export default function CameraViewScreen() {
         return () => subscription.remove();
     }, [getPermission, getMediaPermission]);
 
-    function showAlert(next: CameraAlert): Promise<boolean> {
+    function showAlert(next: CameraAlert): Promise<AlertChoice> {
         return new Promise((resolve) => {
-            alertResolver.current?.(false);
+            alertResolver.current?.("dismiss");
             alertResolver.current = resolve;
             setAlert(next);
         });
     }
 
-    function closeAlert(confirmed: boolean) {
+    function closeAlert(choice: AlertChoice) {
         setAlert(null);
-        alertResolver.current?.(confirmed);
+        alertResolver.current?.(choice);
         alertResolver.current = null;
     }
 
@@ -132,11 +138,12 @@ export default function CameraViewScreen() {
             visible={alert !== null}
             title={alert?.title ?? ""}
             message={alert?.message ?? ""}
-            onClose={() => closeAlert(false)}
+            onClose={() => closeAlert("dismiss")}
             confirmText={alert?.confirmText}
-            onConfirm={() => closeAlert(true)}
+            onConfirm={() => closeAlert("confirm")}
             cancelText={alert?.cancelText}
-            onCancel={() => closeAlert(false)}
+            onCancel={() => closeAlert("cancel")}
+            cancelVariant={alert?.cancelVariant}
         />
     );
 
@@ -278,6 +285,7 @@ export default function CameraViewScreen() {
         attachedToIssue: boolean,
     ): Promise<boolean> {
         const skipText = attachedToIssue ? "Continue" : "Discard";
+        const skipVariant = attachedToIssue ? "neutral" : "danger";
         const consequence = attachedToIssue
             ? "It is still attached to this trail issue."
             : "This photo is not attached to a trail issue, so it will be lost.";
@@ -296,24 +304,28 @@ export default function CameraViewScreen() {
                         "Error saving photo to the library:",
                         getErrorMessage(error),
                     );
-                    const retry = await showAlert({
+                    const choice = await showAlert({
                         title: "Photo not saved to your phone",
                         message: `${consequence} (${getErrorMessage(error)})`,
                         confirmText: "Try again",
                         cancelText: skipText,
+                        cancelVariant: skipVariant,
                     });
-                    if (!retry) return true;
+                    if (choice === "dismiss") return false;
+                    if (choice === "cancel") return true;
                     continue;
                 }
             }
 
-            const fix = await showAlert({
+            const choice = await showAlert({
                 title: "Allow photo access",
                 message: `Photos are saved to your phone only with photo access. ${consequence}`,
                 confirmText: access.canAskAgain ? "Allow" : "Open Settings",
                 cancelText: skipText,
+                cancelVariant: skipVariant,
             });
-            if (!fix) return true;
+            if (choice === "dismiss") return false;
+            if (choice === "cancel") return true;
             if (!access.canAskAgain) {
                 await Linking.openSettings().catch((error: unknown) => {
                     console.error(
