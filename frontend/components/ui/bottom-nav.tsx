@@ -90,10 +90,12 @@ export default function BottomNav({ active, onTabPress }: BottomNavProps) {
     const pathname = usePathname();
     const insets = useSafeAreaInsets();
 
-    const activeTab = active ?? pathToTab(pathname) ?? "home";
+    const currentTab = active ?? pathToTab(pathname);
+    const activeTab = currentTab ?? "home";
 
     const handlePress = (tab: TabKey) => {
-        if (tab === activeTab) return;
+        // Compare against the real tab, not the "home" highlight fallback
+        if (tab === currentTab) return;
         onTabPress?.(tab);
         router.replace(ROUTES[tab] as any);
     };
