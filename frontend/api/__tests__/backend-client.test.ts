@@ -4,6 +4,7 @@ import {
     createAlbum,
     listAlbumsPage,
     listAllAlbums,
+    uploadGraphic,
     uploadPhotos,
 } from "../backend-client";
 
@@ -187,9 +188,56 @@ describe("uploadPhotos", () => {
         });
     });
 
+    describe("uploadGraphic", () => {
+        it("sends a single image to the admin-only graphics endpoint", async () => {
+            fetchMock.mockResolvedValue(json({ created: true }, 201));
+
+            await uploadGraphic("event-album", {
+                uri: "file:///cache/graphic.jpg",
+                fileName: "issue-event-before-after.jpg",
+                mimeType: "image/jpeg",
+                description: "issueId=issue-1; eventId=event-1",
+            });
+
+            expect(fetchMock.mock.calls[0][0]).toBe(
+                "https://api.example/api/graphics",
+            );
+            const init = fetchMock.mock.calls[0][1] as RequestInit;
+            const text = new TextDecoder().decode(init.body as Uint8Array);
+            expect(text).toContain('name="albumId"\r\n\r\nevent-album\r\n');
+            expect(text).toContain(
+                'name="photo"; filename="issue-event-before-after.jpg"\r\nContent-Type: image/jpeg',
+            );
+            expect(text).toContain(
+                'name="description"\r\n\r\nissueId=issue-1; eventId=event-1\r\n',
+            );
+        });
+
+        it("surfaces API errors instead of claiming the graphic was saved", async () => {
+            fetchMock.mockResolvedValue(
+                json({ error: "Forbidden: admin only" }, 403),
+            );
+
+            await expect(
+                uploadGraphic("event-album", {
+                    uri: "file:///cache/graphic.jpg",
+                    fileName: "graphic.jpg",
+                    mimeType: "image/jpeg",
+                }),
+            ).rejects.toMatchObject({ code: "FORBIDDEN" });
+        });
+    });
+
     it("sends a hand-built multipart body that keeps the chosen filename", async () => {
         fetchMock.mockResolvedValue(
-            json({ created: 1, succeeded: ["Fallen-tree-before.jpg"], failed: [] }, 201),
+            json(
+                {
+                    created: 1,
+                    succeeded: ["Fallen-tree-before.jpg"],
+                    failed: [],
+                },
+                201,
+            ),
         );
 
         await uploadPhotos("album-1", [

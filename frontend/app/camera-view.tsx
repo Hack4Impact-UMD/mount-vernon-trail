@@ -72,10 +72,7 @@ export default function CameraViewScreen() {
             mode?: "before" | "after";
         }>();
     const resolveMode = mode === "after" ? "after" : "before";
-    // overlay is set to before image, but user can still has option to choose from their gallary
-    const [overlayUri, setOverlayUri] = useState<string | null>(
-        resolveMode === "after" ? (beforeImageUri ?? null) : null,
-    );
+    const overlayUri = resolveMode === "after" ? beforeImageUri || null : null;
     const [viewState, setViewState] = useState<"camera" | "confirmation">(
         "camera",
     );
@@ -172,16 +169,11 @@ export default function CameraViewScreen() {
                 allowsEditing: false,
                 quality: 1,
             });
-            // overlay
             if (result.canceled || !result.assets?.[0]?.uri) return;
             const selectedPhoto = result.assets?.[0]?.uri;
-            if (resolveMode === "before") {
-                setCapturedPhotoUri(selectedPhoto);
-                setRecentPhoto(selectedPhoto);
-                setViewState("confirmation");
-            } else {
-                setOverlayUri(selectedPhoto);
-            }
+            setCapturedPhotoUri(selectedPhoto);
+            setRecentPhoto(selectedPhoto);
+            setViewState("confirmation");
         } catch (error) {
             console.error("Error opening photo library:", error);
         }

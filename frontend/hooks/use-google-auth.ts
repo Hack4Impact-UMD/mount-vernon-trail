@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/utils/errors";
 import { makeRedirectUri } from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
@@ -11,7 +12,6 @@ import {
     signOut,
     subscribeToAuthState,
 } from "../auth/google-auth";
-import { getErrorMessage } from "@/utils/errors";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -28,7 +28,7 @@ export function useGoogleAuth() {
         android: makeRedirectUri({
             native: `com.googleusercontent.apps.${googleAuthConfig.androidClientId.split(".apps.")[0]}:/`,
         }),
-        default: makeRedirectUri(),
+        default: makeRedirectUri({ scheme: "mount-vernon-trail" }),
     });
 
     const [request, response, promptAsync] = Google.useAuthRequest({
