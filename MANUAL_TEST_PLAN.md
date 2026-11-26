@@ -153,7 +153,10 @@ This is the flow the whole project exists for.
 
 | # | Step | Expected |
 |---|---|---|
-| 9.1 | Home → Make Before/After Graphic, pick two photos, save | Composite saved to the camera roll |
+| 9.1 | As an admin, Home → Make Before/After Graphic; choose an event, issue, before photo, and after photo | Only photos from that event album marked before/after are selectable |
+| 9.2 | Preview the pair and reject it | No graphic is uploaded; the before/after choices clear and can be selected again |
+| 9.3 | Preview a pair and approve it | A composed graphic is uploaded to the selected event album with the event ID, issue ID, and source photo IDs in its description |
+| 9.4 | Open the matching flow as a volunteer or call `POST /api/graphics` without an admin claim | The flow is hidden/locked and the backend responds `403` |
 
 ## 10. Take After Picture
 

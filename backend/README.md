@@ -11,7 +11,7 @@ Two independent layers:
 
 | Layer | Who | Mechanism |
 |---|---|---|
-| Caller → this API | every volunteer | `Authorization: Bearer <Firebase ID token>` on all `/api/*` routes |
+| Caller → this API        | every volunteer       | `Authorization: Bearer <Firebase ID token>` on all `/api/*` routes |
 | This API → Google Photos | the MVT account, once | admin OAuth flow, refresh token in Redis (+ optional env backup) |
 
 Admin-only routes additionally require the `admin` custom claim. Grant it with
@@ -30,6 +30,7 @@ Photos itself rejects the request.
 | `GET` | `/auth/callback` | single-use `state` nonce | `?code&state` | `200` text |
 | `GET` | `/api/auth/status` | ID token | — | `200 {authenticated}` |
 | `POST` | `/api/upload` | ID token | multipart: `photos` (files), `albumId`, optional repeated `descriptions` | `201` all uploaded · `207` partial, see `failed[]` · `502` none uploaded |
+| `POST` | `/api/graphics` | ID token + `admin` claim | multipart: `photo` (image), `albumId`, optional `description` | `201` graphic uploaded |
 | `POST` | `/api/albums` | ID token | `{title}` | `201` album |
 | `GET` | `/api/albums` | ID token | `?pageToken` | `200 {albums, nextPageToken}` |
 | `GET` | `/api/albums/:albumId` | ID token | — | `200` album |
