@@ -180,9 +180,9 @@ git merge main
       </a>
     </td>
 	<td align="center" width="150">
-      <a href="#">
-        <img src="/frontend/profile-pictures/placeholder.jpg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
-        <b>Name</b><br/><br/>
+      <a href="https://www.linkedin.com/in/dheebhan-jeganathan/">
+        <img src="/frontend/profile-pictures/dheebhan_jeganathan.jpeg" height="100" width="100" style="border-radius:50%;object-fit:cover;"/><br/>
+        <b>Dheebhan Jeganathan</b><br/><br/>
         <img src="https://img.shields.io/badge/💻_engineer-27AE60?style=flat-square"/>
       </a>
     </td>
