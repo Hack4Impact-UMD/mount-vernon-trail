@@ -184,6 +184,9 @@ export default function HomeScreen() {
             if (!isResume) {
                 await startEvent(event.id);
                 await saveActiveEventLocally(event.id);
+                // Home stays mounted under the document screen, so without this
+                // going back still offered "Start Event", which then failed
+                setLocalActiveEventId(event.id);
             }
             // close modal
             setSelectedEvent(null);
