@@ -21,15 +21,20 @@ function valuesUrl(
     return `${SHEETS_API_BASE}/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}${suffix}`;
 }
 
+// `signal` is the export lock's: once the lease is in doubt, fetch refuses to
+// start another request, so no write lands after another export may have begun.
+type SheetsSession = { accessToken: string; signal?: AbortSignal };
+
 async function request(
-    accessToken: string,
+    session: SheetsSession,
     url: string,
     init: RequestInit = {},
 ): Promise<unknown> {
     const response = await fetch(url, {
         ...init,
+        signal: session.signal,
         headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${session.accessToken}`,
             ...(init.body ? { "Content-Type": "application/json" } : {}),
             ...init.headers,
         },
@@ -54,19 +59,19 @@ function rowsFrom(value: unknown): unknown[][] {
 }
 
 async function ensureHeaders(
-    accessToken: string,
+    session: SheetsSession,
     spreadsheetId: string,
     tab: string,
     headers: string[],
 ): Promise<void> {
     const range = `${quotedTab(tab)}!1:1`;
     const rows = rowsFrom(
-        await request(accessToken, valuesUrl(spreadsheetId, range)),
+        await request(session, valuesUrl(spreadsheetId, range)),
     );
     const current = rows[0];
     if (!current || current.length === 0) {
         await request(
-            accessToken,
+            session,
             valuesUrl(spreadsheetId, range, "?valueInputOption=RAW"),
             {
                 method: "PUT",
@@ -90,28 +95,28 @@ async function ensureHeaders(
 }
 
 async function readTab(
-    accessToken: string,
+    session: SheetsSession,
     spreadsheetId: string,
     tab: string,
     lastColumn: string,
 ): Promise<unknown[][]> {
     return rowsFrom(
         await request(
-            accessToken,
+            session,
             valuesUrl(spreadsheetId, `${quotedTab(tab)}!A:${lastColumn}`),
         ),
     );
 }
 
 async function updateRows(
-    accessToken: string,
+    session: SheetsSession,
     spreadsheetId: string,
     updates: { range: string; values: (string | number)[][] }[],
     dateColumn: number,
 ): Promise<void> {
     if (updates.length === 0) return;
     await request(
-        accessToken,
+        session,
         `${SHEETS_API_BASE}/${encodeURIComponent(spreadsheetId)}/values:batchUpdate`,
         {
             method: "POST",
@@ -129,7 +134,7 @@ async function updateRows(
 }
 
 async function appendRows(
-    accessToken: string,
+    session: SheetsSession,
     spreadsheetId: string,
     tab: string,
     lastColumn: string,
@@ -138,7 +143,7 @@ async function appendRows(
 ): Promise<void> {
     if (values.length === 0) return;
     await request(
-        accessToken,
+        session,
         valuesUrl(
             spreadsheetId,
             `${quotedTab(tab)}!A:${lastColumn}`,
@@ -166,13 +171,13 @@ function protectText(
 }
 
 async function clearRanges(
-    accessToken: string,
+    session: SheetsSession,
     spreadsheetId: string,
     ranges: string[],
 ): Promise<void> {
     if (ranges.length === 0) return;
     await request(
-        accessToken,
+        session,
         `${SHEETS_API_BASE}/${encodeURIComponent(spreadsheetId)}/values:batchClear`,
         { method: "POST", body: JSON.stringify({ ranges }) },
     );
@@ -202,17 +207,19 @@ export async function syncEventToGoogleSheets(
     eventsTab: string,
     improvementsTab: string,
     event: SheetEvent,
+    signal?: AbortSignal,
 ): Promise<void> {
-    await ensureHeaders(accessToken, spreadsheetId, eventsTab, SHEET_HEADERS);
+    const session: SheetsSession = { accessToken, signal };
+    await ensureHeaders(session, spreadsheetId, eventsTab, SHEET_HEADERS);
     await ensureHeaders(
-        accessToken,
+        session,
         spreadsheetId,
         improvementsTab,
         IMPROVEMENT_HEADERS,
     );
 
     const eventRows = await readTab(
-        accessToken,
+        session,
         spreadsheetId,
         eventsTab,
         "T",
@@ -226,7 +233,7 @@ export async function syncEventToGoogleSheets(
     );
     if (existingEventRow === null) {
         await appendRows(
-            accessToken,
+            session,
             spreadsheetId,
             eventsTab,
             "T",
@@ -234,7 +241,7 @@ export async function syncEventToGoogleSheets(
             1,
         );
     } else {
-        await updateRows(accessToken, spreadsheetId, [
+        await updateRows(session, spreadsheetId, [
             {
                 range: `${quotedTab(eventsTab)}!A${existingEventRow}:T${existingEventRow}`,
                 values: [eventRow],
@@ -243,7 +250,7 @@ export async function syncEventToGoogleSheets(
     }
 
     const improvementRows = await readTab(
-        accessToken,
+        session,
         spreadsheetId,
         improvementsTab,
         "G",
@@ -286,14 +293,14 @@ export async function syncEventToGoogleSheets(
                 `${quotedTab(improvementsTab)}!A${rowNumber}:G${rowNumber}`,
         );
 
-    await updateRows(accessToken, spreadsheetId, updates, 0);
+    await updateRows(session, spreadsheetId, updates, 0);
     await appendRows(
-        accessToken,
+        session,
         spreadsheetId,
         improvementsTab,
         "G",
         additions,
         0,
     );
-    await clearRanges(accessToken, spreadsheetId, staleRanges);
+    await clearRanges(session, spreadsheetId, staleRanges);
 }

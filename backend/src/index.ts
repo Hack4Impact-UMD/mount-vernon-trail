@@ -1,6 +1,7 @@
 import { createApp } from "./app";
 import { getFirestore } from "firebase-admin/firestore";
 import { loadEnv } from "./env";
+import { createEventLockStore } from "./event-lock";
 import { initFirebase } from "./firebase";
 import {
     createOAuthClient,
@@ -11,8 +12,11 @@ import {
 function main(): void {
     const env = loadEnv();
     const auth = initFirebase(env);
-    const store = createTokenKeyValueStore(env);
-    const tokenStore = createTokenStore(env, store, createOAuthClient(env));
+    const tokenStore = createTokenStore(
+        env,
+        createTokenKeyValueStore(env),
+        createOAuthClient(env),
+    );
     const firestore = getFirestore();
 
     const server = createApp(
@@ -26,7 +30,7 @@ function main(): void {
                 .get();
             return snapshot.exists ? snapshot.data() ?? null : null;
         },
-        store,
+        createEventLockStore(env),
     ).listen(env.port, () => {
         console.log(`mount-vernon-trail backend listening on port ${env.port}`);
     });

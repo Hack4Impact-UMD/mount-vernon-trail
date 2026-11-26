@@ -63,6 +63,16 @@ export class ExportInProgressError extends Error {
     }
 }
 
+// The export's lease could not be renewed in time, so another instance may
+// already hold it. Raised instead of letting the export keep writing, since
+// two exports writing at once is what duplicates rows.
+export class ExportLockLostError extends Error {
+    constructor(eventId: string) {
+        super(`The export of event ${eventId} lost its lock before finishing; try again.`);
+        this.name = "ExportLockLostError";
+    }
+}
+
 // Single place every /api route funnels failures through, so the 401/502/500
 // mapping stays identical across routes.
 export function sendError(res: Response, context: string, error: unknown): Response {
@@ -92,7 +102,8 @@ export function sendError(res: Response, context: string, error: unknown): Respo
     }
     if (
         error instanceof GoogleSheetsDataError ||
-        error instanceof ExportInProgressError
+        error instanceof ExportInProgressError ||
+        error instanceof ExportLockLostError
     ) {
         return res.status(409).json({ error: error.message });
     }

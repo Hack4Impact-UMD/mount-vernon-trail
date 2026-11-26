@@ -9,8 +9,8 @@ import type { Auth } from "firebase-admin/auth";
 import { MulterError } from "multer";
 import type { Env } from "./env";
 import { CorsRejectedError } from "./errors";
+import type { LockStore } from "./event-lock";
 import type { TokenStore } from "./google-tokens";
-import type { KeyValueStore } from "./kv-store";
 import { requireFirebaseAuth } from "./middleware/auth";
 import { createAdminAuthRouter } from "./routes/admin-auth";
 import { createApiRouter, type EventReader } from "./routes/api";
@@ -33,7 +33,7 @@ export function createApp(
     auth: Auth,
     tokenStore: TokenStore,
     readEvent: EventReader,
-    locks: KeyValueStore,
+    locks: LockStore,
 ): Express {
     const app = express();
 

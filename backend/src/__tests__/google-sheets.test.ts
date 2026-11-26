@@ -30,6 +30,8 @@ function fakeSheetsApi(state: SheetState): jest.SpyInstance {
     return jest
         .spyOn(globalThis, "fetch")
         .mockImplementation(async (input, init) => {
+            // As real fetch does: an already-aborted signal rejects the call.
+            init?.signal?.throwIfAborted();
             const url = new URL(String(input));
             const path = decodeURIComponent(url.pathname);
             const body = init?.body
@@ -183,5 +185,38 @@ describe("syncEventToGoogleSheets", () => {
                 EVENT,
             ),
         ).rejects.toThrow(/must have this header row/);
+    });
+
+    it("sends no write once the export lock's signal aborts", async () => {
+        const state: SheetState = new Map();
+        const api = fakeSheetsApi(state);
+        const sheets = api.getMockImplementation()!;
+        const controller = new AbortController();
+        const lost = new Error("lock lost");
+        api.mockImplementation(async (input, init) => {
+            const res = await sheets(input, init);
+            // The lease lapses right after the event row lookup, before the
+            // row that lookup decided to append is written.
+            if (String(input).includes(encodeURIComponent("'Events'!A:T"))) {
+                controller.abort(lost);
+            }
+            return res;
+        });
+
+        await expect(
+            syncEventToGoogleSheets(
+                "token",
+                "spreadsheet-id",
+                "Events",
+                "Improvements",
+                EVENT,
+                controller.signal,
+            ),
+        ).rejects.toBe(lost);
+
+        expect(state.get("Events")).toHaveLength(1); // the header row only
+        for (const [, init] of api.mock.calls) {
+            expect(init?.signal).toBe(controller.signal);
+        }
     });
 });

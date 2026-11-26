@@ -3,11 +3,11 @@ import multer from "multer";
 import { mapSettledWithLimit } from "../concurrency";
 import type { Env } from "../env";
 import { sendError } from "../errors";
-import { withEventLock } from "../event-lock";
+import { type LockStore, withEventLock } from "../event-lock";
 import * as photos from "../google-photos";
 import type { TokenStore } from "../google-tokens";
+import { requireAdmin } from "../middleware/auth";
 import { syncEventToGoogleSheets } from "../google-sheets";
-import type { KeyValueStore } from "../kv-store";
 import type { SheetEvent } from "../sheet-row";
 
 export type EventReader = (
@@ -36,7 +36,9 @@ function batchFailure(result: unknown): string | null {
 }
 
 function readString(value: unknown): string | null {
-    return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+    return typeof value === "string" && value.trim() !== ""
+        ? value.trim()
+        : null;
 }
 
 // Express 5 types a route param as string | string[]; these routes only ever
@@ -115,7 +117,7 @@ export function createApiRouter(
     env: Env,
     tokenStore: TokenStore,
     readEvent: EventReader,
-    locks: KeyValueStore,
+    locks: LockStore,
 ): Router {
     const router = Router();
     const upload = multer({
@@ -132,7 +134,11 @@ export function createApiRouter(
                 .status(200)
                 .json({ authenticated: await tokenStore.isAuthenticated() });
         } catch (error) {
-            return sendError(res, "Could not check authentication status", error);
+            return sendError(
+                res,
+                "Could not check authentication status",
+                error,
+            );
         }
     });
 
@@ -173,7 +179,7 @@ export function createApiRouter(
             }
 
             const spreadsheetId = env.googleSheetsSpreadsheetId;
-            await withEventLock(locks, eventId, async () => {
+            await withEventLock(locks, eventId, async (signal) => {
                 const token = await tokenStore.getAccessToken();
                 await syncEventToGoogleSheets(
                     token,
@@ -181,6 +187,7 @@ export function createApiRouter(
                     env.googleSheetsEventsTab,
                     env.googleSheetsImprovementsTab,
                     event,
+                    signal,
                 );
             });
             return res.status(200).json({ synced: true, eventId });
@@ -281,6 +288,56 @@ export function createApiRouter(
         },
     );
 
+    router.post(
+        "/graphics",
+        requireAdmin,
+        upload.single("photo"),
+        async (req: Request, res: Response) => {
+            const file = req.file;
+            if (!file) {
+                return res.status(400).json({ error: "photo is required" });
+            }
+            if (!file.mimetype.startsWith("image/")) {
+                return res
+                    .status(400)
+                    .json({ error: "photo must be an image" });
+            }
+            const albumId = readString(req.body?.albumId);
+            if (!albumId) {
+                return res.status(400).json({ error: "albumId is required" });
+            }
+            const description = readString(req.body?.description) ?? "";
+
+            try {
+                const token = await tokenStore.getAccessToken();
+                const uploadToken = await photos.uploadBytes(
+                    token,
+                    new Uint8Array(file.buffer),
+                    file.mimetype,
+                );
+                const created = (await photos.batchCreate(token, albumId, [
+                    {
+                        uploadToken,
+                        fileName: file.originalname,
+                        description,
+                    },
+                ])) as BatchCreateResult;
+                const result = created.newMediaItemResults?.[0];
+                const failure = batchFailure(result);
+                if (result === undefined || failure) {
+                    return res.status(502).json({
+                        error:
+                            failure ??
+                            "Google Photos did not create this graphic",
+                    });
+                }
+                return res.status(201).json({ created: true });
+            } catch (error) {
+                return sendError(res, "Failed to upload graphic", error);
+            }
+        },
+    );
+
     router.post("/albums", async (req: Request, res: Response) => {
         const title = readString(req.body?.title);
         if (!title) {
@@ -298,7 +355,9 @@ export function createApiRouter(
         try {
             const token = await tokenStore.getAccessToken();
             const pageToken = readString(req.query.pageToken) ?? undefined;
-            return res.status(200).json(await photos.listAlbums(token, pageToken));
+            return res
+                .status(200)
+                .json(await photos.listAlbums(token, pageToken));
         } catch (error) {
             return sendError(res, "Failed to list albums", error);
         }
@@ -309,29 +368,34 @@ export function createApiRouter(
             const token = await tokenStore.getAccessToken();
             return res
                 .status(200)
-                .json(await photos.getAlbum(token, readParam(req.params.albumId)));
+                .json(
+                    await photos.getAlbum(token, readParam(req.params.albumId)),
+                );
         } catch (error) {
             return sendError(res, "Failed to fetch album", error);
         }
     });
 
-    router.get("/albums/:albumId/photos", async (req: Request, res: Response) => {
-        try {
-            const token = await tokenStore.getAccessToken();
-            const pageToken = readString(req.query.pageToken) ?? undefined;
-            return res
-                .status(200)
-                .json(
-                    await photos.searchAlbumPhotos(
-                        token,
-                        readParam(req.params.albumId),
-                        pageToken,
-                    ),
-                );
-        } catch (error) {
-            return sendError(res, "Failed to list photos", error);
-        }
-    });
+    router.get(
+        "/albums/:albumId/photos",
+        async (req: Request, res: Response) => {
+            try {
+                const token = await tokenStore.getAccessToken();
+                const pageToken = readString(req.query.pageToken) ?? undefined;
+                return res
+                    .status(200)
+                    .json(
+                        await photos.searchAlbumPhotos(
+                            token,
+                            readParam(req.params.albumId),
+                            pageToken,
+                        ),
+                    );
+            } catch (error) {
+                return sendError(res, "Failed to list photos", error);
+            }
+        },
+    );
 
     router.get("/photos/:photoId", async (req: Request, res: Response) => {
         try {
@@ -339,7 +403,10 @@ export function createApiRouter(
             return res
                 .status(200)
                 .json(
-                    await photos.getMediaItem(token, readParam(req.params.photoId)),
+                    await photos.getMediaItem(
+                        token,
+                        readParam(req.params.photoId),
+                    ),
                 );
         } catch (error) {
             return sendError(res, "Failed to fetch photo", error);

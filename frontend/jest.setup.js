@@ -1,3 +1,10 @@
+// Map tests render the full map screen, and the first test in each file pays the
+// cold-start cost (~3.5s locally). On a loaded CI runner that can exceed Jest's
+// 5s default, so map tests get a longer timeout. Everything else keeps the default.
+if (/[\\/]components[\\/]ui[\\/]map[\\/]/.test(expect.getState().testPath ?? "")) {
+    jest.setTimeout(15_000);
+}
+
 // Native modules with no JS implementation under the test runtime. Each mock is
 // only as detailed as the tests need — anything richer belongs in the test.
 
