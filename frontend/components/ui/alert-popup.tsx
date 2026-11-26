@@ -11,6 +11,10 @@ interface AlertPopupProps {
     onConfirm?: () => void;
     cancelText?: string;
     onCancel?: () => void;
+    // "danger" is for backing out of something (Discard, Not now). A cancel
+    // slot holding an ordinary action, like "Open Trello Card", reads as
+    // destructive in red, so it takes "neutral".
+    cancelVariant?: "danger" | "neutral";
 }
 
 export default function AlertPopup({
@@ -22,6 +26,7 @@ export default function AlertPopup({
     onConfirm,
     cancelText,
     onCancel,
+    cancelVariant = "danger",
 }: AlertPopupProps) {
     return (
         <Modal
@@ -40,7 +45,11 @@ export default function AlertPopup({
                         <View style={styles.buttonRow}>
                             {cancelText && onCancel && (
                                 <Pressable
-                                    style={styles.cancelButton}
+                                    style={
+                                        cancelVariant === "neutral"
+                                            ? styles.neutralButton
+                                            : styles.cancelButton
+                                    }
                                     onPress={onCancel}>
                                     <Text style={styles.buttonText}>
                                         {cancelText}
@@ -113,6 +122,13 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
     },
     confirmButton: {
+        alignSelf: "flex-start",
+        backgroundColor: Palette.green,
+        borderRadius: 999,
+        paddingHorizontal: 16,
+        paddingVertical: 7,
+    },
+    neutralButton: {
         alignSelf: "flex-start",
         backgroundColor: Palette.primaryPurple100,
         borderWidth: 1,

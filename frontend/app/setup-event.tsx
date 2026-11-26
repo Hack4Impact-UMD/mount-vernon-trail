@@ -175,20 +175,24 @@ export default function SetupEventScreen() {
                     visible={alert !== null}
                     title={alert?.title ?? ""}
                     message={alert?.message ?? ""}
-                    onClose={() => setAlert(null)}
-                    cancelText="OK"
-                    onCancel={() => {
+                    onClose={() => {
                         setAlert(null);
                         router.back();
                     }}
-                    confirmText="Open Trello Card"
-                    onConfirm={() => {
+                    cancelText="Open Trello Card"
+                    cancelVariant="neutral"
+                    onCancel={() => {
                         const cardUrl = alert?.cardUrl;
                         setAlert(null);
 
                         if (cardUrl) {
                             Linking.openURL(cardUrl);
                         }
+                    }}
+                    confirmText="OK"
+                    onConfirm={() => {
+                        setAlert(null);
+                        router.back();
                     }}
                 />
                 <View style={styles.content}>
