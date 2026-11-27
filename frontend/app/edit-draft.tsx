@@ -1,3 +1,4 @@
+import AlertPopup from "@/components/ui/alert-popup";
 import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import PublishEventModal from "@/components/ui/publish-event-modal";
@@ -22,10 +23,9 @@ import { TrailDocumentIssueItem } from "@/types/trail-types";
 import { getErrorMessage } from "@/utils/errors";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     ScrollView,
     StyleSheet,
     Text,
@@ -72,6 +72,11 @@ export default function EditDraftScreen() {
     const [savingDraft, setSavingDraft] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [publishModalVisible, setPublishModalVisible] = useState(false);
+    const [publishError, setPublishError] = useState<string | null>(null);
+    const [alert, setAlert] = useState<{
+        title: string;
+        message: string;
+    } | null>(null);
 
     useEffect(() => {
         if (!eventId) return;
@@ -127,7 +132,10 @@ export default function EditDraftScreen() {
             await saveDraft(event.eventId, notes);
             router.replace("/drafts");
         } catch (e) {
-            Alert.alert("Save failed", getErrorMessage(e));
+            setAlert({
+                title: "Save failed",
+                message: getErrorMessage(e),
+            });
             setSavingDraft(false);
         }
     };
@@ -135,10 +143,13 @@ export default function EditDraftScreen() {
     const handleConfirmPublish = async () => {
         if (!event || publishing) return;
         if (!API_KEY) {
-            Alert.alert("Missing Trello credentials");
+            setPublishError(
+                "Missing Trello credentials. Please check your Trello API credentials and try again.",
+            );
             return;
         }
         setPublishing(true);
+        setPublishError(null);
         try {
             // Trello first, Firestore last. Reversed, a failing Trello call
             // left the event already marked published and gone from Drafts,
@@ -150,7 +161,7 @@ export default function EditDraftScreen() {
             setPublishModalVisible(false);
             router.replace("/home-screen");
         } catch (e) {
-            Alert.alert("Publish failed", getErrorMessage(e));
+            setPublishError(getErrorMessage(e));
             setPublishing(false);
         }
     };
@@ -167,6 +178,12 @@ export default function EditDraftScreen() {
 
     return (
         <View style={styles.screen}>
+            <AlertPopup
+                visible={alert !== null}
+                title={alert?.title ?? ""}
+                message={alert?.message ?? ""}
+                onClose={() => setAlert(null)}
+            />
             <HomeHeader />
             <ScrollView
                 style={styles.container}
@@ -261,7 +278,10 @@ export default function EditDraftScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        onPress={() => setPublishModalVisible(true)}
+                        onPress={() => {
+                            setPublishError(null);
+                            setPublishModalVisible(true);
+                        }}
                         disabled={savingDraft || publishing}
                         style={[
                             styles.actionBtn,
@@ -285,6 +305,7 @@ export default function EditDraftScreen() {
                 onCancel={() => setPublishModalVisible(false)}
                 onConfirm={handleConfirmPublish}
                 loading={publishing}
+                error={publishError}
             />
         </View>
     );
