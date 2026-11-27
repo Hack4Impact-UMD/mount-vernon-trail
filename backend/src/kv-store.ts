@@ -6,7 +6,7 @@ export type KeyValueStore = {
     set: (
         key: string,
         value: string,
-        opts?: { ex: number },
+        opts?: { ex: number } | { ex: number; nx: true },
     ) => Promise<unknown>;
     ttl: (key: string) => Promise<number>;
     del: (key: string) => Promise<number>;
@@ -37,6 +37,7 @@ export function createInMemoryStore(now: () => number = Date.now): KeyValueStore
             return entry ? (entry.value as T) : null;
         },
         async set(key, value, opts) {
+            if (opts && "nx" in opts && live(key)) return null;
             entries.set(key, {
                 value,
                 expiresAt: opts?.ex ? now() + opts.ex * 1000 : null,
