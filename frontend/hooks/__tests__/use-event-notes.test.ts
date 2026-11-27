@@ -104,3 +104,45 @@ it("keeps the newer local copy when an older save is acknowledged", async () => 
     await act(async () => resolveFirst());
     expect(await AsyncStorage.getItem(pendingNotesKey("event-1"))).toBe("v2");
 });
+
+it("an old save finishing after reopen does not delete newer notes", async () => {
+    let resolveOldSave!: () => void;
+    jest.mocked(updateEventNotes).mockImplementationOnce(
+        () => new Promise<void>((resolve) => (resolveOldSave = resolve)),
+    );
+    const first = await renderLoaded();
+    await act(async () => first.result.current.setNotes("v1"));
+    await first.unmount();
+
+    const second = await renderLoaded();
+    expect(second.result.current.notes).toBe("v1");
+    jest.mocked(updateEventNotes).mockRejectedValue(new Error("offline"));
+    await act(async () => second.result.current.setNotes("v2"));
+    await act(async () => resolveOldSave());
+    expect(await AsyncStorage.getItem(pendingNotesKey("event-1"))).toBe("v2");
+
+    await second.unmount();
+    jest.mocked(updateEventNotes).mockReset().mockResolvedValue();
+    const third = await renderLoaded();
+    expect(third.result.current.notes).toBe("v2");
+});
+
+it("keeps the Notepad read-only until the saved draft has loaded", async () => {
+    await AsyncStorage.setItem(pendingNotesKey("event-1"), "unsynced draft");
+    const readDraft = jest.mocked(AsyncStorage.getItem);
+    const realRead = readDraft.getMockImplementation()!;
+    let finishRead!: () => void;
+    readDraft.mockImplementationOnce(async (key) => {
+        await new Promise<void>((resolve) => (finishRead = resolve));
+        return realRead(key);
+    });
+
+    const { result } = await renderLoaded();
+    expect(result.current.ready).toBe(false);
+    await act(async () => result.current.setNotes("typed while loading"));
+    expect(await realRead(pendingNotesKey("event-1"))).toBe("unsynced draft");
+
+    await act(async () => finishRead());
+    expect(result.current.ready).toBe(true);
+    expect(result.current.notes).toBe("unsynced draft");
+});

@@ -47,6 +47,7 @@ export default function TrailDocumentScreen() {
         notes,
         setNotes,
         saveError: notesSaveError,
+        ready: notesReady,
     } = useEventNotes(eventId, event ? (event.notes ?? "") : undefined);
     const [issuesError, setIssuesError] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -299,6 +300,7 @@ export default function TrailDocumentScreen() {
                             }}
                             value={notes}
                             onChangeText={setNotes}
+                            editable={notesReady}
                             multiline
                             placeholder="Start documenting the event"
                             placeholderTextColor="#bbb"
