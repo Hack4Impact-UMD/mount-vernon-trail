@@ -1,3 +1,4 @@
+import AlertPopup from "@/components/ui/alert-popup";
 import BottomNav from "@/components/ui/bottom-nav";
 import CreateNewEvent from "@/components/ui/create-new-event";
 import Header from "@/components/ui/header";
@@ -24,7 +25,7 @@ import { fetchEventCards } from "@/services/trello-service";
 import { getErrorMessage } from "@/utils/errors";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 const API_KEY = process.env.EXPO_PUBLIC_TRELLO_API_KEY;
 
@@ -70,6 +71,10 @@ export default function HomeScreen() {
     const [localActiveEventId, setLocalActiveEventId] = useState<string | null>(
         null,
     );
+    const [alert, setAlert] = useState<{
+        title: string;
+        message: string;
+    } | null>(null);
 
     const handleTrelloSignIn = async () => {
         const ok = await promptSignIn();
@@ -118,7 +123,10 @@ export default function HomeScreen() {
             try {
                 firebaseEvent = await getEventByTrelloCardId(storedId);
             } catch {
-                Alert.alert("Error", "Error getting active event data.");
+                setAlert({
+                    title: "Error",
+                    message: "Error getting active event data.",
+                });
                 return;
             }
             if (
@@ -192,10 +200,10 @@ export default function HomeScreen() {
                     params: { eventId: firebaseEvent.eventId },
                 });
             } else {
-                Alert.alert(
-                    "Not available",
-                    "This event hasn't been set up in the app yet.",
-                );
+                setAlert({
+                    title: "Not available",
+                    message: "This event hasn't been set up in the app yet.",
+                });
             }
         } catch (error) {
             const message =
@@ -204,7 +212,10 @@ export default function HomeScreen() {
                     : "Failed to start event";
             // close modal
             setSelectedEvent(null);
-            Alert.alert("Error", message);
+            setAlert({
+                title: "Error",
+                message,
+            });
         }
     };
 
@@ -212,6 +223,12 @@ export default function HomeScreen() {
         <>
             <Stack.Screen options={{ headerShown: false }} />
             <View style={styles.screen}>
+                <AlertPopup
+                    visible={alert !== null}
+                    title={alert?.title ?? ""}
+                    message={alert?.message ?? ""}
+                    onClose={() => setAlert(null)}
+                />
                 <ScrollView
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}

@@ -1,16 +1,16 @@
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import { saveDraft, setEventInactive } from "@/services/event-service";
+import { getErrorMessage } from "@/utils/errors";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Square } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-    Alert,
     Linking,
     Pressable,
     StyleSheet,
     Text,
-    View,
+    View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import EndEventModal from "./end-event-modal";
@@ -39,6 +39,7 @@ export default function TrailEventHeader({
     const [elapsed, setElapsed] = useState(0);
     const [stopping, setStopping] = useState(false);
     const [endModalVisible, setEndModalVisible] = useState(false);
+    const [endError, setEndError] = useState<string | null>(null);
 
     // An initializer, not render: the React Compiler may skip re-renders, so
     // reading the clock in render would not be kept up to date anyway.
@@ -69,18 +70,20 @@ export default function TrailEventHeader({
     }, [event.startDate, variant]);
 
     const handleStop = () => {
+        setEndError(null);
         setEndModalVisible(true);
     };
 
     const handleConfirmEnd = async (notes?: string) => {
         setStopping(true);
+        setEndError(null);
         try {
             await saveDraft(event.eventId, notes?.trim() ?? "");
             await setEventInactive(event.eventId);
             setEndModalVisible(false);
             onStop?.();
-        } catch (e) {
-            Alert.alert("Error", (e as Error).message);
+        } catch (e: unknown) {
+            setEndError(getErrorMessage(e));
         } finally {
             setStopping(false);
         }
@@ -187,6 +190,7 @@ export default function TrailEventHeader({
                     onCancel={() => setEndModalVisible(false)}
                     onConfirm={handleConfirmEnd}
                     loading={stopping}
+                    error={endError}
                 />
             </>
         );
@@ -236,6 +240,7 @@ export default function TrailEventHeader({
                 onCancel={() => setEndModalVisible(false)}
                 onConfirm={handleConfirmEnd}
                 loading={stopping}
+                error={endError}
             />
         </>
     );
