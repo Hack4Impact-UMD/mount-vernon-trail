@@ -129,6 +129,10 @@ const DEFAULTS: EventLockOptions = {
 // If a renewal is refused, or none has succeeded by the time the lease would
 // lapse, `signal` aborts with ExportLockLostError. `run` must pass it to every
 // request it makes so that no write starts after ownership is in doubt.
+//
+// Expiry is enforced by its own timer, never by awaiting a renewal: a renewal
+// that hung past the lease used to stop the expiry check with it, leaving
+// `signal` live while another instance acquired the lock.
 export async function withEventLock<T>(
     store: LockStore,
     eventId: string,
@@ -153,46 +157,61 @@ export async function withEventLock<T>(
     // round-trip can only make this estimate early, never late.
     let heldUntil = sentAt + ttlMs;
 
+    // A SET that answered after its own TTL won a lease that may already be
+    // someone else's. Starting `run` and aborting on the next tick would let
+    // its first request out first.
+    if (Date.now() >= heldUntil) {
+        await store.release(key, holder);
+        throw new ExportLockLostError(eventId);
+    }
+
     const controller = new AbortController();
+    let stopped = false;
+    let expiry: ReturnType<typeof setTimeout> | undefined;
+
     const lose = () => {
+        clearTimeout(expiry);
+        clearInterval(renewals);
         if (!controller.signal.aborted) {
             controller.abort(new ExportLockLostError(eventId));
         }
     };
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let beat: Promise<void> = Promise.resolve();
 
-    const schedule = () => {
-        if (stopped || controller.signal.aborted) return;
-        const delay = Math.min(
-            renewEveryMs,
-            Math.max(0, heldUntil - Date.now()),
-        );
-        timer = setTimeout(() => {
-            beat = heartbeat();
-        }, delay);
+    const armExpiry = () => {
+        clearTimeout(expiry);
+        expiry = setTimeout(lose, Math.max(0, heldUntil - Date.now()));
     };
 
-    const heartbeat = async () => {
+    const renew = async () => {
         const renewSentAt = Date.now();
-        if (renewSentAt >= heldUntil) return lose();
         try {
-            if (!(await store.renew(key, holder, ttlMs))) return lose();
-            heldUntil = renewSentAt + ttlMs;
+            const renewed = await store.renew(key, holder, ttlMs);
+            // A reply that arrives after the export finished or the lease was
+            // already given up must not re-arm the expiry timer.
+            if (stopped || controller.signal.aborted) return;
+            if (!renewed) return lose();
+            // The script only extends a lease it still holds, so success means
+            // the lease runs to at least renewSentAt + ttlMs. Replies can arrive
+            // out of order when an earlier renewal stalled, so never shorten.
+            if (renewSentAt + ttlMs > heldUntil) {
+                heldUntil = renewSentAt + ttlMs;
+                armExpiry();
+            }
         } catch (error: unknown) {
             // An unreachable Redis does not mean the lease is gone; it is still
-            // ours until heldUntil. Keep retrying until then rather than abort a
-            // healthy export on one network blip.
+            // ours until heldUntil, and the expiry timer aborts at that point
+            // if no renewal has succeeded.
             console.warn(
                 `Could not renew the export lock for event ${eventId}:`,
                 error,
             );
         }
-        schedule();
     };
 
-    schedule();
+    armExpiry();
+    // Renewals are not chained: a stalled one does not hold back the next, so
+    // a single hung request cannot cost the lease while Redis is reachable.
+    const renewals = setInterval(() => void renew(), renewEveryMs);
     try {
         const result = await run(controller.signal);
         // `run` finished, but if the lease lapsed partway through, another
@@ -201,8 +220,12 @@ export async function withEventLock<T>(
         return result;
     } finally {
         stopped = true;
-        clearTimeout(timer);
-        await beat;
+        clearTimeout(expiry);
+        clearInterval(renewals);
+        // In-flight renewals are not awaited: one may never return. Each is an
+        // atomic compare-and-extend, so one landing after the release below
+        // finds the key gone or someone else's and changes nothing.
+        //
         // Compare-and-delete: if the lease was lost, this leaves the
         // successor's lock alone.
         await store.release(key, holder);

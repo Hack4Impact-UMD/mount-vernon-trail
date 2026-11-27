@@ -183,6 +183,120 @@ describe("withEventLock", () => {
         finishSuccessor();
         await expect(successor).resolves.toBeUndefined();
     });
+
+    it("aborts on time when a renewal stalls, before a successor can write", async () => {
+        const shared = createInMemoryLockStore();
+        const stalled: LockStore = {
+            ...shared,
+            renew: () => new Promise<boolean>(() => undefined),
+        };
+        const writes: string[] = [];
+        let firstSignal: AbortSignal | undefined;
+        const writer =
+            (name: string, count: number) => async (signal: AbortSignal) => {
+                if (name === "first") firstSignal = signal;
+                for (let write = 0; write < count; write++) {
+                    await sleep(300);
+                    signal.throwIfAborted();
+                    writes.push(name);
+                }
+            };
+
+        let settled = false;
+        const first = settle(
+            withEventLock(stalled, "event-1", writer("first", 20), OPTIONS),
+        ).finally(() => {
+            settled = true;
+        });
+
+        await jest.advanceTimersByTimeAsync(999);
+        expect(firstSignal?.aborted).toBe(false);
+        // The renewal sent at 300ms never answers. The signal still aborts the
+        // moment the lease lapses at 1s.
+        await jest.advanceTimersByTimeAsync(1);
+        expect(firstSignal?.aborted).toBe(true);
+        expect(settled).toBe(false);
+        // Its write due at 1.2s sees the abort, and the export settles without
+        // waiting on the hung renewal.
+        await jest.advanceTimersByTimeAsync(200);
+        await expect(first).resolves.toBeInstanceOf(ExportLockLostError);
+
+        const successor = settle(
+            withEventLock(shared, "event-1", writer("successor", 3), OPTIONS),
+        );
+        await jest.advanceTimersByTimeAsync(1_000);
+        await expect(successor).resolves.toBeUndefined();
+
+        expect(writes).toEqual([
+            "first",
+            "first",
+            "first",
+            "successor",
+            "successor",
+            "successor",
+        ]);
+    });
+
+    it("keeps the lease when one renewal stalls but a later one succeeds", async () => {
+        const store = createInMemoryLockStore();
+        let calls = 0;
+        const oneStall: LockStore = {
+            ...store,
+            renew: (...args) =>
+                calls++ === 0
+                    ? new Promise<boolean>(() => undefined)
+                    : store.renew(...args),
+        };
+
+        const result = settle(
+            withEventLock(
+                oneStall,
+                "event-1",
+                (signal) => sleep(3_000, signal),
+                OPTIONS,
+            ),
+        );
+        await jest.advanceTimersByTimeAsync(3_000);
+
+        await expect(result).resolves.toBeUndefined();
+    });
+
+    it("does not start the export when acquisition answered after the lease lapsed", async () => {
+        const shared = createInMemoryLockStore();
+        // Redis granted the lease at once, but the reply took 1.5s to arrive,
+        // so the lease had lapsed and another export took it in the meantime.
+        const slowReply: LockStore = {
+            ...shared,
+            acquire: async (...args) => {
+                const won = await shared.acquire(...args);
+                await sleep(1_500);
+                return won;
+            },
+        };
+        const run = jest.fn(async () => undefined);
+
+        const late = settle(withEventLock(slowReply, "event-1", run, OPTIONS));
+        await jest.advanceTimersByTimeAsync(1_200);
+        let finishSuccessor = () => undefined as void;
+        const successor = withEventLock(
+            shared,
+            "event-1",
+            () => new Promise<void>((resolve) => (finishSuccessor = resolve)),
+            OPTIONS,
+        );
+        await jest.advanceTimersByTimeAsync(300);
+
+        await expect(late).resolves.toBeInstanceOf(ExportLockLostError);
+        expect(run).not.toHaveBeenCalled();
+        // The late holder's release is compare-and-delete, so the successor
+        // keeps the event.
+        await expect(
+            withEventLock(shared, "event-1", async () => undefined, OPTIONS),
+        ).rejects.toBeInstanceOf(ExportInProgressError);
+
+        finishSuccessor();
+        await expect(successor).resolves.toBeUndefined();
+    });
 });
 
 // Interprets the two scripts the way Redis would, so these tests check what the
