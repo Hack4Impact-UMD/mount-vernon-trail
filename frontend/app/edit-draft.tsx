@@ -1,10 +1,13 @@
+import { syncEventToSheets } from "@/api/backend-client";
 import AlertPopup from "@/components/ui/alert-popup";
 import BottomNav from "@/components/ui/bottom-nav";
 import HomeHeader from "@/components/ui/header";
 import PublishEventModal from "@/components/ui/publish-event-modal";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
-import TrailMetricsSection from "@/components/ui/trail-metrics-section";
+import TrailMetricsSection, {
+    type TrailMetricsSectionHandle,
+} from "@/components/ui/trail-metrics-section";
 import { Palette } from "@/constants/theme";
 import type { Event } from "@/services/event-service";
 import {
@@ -51,6 +54,7 @@ export default function EditDraftScreen() {
 
     // Guards against a double tap opening two copies of the issue editor.
     const pressedIssueRef = useRef(false);
+    const metricsRef = useRef<TrailMetricsSectionHandle | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
 
     // Returning from the issue editor must show the edits that were just made.
@@ -129,6 +133,7 @@ export default function EditDraftScreen() {
         if (!event || savingDraft || publishing) return;
         setSavingDraft(true);
         try {
+            await metricsRef.current?.flushPendingUpdates();
             await saveDraft(event.eventId, notes);
             router.replace("/drafts");
         } catch (e) {
@@ -151,12 +156,14 @@ export default function EditDraftScreen() {
         setPublishing(true);
         setPublishError(null);
         try {
+            await metricsRef.current?.flushPendingUpdates();
             // Trello first, Firestore last. Reversed, a failing Trello call
             // left the event already marked published and gone from Drafts,
             // with no way to retry from the UI.
             await addNotesToCard(event.trelloCardId, notes, API_KEY);
             await moveCardToCompleted(event.trelloCardId, API_KEY);
             await moveCardAttachmentsToCompleted(event.trelloCardId, API_KEY);
+            await syncEventToSheets(event.eventId);
             await publishEvent(event.eventId);
             setPublishModalVisible(false);
             router.replace("/home-screen");
@@ -247,6 +254,7 @@ export default function EditDraftScreen() {
                     </View>
 
                     <TrailMetricsSection
+                        ref={metricsRef}
                         eventId={event.eventId}
                         initialMetrics={event.metrics}
                     />

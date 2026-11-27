@@ -253,6 +253,13 @@ export async function getPhoto(
     );
 }
 
+export async function syncEventToSheets(eventId: string): Promise<void> {
+    await postJson<{ synced: boolean; eventId: string }>(
+        `/api/events/${encodeURIComponent(eventId)}/sheets`,
+        {},
+    );
+}
+
 type UploadResponse = {
     created?: number;
     succeeded?: string[];

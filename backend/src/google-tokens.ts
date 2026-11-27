@@ -12,13 +12,14 @@ const EXPIRY_SKEW_MS = 60_000;
 
 // Imported from google-auth-library, not googleapis: googleapis' types cover
 // every Google API, and ts-jest typechecking them for each suite ran the
-// backend tests out of memory. Only the OAuth client is used; Photos calls go
-// through google-photos.ts, so no googleapis client ever receives it.
+// backend tests out of memory. Only the OAuth client is used; Photos and Sheets
+// calls use fetch, so no googleapis client ever receives it.
 export type OAuth2Client = GoogleOAuth2Client;
 
-export const GOOGLE_PHOTOS_SCOPES = [
+export const GOOGLE_API_SCOPES = [
     "https://www.googleapis.com/auth/photoslibrary.appendonly",
     "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
+    "https://www.googleapis.com/auth/spreadsheets",
 ];
 
 export type TokenStore = {
@@ -154,7 +155,7 @@ export function createTokenStore(
             });
             return oauth2Client.generateAuthUrl({
                 access_type: "offline",
-                scope: GOOGLE_PHOTOS_SCOPES,
+                scope: GOOGLE_API_SCOPES,
                 prompt: "consent",
                 state,
             });
