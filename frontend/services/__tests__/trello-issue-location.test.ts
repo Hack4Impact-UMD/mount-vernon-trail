@@ -21,13 +21,11 @@ it.each([
     "[Site](https://www.google.com/maps/search/?api=1&query=38.8%2C-77.05)",
     "https://maps.apple.com/?ll=38.8,-77.05",
     "https://openstreetmap.org/?mlat=38.8&mlon=-77.05",
-])("reads explicit source coordinates: %s", (desc) => {
-    expect(resolveTrelloIssueLocation(card(desc))?.coordinates).toEqual([
-        -77.05, 38.8,
-    ]);
+])("ignores description coordinates: %s", (desc) => {
+    expect(resolveTrelloIssueLocation(card(desc))).toBeNull();
 });
 
-it("reads an attached map link and preserves the location name", () => {
+it("reads an attached map link and uses the card title", () => {
     expect(
         resolveTrelloIssueLocation(
             card("Location: Trail work site", [
@@ -36,7 +34,7 @@ it("reads an attached map link and preserves the location name", () => {
         ),
     ).toEqual({
         coordinates: [-77.05, 38.8],
-        locationName: "Trail work site",
+        locationName: "Intake issue",
         eventNames: [],
     });
 });
@@ -136,9 +134,36 @@ it.each([
     ).toBe(expected);
 });
 it.each([
-    "Navy-Marine Memorial: testing",
-    "Fort Washington: testing",
-    "Arlington Memorial Bridge: testing",
+    "Unknown Memorial: testing",
 ])("keeps places without reference coordinates unresolved: %s", (name) => {
     expect(resolveTitleIssueLocation({ ...card(""), name })).toBeNull();
+});
+
+it("resolves a bridge after an area label without reading the description", () => {
+    expect(resolveTitleIssueLocation({
+        ...card("GPS: 0, 0"),
+        name: "Collingwood: Bridge 15, North, Multiflora rose, honeysuckle",
+    })).toEqual({
+        coordinates: [-77.042314, 38.72585],
+        locationName: "Bridge 15",
+        eventNames: [],
+    });
+});
+
+it.each(["Collingwood: Bridge 1500, vines", "Collingwood: vines near Bridge 15"])(
+    "does not guess a bridge from %s", (name) => {
+        expect(resolveTitleIssueLocation({ ...card(""), name })).toBeNull();
+    },
+);
+
+it.each([
+    ["Arlington Memorial Bridge", "Arlington Memorial Bridge"],
+    ["Memorial Bridge", "Arlington Memorial Bridge"],
+    ["Navy-Marine Memorial", "Navy-Marine Memorial"],
+    ["Fort Washington", "Fort Washington Park"],
+    ["Alexandria Avenue", "Alexandria Avenue"],
+    ["Jones Point Lighthouse", "Jones Point Lighthouse"],
+    ["Jones Point Light", "Jones Point Lighthouse"],
+])("resolves added map label %s", (title, expected) => {
+    expect(resolveTitleIssueLocation({ ...card(""), name: `${title}: maintenance` })?.locationName).toBe(expected);
 });

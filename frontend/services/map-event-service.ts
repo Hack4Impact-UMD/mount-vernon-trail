@@ -1,7 +1,9 @@
+import { getEventByTrelloCardId } from "./event-service";
 import { getListId, getTrelloClient } from "./trello-config";
 import type { MapIssueData } from "./map-service";
 
-export type MapEvent = { id: string; name: string; issueIds: string[] };
+export type MapEventStatus = "Not started" | "In Progress" | "Draft" | "Completed";
+export type MapEvent = { id: string; name: string; issueIds: string[]; status?: MapEventStatus };
 
 /** Attachment links, rather than matching titles, establish event membership. */
 export async function fetchMapEvents(
@@ -23,7 +25,20 @@ export async function fetchMapEvents(
     const events = await Promise.all(
         cards.map(async (card) => {
             const links = await trello.getEventCardAttachmentIDs(card);
+            let status: MapEventStatus | undefined;
+            try {
+                const event = await getEventByTrelloCardId(card.id);
+                status = event?.publishedAt
+                    ? "Completed"
+                    : event?.isActive ? "In Progress"
+                    : event?.isDraft ? "Draft"
+                    : event?.endDate ? "Completed"
+                    : card.idList === lists[1] ? "Completed" : "Not started";
+            } catch {
+                // Event status failures must not hide attachment membership.
+            }
             return {
+                ...(status ? { status } : {}),
                 id: card.id,
                 name: card.name,
                 issueIds: [
