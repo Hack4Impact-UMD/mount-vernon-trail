@@ -1,13 +1,13 @@
+import AlertPopup from "@/components/ui/alert-popup";
+import { Stack, useRouter, useSegments } from "expo-router";
 import {
     DarkTheme,
     DefaultTheme,
     ThemeProvider,
 } from "expo-router/react-navigation";
-import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef } from "react";
-import { Alert } from "react-native";
+import { useEffect, useRef, useState } from "react";
 import "react-native-reanimated";
 
 import { AuthProvider, useAuth } from "@/auth/auth-context";
@@ -49,6 +49,10 @@ function RootNavigator() {
     const segments = useSegments();
     const { user } = useAuth();
     const resumeCheckedRef = useRef(false);
+    const [resumeEvent, setResumeEvent] = useState<{
+        title: string;
+        eventId: string;
+    } | null>(null);
 
     const [fontsLoaded] = useFonts({
         Lato_300Light,
@@ -85,21 +89,10 @@ function RootNavigator() {
         getActiveEvent()
             .then((activeEvent) => {
                 if (cancelled || !activeEvent) return;
-                Alert.alert(
-                    "Event still running",
-                    `"${activeEvent.title}" is still in progress. Pick up where you left off?`,
-                    [
-                        { text: "Not now", style: "cancel" },
-                        {
-                            text: "Resume",
-                            onPress: () =>
-                                router.push({
-                                    pathname: "/trail-document-screen",
-                                    params: { eventId: activeEvent.eventId },
-                                }),
-                        },
-                    ],
-                );
+                setResumeEvent({
+                    title: activeEvent.title,
+                    eventId: activeEvent.eventId,
+                });
             })
             .catch((error: unknown) => {
                 console.error(
@@ -117,6 +110,28 @@ function RootNavigator() {
     return (
         <ThemeProvider
             value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+            {resumeEvent && (
+                <AlertPopup
+                    visible={true}
+                    title="Event still running"
+                    message={`"${resumeEvent.title}" is still in progress. Pick up where you left off?`}
+                    onClose={() => setResumeEvent(null)}
+                    cancelText="Not now"
+                    onCancel={() => setResumeEvent(null)}
+                    confirmText="Resume"
+                    onConfirm={() => {
+                        const event = resumeEvent;
+                        setResumeEvent(null);
+
+                        if (event) {
+                            router.push({
+                                pathname: "/trail-document-screen",
+                                params: { eventId: event.eventId },
+                            });
+                        }
+                    }}
+                />
+            )}
             <Stack>
                 <Stack.Screen
                     name="index"

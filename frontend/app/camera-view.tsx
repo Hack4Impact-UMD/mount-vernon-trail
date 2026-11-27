@@ -1,24 +1,55 @@
-import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
+import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
+import * as ImagePicker from "expo-image-picker";
 // SDK 56 moved these calls to /legacy; the root import now throws at runtime.
-import * as MediaLibrary from 'expo-media-library/legacy';
-import React, { useRef, useState } from 'react';
-import { Alert, Animated, Button, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
-import { enqueuePhoto, flushInBackground } from '@/services/photo-queue';
-import { getErrorMessage } from '@/utils/errors';
-import Slider from '@react-native-community/slider';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useSharedValue } from 'react-native-reanimated';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { Palette } from '@/constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Palette } from "@/constants/theme";
+import { enqueuePhoto, flushInBackground } from "@/services/photo-queue";
+import { getErrorMessage } from "@/utils/errors";
+import Slider from "@react-native-community/slider";
+import * as MediaLibrary from "expo-media-library/legacy";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import {
+    Animated,
+    AppState,
+    Dimensions,
+    Image,
+    Linking,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import {
+    Gesture,
+    GestureDetector,
+    GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import { useSharedValue } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 // icons
-import BoltIcon from '@/components/icons/bolt';
-import CameraSwitch from '@/components/icons/camera-switch';
-import Refresh from '@/components/icons/refresh';
-import Checkbox from '@/components/icons/checkbox';
+import BoltIcon from "@/components/icons/bolt";
+import CameraSwitch from "@/components/icons/camera-switch";
+import Checkbox from "@/components/icons/checkbox";
+import Refresh from "@/components/icons/refresh";
+import AlertPopup from "@/components/ui/alert-popup";
+import CameraPermissionPrompt from "@/components/ui/camera-permission-prompt";
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const LIBRARY_ALBUM_NAME = "mount-vernon-trail";
+
+type CameraAlert = {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    cancelVariant?: "danger" | "neutral";
+};
+
+// "dismiss" is Android Back on the popup. It used to resolve the same as the
+// cancel button, so Back on "Allow photo access" acted as Discard and a
+// standalone capture left the camera without saving the photo anywhere.
+type AlertChoice = "confirm" | "cancel" | "dismiss";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 // Zoom change per doubling of finger distance; 0 to 1 is the expo-camera's full range
 const PINCH_SENSITIVITY = 0.25; // Constant factor to adjust the sensitivity of pinch zoom gestures
 const ZOOM_STEP = 0.1;
@@ -26,12 +57,14 @@ const ZOOM_STEP = 0.1;
 export default function CameraViewScreen() {
     const insets = useSafeAreaInsets();
     const [showGrid, setShowGrid] = useState(false);
-    const [facing, setFacing] = useState<CameraType>('back');
-    const [permission, requestPermission] = useCameraPermissions();
-    const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions({
-        writeOnly: true,
-        granularPermissions: ['photo'],
-    });
+    const [facing, setFacing] = useState<CameraType>("back");
+    const [permission, requestPermission, getPermission] =
+        useCameraPermissions();
+    const [mediaPermission, requestMediaPermission, getMediaPermission] =
+        MediaLibrary.usePermissions({
+            writeOnly: true,
+            granularPermissions: ["photo"],
+        });
     const [recentPhoto, setRecentPhoto] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
     const [flashAnim] = useState(() => new Animated.Value(0));
@@ -42,26 +75,77 @@ export default function CameraViewScreen() {
     // builder during render, and the React Compiler rejects ref reads there.
     const currentZoom = useSharedValue(0);
     const startZoom = useSharedValue(0);
-    const [flash, setFlash] = useState<'off' | 'on'>('off');
+    const [flash, setFlash] = useState<"off" | "on">("off");
     // when navigated from the trail document screen
     const router = useRouter();
     // The standalone "Take After Picture" entry point on the home screen passes
     // only `mode`, so every issue-scoped param has to stay optional.
-    const { beforeImageUri, activeIssueId, issueName, eventId, albumId, mode } = useLocalSearchParams<{
-        beforeImageUri?: string;
-        activeIssueId?: string; // keep track of issue card user pressed
-        issueName?: string;
-        eventId?: string;
-        albumId?: string;
-        mode?: 'before' | 'after';
-    }>();
-    const resolveMode = mode === 'after' ? 'after' : 'before';
-    // overlay is set to before image, but user can still has option to choose from their gallary
-    const [overlayUri, setOverlayUri] = useState<string | null>(
-        resolveMode === 'after' ? (beforeImageUri ?? null) : null
+    const { beforeImageUri, activeIssueId, issueName, eventId, albumId, mode } =
+        useLocalSearchParams<{
+            beforeImageUri?: string;
+            activeIssueId?: string; // keep track of issue card user pressed
+            issueName?: string;
+            eventId?: string;
+            albumId?: string;
+            mode?: "before" | "after";
+        }>();
+    const resolveMode = mode === "after" ? "after" : "before";
+    const overlayUri = resolveMode === "after" ? beforeImageUri || null : null;
+    const [viewState, setViewState] = useState<"camera" | "confirmation">(
+        "camera",
     );
-    const [viewState, setViewState] = useState<'camera' | 'confirmation'>('camera');
-    const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
+    const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(
+        null,
+    );
+    const [capturedFromLibrary, setCapturedFromLibrary] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [alert, setAlert] = useState<CameraAlert | null>(null);
+    const alertResolver = useRef<((choice: AlertChoice) => void) | null>(null);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener("change", (state) => {
+            if (state !== "active") return;
+            getPermission();
+            getMediaPermission();
+        });
+        return () => subscription.remove();
+    }, [getPermission, getMediaPermission]);
+
+    function showAlert(next: CameraAlert): Promise<AlertChoice> {
+        return new Promise((resolve) => {
+            alertResolver.current?.("dismiss");
+            alertResolver.current = resolve;
+            setAlert(next);
+        });
+    }
+
+    function closeAlert(choice: AlertChoice) {
+        setAlert(null);
+        alertResolver.current?.(choice);
+        alertResolver.current = null;
+    }
+
+    function leaveCamera() {
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+        router.replace("/home-screen");
+    }
+
+    const alertPopup = (
+        <AlertPopup
+            visible={alert !== null}
+            title={alert?.title ?? ""}
+            message={alert?.message ?? ""}
+            onClose={() => closeAlert("dismiss")}
+            confirmText={alert?.confirmText}
+            onConfirm={() => closeAlert("confirm")}
+            cancelText={alert?.cancelText}
+            onCancel={() => closeAlert("cancel")}
+            cancelVariant={alert?.cancelVariant}
+        />
+    );
 
     if (!permission) {
         // camera perms are still loading
@@ -69,20 +153,28 @@ export default function CameraViewScreen() {
     }
 
     if (!permission.granted) {
-        // user denies camera perms
         return (
-            <View style={styles.container}>
-            <Text style={styles.message}>We need your permission to show the camera</Text>
-            <Button onPress={requestPermission} title="grant permission" />
-            </View>
+            <CameraPermissionPrompt
+                canAskAgain={permission.canAskAgain}
+                onRequest={requestPermission}
+                onOpenSettings={() => {
+                    Linking.openSettings().catch((error: unknown) => {
+                        console.error(
+                            "Could not open settings:",
+                            getErrorMessage(error),
+                        );
+                    });
+                }}
+                onBack={leaveCamera}
+            />
         );
     }
 
     function toggleCameraFacing() {
-        setFacing(current => (current === 'back' ? 'front' : 'back'));
+        setFacing((current) => (current === "back" ? "front" : "back"));
     }
     function toggleFlash() {
-        setFlash(current => (current === 'off' ? 'on' : 'off'));
+        setFlash((current) => (current === "off" ? "on" : "off"));
     }
     function applyZoom(next: number) {
         const clamped = Math.min(1, Math.max(0, next));
@@ -94,12 +186,16 @@ export default function CameraViewScreen() {
     // using log2 makes pinch symmetric: the user spreading their fingers 2x or 0.5x to zoom
     // in or out zooms by the same amount. old linear {(scale - 1) * 0.12} also only ran while fingers moved
     // so zoom might stall short of the target
-    const pinchGesture = Gesture.Pinch().runOnJS(true).onStart(() => {
-        startZoom.set(currentZoom.get());
-    }).onUpdate((e) => {
-        const target = startZoom.get() + Math.log2(e.scale) * PINCH_SENSITIVITY;
-        applyZoom(target); //ensures zoom is between 0 and 1 along with updating currentZoom shared value
-    });
+    const pinchGesture = Gesture.Pinch()
+        .runOnJS(true)
+        .onStart(() => {
+            startZoom.set(currentZoom.get());
+        })
+        .onUpdate((e) => {
+            const target =
+                startZoom.get() + Math.log2(e.scale) * PINCH_SENSITIVITY;
+            applyZoom(target); //ensures zoom is between 0 and 1 along with updating currentZoom shared value
+        });
 
     async function takePhoto() {
         try {
@@ -123,10 +219,15 @@ export default function CameraViewScreen() {
             if (!photo) return;
 
             setCapturedPhotoUri(photo.uri);
+            setCapturedFromLibrary(false);
             setRecentPhoto(photo.uri);
-            setViewState('confirmation');
-        } catch (error) {
-            console.error('Error taking photo:', error);
+            setViewState("confirmation");
+        } catch (error: unknown) {
+            console.error("Error taking photo:", getErrorMessage(error));
+            showAlert({
+                title: "Could not take photo",
+                message: getErrorMessage(error),
+            });
         } finally {
             setIsCapturing(false);
         }
@@ -135,56 +236,124 @@ export default function CameraViewScreen() {
     async function openPhotoLibrary() {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'],
+                mediaTypes: ["images"],
                 allowsEditing: false,
                 quality: 1,
             });
-            // overlay
             if (result.canceled || !result.assets?.[0]?.uri) return;
             const selectedPhoto = result.assets?.[0]?.uri;
-            if (resolveMode === 'before') {
-                setCapturedPhotoUri(selectedPhoto);
-                setRecentPhoto(selectedPhoto);
-                setViewState('confirmation');
-            } else {
-                setOverlayUri(selectedPhoto);
-            }
-        } catch (error) {
-            console.error('Error opening photo library:', error);
+            setCapturedPhotoUri(selectedPhoto);
+            setCapturedFromLibrary(true);
+            setRecentPhoto(selectedPhoto);
+            setViewState("confirmation");
+        } catch (error: unknown) {
+            console.error(
+                "Error opening photo library:",
+                getErrorMessage(error),
+            );
+            showAlert({
+                title: "Could not open your photo library",
+                message: getErrorMessage(error),
+            });
         }
     }
-    // Best-effort copy into the device camera roll. A refusal here must not
-    // cost the volunteer the photo — the queued upload is the real destination.
-    async function saveToCameraRoll(uri: string) {
-        if (!mediaPermission?.granted) {
-            const permissionResponse = await requestMediaPermission();
-            if (!permissionResponse.granted) {
-                Alert.alert(
-                    'Photo not saved to your library',
-                    'Without photo permission the picture will not appear in your camera roll. It is still attached to this trail issue.',
-                );
-                return;
-            }
-        }
+
+    async function writeToLibrary(uri: string) {
         const asset = await MediaLibrary.createAssetAsync(uri);
-        const album = await MediaLibrary.getAlbumAsync('mount-vernon-trail');
-        // createAlbumAsync unconditionally would make a new album per photo.
-        if (album) {
-            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-        } else {
-            await MediaLibrary.createAlbumAsync('mount-vernon-trail', asset);
+        try {
+            const album = await MediaLibrary.getAlbumAsync(LIBRARY_ALBUM_NAME);
+            // createAlbumAsync unconditionally would make a new album per photo.
+            if (album) {
+                await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+            } else {
+                await MediaLibrary.createAlbumAsync(
+                    LIBRARY_ALBUM_NAME,
+                    asset,
+                    false,
+                );
+            }
+        } catch (error: unknown) {
+            console.error(
+                "Photo saved to the library but not filed in the album:",
+                getErrorMessage(error),
+            );
         }
     }
 
-    // Captured photo confirmation buttons
-    async function handleDone() {
-        if (!capturedPhotoUri) return;
+    async function keepInLibrary(
+        uri: string,
+        attachedToIssue: boolean,
+    ): Promise<boolean> {
+        const skipText = attachedToIssue ? "Continue" : "Discard";
+        const skipVariant = attachedToIssue ? "neutral" : "danger";
+        const consequence = attachedToIssue
+            ? "It is still attached to this trail issue."
+            : "This photo is not attached to a trail issue, so it will be lost.";
 
+        for (;;) {
+            const access = mediaPermission?.granted
+                ? mediaPermission
+                : await requestMediaPermission();
+
+            if (access.granted) {
+                try {
+                    await writeToLibrary(uri);
+                    return true;
+                } catch (error: unknown) {
+                    console.error(
+                        "Error saving photo to the library:",
+                        getErrorMessage(error),
+                    );
+                    const choice = await showAlert({
+                        title: "Photo not saved to your phone",
+                        message: `${consequence} (${getErrorMessage(error)})`,
+                        confirmText: "Try again",
+                        cancelText: skipText,
+                        cancelVariant: skipVariant,
+                    });
+                    if (choice === "dismiss") return false;
+                    if (choice === "cancel") return true;
+                    continue;
+                }
+            }
+
+            const choice = await showAlert({
+                title: "Allow photo access",
+                message: `Photos are saved to your phone only with photo access. ${consequence}`,
+                confirmText: access.canAskAgain ? "Allow" : "Open Settings",
+                cancelText: skipText,
+                cancelVariant: skipVariant,
+            });
+            if (choice === "dismiss") return false;
+            if (choice === "cancel") return true;
+            if (!access.canAskAgain) {
+                await Linking.openSettings().catch((error: unknown) => {
+                    console.error(
+                        "Could not open settings:",
+                        getErrorMessage(error),
+                    );
+                });
+                return false;
+            }
+        }
+    }
+
+    async function handleDone() {
+        if (!capturedPhotoUri || isSaving) return;
+        setIsSaving(true);
         try {
-            await saveToCameraRoll(capturedPhotoUri);
-        } catch (error) {
-            // Non-fatal: keep going so the photo still reaches the album.
-            console.error('Error saving photo to camera roll:', getErrorMessage(error));
+            await finishCapture(capturedPhotoUri);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    async function finishCapture(uri: string) {
+        const attachedToIssue = Boolean(eventId && albumId && activeIssueId);
+
+        if (!capturedFromLibrary) {
+            const proceed = await keepInLibrary(uri, attachedToIssue);
+            if (!proceed) return;
         }
 
         // Issue-scoped capture. The standalone "Take After Picture" flow has no
@@ -195,16 +364,16 @@ export default function CameraViewScreen() {
                     eventId,
                     albumId,
                     issueId: activeIssueId,
-                    issueName: issueName ?? 'Trail issue',
+                    issueName: issueName ?? "Trail issue",
                     slot: resolveMode,
-                    uri: capturedPhotoUri,
+                    uri,
                 });
                 flushInBackground(eventId);
-            } catch (error) {
-                Alert.alert(
-                    'Could not attach photo',
-                    getErrorMessage(error),
-                );
+            } catch (error: unknown) {
+                await showAlert({
+                    title: "Could not attach photo",
+                    message: getErrorMessage(error),
+                });
                 return;
             }
         }
@@ -213,18 +382,14 @@ export default function CameraViewScreen() {
         // camera, so replacing would spawn a second trail-document behind this
         // one, orphan the first (losing its notes), and re-fetch every issue.
         // The screen that pushed us re-reads the photo queue on focus.
-        if (router.canGoBack()) {
-            router.back();
-            return;
-        }
-        // Nothing to return to (e.g. camera opened as the entry screen).
-        router.replace('/home-screen');
+        leaveCamera();
     }
     function handleRetake() {
         setCapturedPhotoUri(null);
-        setViewState('camera');
+        setCapturedFromLibrary(false);
+        setViewState("camera");
     }
-    if (viewState === 'confirmation' && capturedPhotoUri) {
+    if (viewState === "confirmation" && capturedPhotoUri) {
         return (
             <View style={styles.container}>
                 <Image
@@ -232,125 +397,239 @@ export default function CameraViewScreen() {
                     style={styles.camera}
                     resizeMode="cover"
                 />
-                <View style={[styles.confirmButtonRow, {bottom: insets.bottom + 20}]}>
-                    <TouchableOpacity style={styles.confirmButton} onPress={handleDone}>
-                        <Checkbox width={18} height={18} />
-                        <Text style={styles.confirmButtonText}>DONE</Text>
+                <View
+                    style={[
+                        styles.confirmButtonRow,
+                        { bottom: insets.bottom + 20 },
+                    ]}>
+                    <TouchableOpacity
+                        style={[
+                            styles.confirmButton,
+                            isSaving && styles.confirmButtonDisabled,
+                        ]}
+                        onPress={() => {
+                            void handleDone();
+                        }}
+                        disabled={isSaving}>
+                        <Checkbox
+                            width={18}
+                            height={18}
+                        />
+                        <Text style={styles.confirmButtonText}>
+                            {isSaving ? "SAVING" : "DONE"}
+                        </Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.confirmButton} onPress={handleRetake}>
-                        <Refresh width={16} height={16} />
+                    <TouchableOpacity
+                        style={[
+                            styles.confirmButton,
+                            isSaving && styles.confirmButtonDisabled,
+                        ]}
+                        onPress={handleRetake}
+                        disabled={isSaving}>
+                        <Refresh
+                            width={16}
+                            height={16}
+                        />
                         <Text style={styles.confirmButtonText}>RETAKE</Text>
                     </TouchableOpacity>
                 </View>
+                {alertPopup}
             </View>
         );
     }
     return (
         <>
-        <Stack.Screen options={{ headerShown: false }} />
-        <GestureHandlerRootView style={styles.container}>
-            <GestureDetector gesture={pinchGesture}>
-                <View style={styles.container}>
-                    <CameraView
-                        style={styles.camera}
-                        facing={facing}
-                        flash={flash}
-                        // @ts-ignore
-                        ref={cameraRef}
-                        zoom={zoom}
-                    />
-                    {resolveMode === 'after' && overlayUri && (
-                        <View style={[ StyleSheet.absoluteFill, { opacity: overlayOpacity }]} pointerEvents="none">
-                            <Image
-                                source={{ uri: overlayUri }}
-                                resizeMode="cover"
-                                style={{ flex : 1 }}
-                            />
-                        </View>
-                    )}
-                    {/* Rule-of-thirds grid for lining up horizontal and vertical edges so before/after shots match.
-                        Rendered after the ghost overlay so the overlay doesn't dim the grid lines. */}
-                    {showGrid && (
-                        <View style={[styles.gridContainer, { bottom: insets.bottom + 125 }]} pointerEvents="none">
-                            <View style={[styles.gridLineV, { left: '33.33%' }]} />
-                            <View style={[styles.gridLineV, { left: '66.66%' }]} />
-                            <View style={[styles.gridLineH, { top: '33.33%' }]} />
-                            <View style={[styles.gridLineH, { top: '66.66%' }]} />
-                        </View>
-                    )}
-                    {/* white screen flash */}
-                    <Animated.View
-                        style={[
-                            styles.flashOverlay,
-                            {
-                                opacity: flashAnim,
-                            },
-                        ]}
-                    />
-                    <View style={[styles.topControls, { top: insets.top + 12 }]}>
-                        <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
-                        </TouchableOpacity>
-                        <View style={{ gap: 15 }}>
-                            <TouchableOpacity onPress={toggleFlash}>
-                                <BoltIcon
-                                    width={25}
-                                    height={37}
-                                    fill={flash === "on" ? "white" : "#ffffff80"}
-                                />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={toggleCameraFacing}>
-                                <CameraSwitch width={39} height={39} />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.pillButton, showGrid && styles.pillButtonActive]}
-                                onPress={() => setShowGrid(!showGrid)}
-                            >
-                                <Text style={styles.pillButtonText}>Grid</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                    {/* Buttons to support zoom along with pinching */}
-                    <View style={[styles.zoomControls, { bottom: insets.bottom + 140 }]}>
-                        <TouchableOpacity style={styles.zoomButton} onPress={() => applyZoom(zoom - ZOOM_STEP)}>
-                            <Text style={styles.zoomButtonText}>−</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.zoomButton} onPress={() => applyZoom(zoom + ZOOM_STEP)}>
-                            <Text style={styles.zoomButtonText}>+</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={[styles.bottomContainer, { height: insets.bottom + 125 }]}>
-                        {/* gallery/recent photo preview (right position) */}
-                        <View style={[styles.photoContainer, { bottom: insets.bottom + 25 }]}>
-                            <TouchableOpacity style={styles.photoPreview} onPress={openPhotoLibrary} disabled={isCapturing}>
-                                {recentPhoto ? (
-                                    <Image source={{ uri: recentPhoto }} style={styles.previewImage} />
-                                ) : (
-                                    <View style={styles.emptyPreview} />
-                                )}
-                            </TouchableOpacity>
-                            <Text style={styles.previewLabel}>
-                                {resolveMode === 'after' ? 'After' : 'Before'}
-                            </Text>
-                        </View>
-                        {/* take photo button (center position) */}
-                        <View style={[styles.captureContainer, {bottom: insets.bottom} ]}>
-                            <TouchableOpacity
+            <Stack.Screen options={{ headerShown: false }} />
+            <GestureHandlerRootView style={styles.container}>
+                <GestureDetector gesture={pinchGesture}>
+                    <View style={styles.container}>
+                        <CameraView
+                            style={styles.camera}
+                            facing={facing}
+                            flash={flash}
+                            // @ts-ignore
+                            ref={cameraRef}
+                            zoom={zoom}
+                        />
+                        {resolveMode === "after" && overlayUri && (
+                            <View
                                 style={[
-                                    styles.captureButton,
-                                    isCapturing && styles.captureButtonActive,
+                                    StyleSheet.absoluteFill,
+                                    { opacity: overlayOpacity },
                                 ]}
-                                onPress={takePhoto}
-                                disabled={isCapturing}
-                            >
-                            <View style={styles.captureButtonInner} />
+                                pointerEvents="none">
+                                <Image
+                                    source={{ uri: overlayUri }}
+                                    resizeMode="cover"
+                                    style={{ flex: 1 }}
+                                />
+                            </View>
+                        )}
+                        {/* Rule-of-thirds grid for lining up horizontal and vertical edges so before/after shots match.
+                        Rendered after the ghost overlay so the overlay doesn't dim the grid lines. */}
+                        {showGrid && (
+                            <View
+                                style={[
+                                    styles.gridContainer,
+                                    { bottom: insets.bottom + 125 },
+                                ]}
+                                pointerEvents="none">
+                                <View
+                                    style={[
+                                        styles.gridLineV,
+                                        { left: "33.33%" },
+                                    ]}
+                                />
+                                <View
+                                    style={[
+                                        styles.gridLineV,
+                                        { left: "66.66%" },
+                                    ]}
+                                />
+                                <View
+                                    style={[
+                                        styles.gridLineH,
+                                        { top: "33.33%" },
+                                    ]}
+                                />
+                                <View
+                                    style={[
+                                        styles.gridLineH,
+                                        { top: "66.66%" },
+                                    ]}
+                                />
+                            </View>
+                        )}
+                        {/* white screen flash */}
+                        <Animated.View
+                            style={[
+                                styles.flashOverlay,
+                                {
+                                    opacity: flashAnim,
+                                },
+                            ]}
+                        />
+                        <View
+                            style={[
+                                styles.topControls,
+                                { top: insets.top + 12 },
+                            ]}>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={() => router.back()}>
+                                <Text style={styles.cancelButtonText}>
+                                    Cancel
+                                </Text>
                             </TouchableOpacity>
-                            <Text style={styles.captureLabel}>{resolveMode.toUpperCase()}</Text>
+                            <View style={{ gap: 15 }}>
+                                <TouchableOpacity onPress={toggleFlash}>
+                                    <BoltIcon
+                                        width={25}
+                                        height={37}
+                                        fill={
+                                            flash === "on"
+                                                ? "white"
+                                                : "#ffffff80"
+                                        }
+                                    />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={toggleCameraFacing}>
+                                    <CameraSwitch
+                                        width={39}
+                                        height={39}
+                                    />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.pillButton,
+                                        showGrid && styles.pillButtonActive,
+                                    ]}
+                                    onPress={() => setShowGrid(!showGrid)}>
+                                    <Text style={styles.pillButtonText}>
+                                        Grid
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                        {/* Overlay opacity slider */}
-                            {resolveMode === 'after' && overlayUri && (
-                                <View style={[styles.sliderContainer, {bottom: insets.bottom + 40 } ]}>
+                        {/* Buttons to support zoom along with pinching */}
+                        <View
+                            style={[
+                                styles.zoomControls,
+                                { bottom: insets.bottom + 140 },
+                            ]}>
+                            <TouchableOpacity
+                                style={styles.zoomButton}
+                                onPress={() => applyZoom(zoom - ZOOM_STEP)}>
+                                <Text style={styles.zoomButtonText}>−</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.zoomButton}
+                                onPress={() => applyZoom(zoom + ZOOM_STEP)}>
+                                <Text style={styles.zoomButtonText}>+</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View
+                            style={[
+                                styles.bottomContainer,
+                                { height: insets.bottom + 125 },
+                            ]}>
+                            {/* gallery/recent photo preview (right position) */}
+                            <View
+                                style={[
+                                    styles.photoContainer,
+                                    { bottom: insets.bottom + 25 },
+                                ]}>
+                                <TouchableOpacity
+                                    style={styles.photoPreview}
+                                    onPress={openPhotoLibrary}
+                                    disabled={isCapturing}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Choose from photo library">
+                                    {recentPhoto ? (
+                                        <Image
+                                            source={{ uri: recentPhoto }}
+                                            style={styles.previewImage}
+                                        />
+                                    ) : (
+                                        <View style={styles.emptyPreview} />
+                                    )}
+                                </TouchableOpacity>
+                                <Text style={styles.previewLabel}>
+                                    {resolveMode === "after"
+                                        ? "After"
+                                        : "Before"}
+                                </Text>
+                            </View>
+                            {/* take photo button (center position) */}
+                            <View
+                                style={[
+                                    styles.captureContainer,
+                                    { bottom: insets.bottom },
+                                ]}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.captureButton,
+                                        isCapturing &&
+                                            styles.captureButtonActive,
+                                    ]}
+                                    onPress={takePhoto}
+                                    disabled={isCapturing}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Take photo">
+                                    <View style={styles.captureButtonInner} />
+                                </TouchableOpacity>
+                                <Text style={styles.captureLabel}>
+                                    {resolveMode.toUpperCase()}
+                                </Text>
+                            </View>
+                            {/* Overlay opacity slider */}
+                            {resolveMode === "after" && overlayUri && (
+                                <View
+                                    style={[
+                                        styles.sliderContainer,
+                                        { bottom: insets.bottom + 40 },
+                                    ]}>
                                     <Slider
                                         style={styles.slider}
                                         minimumValue={0}
@@ -363,14 +642,16 @@ export default function CameraViewScreen() {
                                         thumbTintColor="#ffffff"
                                     />
                                     <Text style={styles.sliderLabel}>
-                                        {Math.round(overlayOpacity * 100)}% Ghost
+                                        {Math.round(overlayOpacity * 100)}%
+                                        Ghost
                                     </Text>
                                 </View>
                             )}
+                        </View>
                     </View>
-                </View>
-        </GestureDetector>
-        </GestureHandlerRootView>
+                </GestureDetector>
+            </GestureHandlerRootView>
+            {alertPopup}
         </>
     );
 }
@@ -378,34 +659,33 @@ export default function CameraViewScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
+        justifyContent: "center",
     },
-    message: {
-        textAlign: 'center',
-        paddingBottom: 10,
+    confirmButtonDisabled: {
+        opacity: 0.6,
     },
     camera: {
         flex: 1,
     },
     bottomContainer: {
-        position: 'absolute',
+        position: "absolute",
         bottom: 0,
-        width: '100%',
-        backgroundColor: '#000000D9',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        width: "100%",
+        backgroundColor: "#000000D9",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
     },
     /* Left section with photo preview */
     photoContainer: {
-        position: 'absolute',
+        position: "absolute",
         left: 25,
-        alignItems: 'center',
+        alignItems: "center",
     },
     previewLabel: {
-        color: 'white',
+        color: "white",
         fontSize: 12,
-        fontFamily: 'Lato_400Regular',
+        fontFamily: "Lato_400Regular",
         marginTop: 5,
     },
     /* Photo Preview */
@@ -413,174 +693,174 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 8,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        overflow: 'hidden',
+        backgroundColor: "rgba(255, 255, 255, 0.2)",
+        overflow: "hidden",
         borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.5)',
+        borderColor: "rgba(255, 255, 255, 0.5)",
     },
     previewImage: {
-        width: '100%',
-        height: '100%',
+        width: "100%",
+        height: "100%",
     },
     emptyPreview: {
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
     },
     /* Center section with capture button */
     captureContainer: {
-        position: 'absolute',
-        alignItems: 'center',
+        position: "absolute",
+        alignItems: "center",
     },
     captureButton: {
         width: 76,
         height: 76,
         borderRadius: 40,
         borderWidth: 3,
-        borderColor: 'white',
-        backgroundColor: 'transparent',
-        justifyContent: 'center',
-        alignItems: 'center',
+        borderColor: "white",
+        backgroundColor: "transparent",
+        justifyContent: "center",
+        alignItems: "center",
     },
     captureButtonInner: {
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: '#ffffff',
+        backgroundColor: "#ffffff",
     },
     captureButtonActive: {
         opacity: 0.7,
     },
     captureLabel: {
-        color: 'white',
-        fontFamily: 'Lato_700Bold',
+        color: "white",
+        fontFamily: "Lato_700Bold",
         marginTop: 5,
         fontSize: 16,
     },
     flashOverlay: {
-        position: 'absolute',
+        position: "absolute",
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'white',
+        backgroundColor: "white",
     },
     /* Overlay Slider */
     sliderContainer: {
-        position: 'absolute',
+        position: "absolute",
         right: 20,
-        alignItems: 'center',
+        alignItems: "center",
     },
     slider: {
         width: SCREEN_HEIGHT * 0.12,
         height: SCREEN_HEIGHT * 0.04,
-        transform: [{ scale: 0.9 }]
+        transform: [{ scale: 0.9 }],
     },
     /* Grid */
     // Stops at the bottom bar so the thirds divide only the visible preview.
     gridContainer: {
-        position: 'absolute',
+        position: "absolute",
         top: 0,
         left: 0,
         right: 0,
     },
     gridLineV: {
-        position: 'absolute',
+        position: "absolute",
         top: 0,
         bottom: 0,
         width: StyleSheet.hairlineWidth,
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        backgroundColor: "rgba(255, 255, 255, 0.6)",
     },
     gridLineH: {
-        position: 'absolute',
+        position: "absolute",
         left: 0,
         right: 0,
         height: StyleSheet.hairlineWidth,
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        backgroundColor: "rgba(255, 255, 255, 0.6)",
     },
     pillButton: {
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#ffffff80',
-        alignItems: 'center',
+        borderColor: "#ffffff80",
+        alignItems: "center",
     },
     pillButtonActive: {
-        backgroundColor: '#ffffff40',
-        borderColor: 'white',
+        backgroundColor: "#ffffff40",
+        borderColor: "white",
     },
     pillButtonText: {
-        color: 'white',
-        fontFamily: 'Lato_700Bold',
+        color: "white",
+        fontFamily: "Lato_700Bold",
         fontSize: 12,
     },
     /* Zoom */
     zoomControls: {
-        position: 'absolute',
-        alignSelf: 'center',
-        flexDirection: 'row',
-        alignItems: 'center',
+        position: "absolute",
+        alignSelf: "center",
+        flexDirection: "row",
+        alignItems: "center",
         gap: 10,
     },
     zoomButton: {
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: '#00000080',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: "#00000080",
+        justifyContent: "center",
+        alignItems: "center",
     },
     zoomButtonText: {
-        color: 'white',
+        color: "white",
         fontSize: 20,
-        fontFamily: 'Lato_700Bold',
+        fontFamily: "Lato_700Bold",
     },
     sliderLabel: {
-        color: 'white',
-        fontFamily: 'Lato_400Regular',
+        color: "white",
+        fontFamily: "Lato_400Regular",
         fontSize: 12,
     },
     /* Confirmation */
     confirmButtonRow: {
-        position: 'absolute',
-        width: '100%',
-        flexDirection: 'row',
-        justifyContent: 'space-evenly',
+        position: "absolute",
+        width: "100%",
+        flexDirection: "row",
+        justifyContent: "space-evenly",
     },
     confirmButton: {
-        backgroundColor: 'white',
+        backgroundColor: "white",
         paddingVertical: 16,
         paddingHorizontal: 26,
         borderRadius: 16,
         borderWidth: 2,
         borderColor: Palette.primaryPurple30,
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         gap: 8,
     },
     confirmButtonText: {
         color: Palette.primaryPurple70,
-        fontFamily: 'Lato_700Bold',
+        fontFamily: "Lato_700Bold",
         fontSize: 18,
     },
     /* Top Controls */
     topControls: {
-        position: 'absolute',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        position: "absolute",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
         left: 20,
         right: 20,
     },
     cancelButton: {
-        backgroundColor: '#D6D6D6',
+        backgroundColor: "#D6D6D6",
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderRadius: 16,
     },
     cancelButtonText: {
-        fontFamily: 'Lato_400Regular',
+        fontFamily: "Lato_400Regular",
         fontSize: 14,
     },
 });
