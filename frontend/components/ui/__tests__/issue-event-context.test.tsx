@@ -44,6 +44,8 @@ afterEach(() => jest.restoreAllMocks());
 it("explains missing event context and offers navigation home", async () => {
     const view = await render(<TrailIssueDetailScreen />);
     expect(await view.findByText("Open an event to add photos")).toBeTruthy();
+    expect(view.getByText("PHOTOS")).toBeTruthy();
+    expect(view.getByTestId("issue-photo-cards")).toBeTruthy();
     expect(getEventById).not.toHaveBeenCalled();
     await fireEvent.press(view.getByText("Go to Home"));
     expect(mockReplace).toHaveBeenCalledWith("/home-screen");
@@ -114,16 +116,25 @@ it("uses the new popup to cancel or explicitly confirm an uncertain retry", asyn
     expect(view.queryByText("Check the album first")).toBeNull();
 });
 
-it("does not show photo alerts or capture actions for an issue opened from a map pin", async () => {
-    mockParams.source = "map";
-    addUnconfirmedPhoto();
-    const view = await render(<TrailIssueDetailScreen />);
-    await view.findByDisplayValue("Test issue");
-    expect(view.queryByText("Open an event to add photos")).toBeNull();
-    expect(view.queryByText("Check your photo album")).toBeNull();
-    expect(view.queryByText("Retry 1 upload")).toBeNull();
-    expect(view.queryByText("Photo capture unavailable")).toBeNull();
-    expect(view.queryByLabelText("Before photo")).toBeNull();
-    expect(view.queryByLabelText("After photo")).toBeNull();
-    expect(mockFlush).not.toHaveBeenCalled();
-});
+it.each([false, true])(
+    "hides the entire Photos section for a map issue (saved photo: %s)",
+    async (hasPhoto) => {
+        mockParams.source = "map";
+        if (hasPhoto) addUnconfirmedPhoto();
+        const view = await render(<TrailIssueDetailScreen />);
+        await view.findByDisplayValue("Test issue");
+        expect(view.queryByText("PHOTOS")).toBeNull();
+        expect(view.queryByTestId("issue-photo-cards")).toBeNull();
+        expect(view.queryByText("Before")).toBeNull();
+        expect(view.queryByText("After")).toBeNull();
+        expect(view.queryByText("Upload not confirmed")).toBeNull();
+        expect(view.getByText("NOTES")).toBeTruthy();
+        expect(view.queryByText("Open an event to add photos")).toBeNull();
+        expect(view.queryByText("Check your photo album")).toBeNull();
+        expect(view.queryByText("Retry 1 upload")).toBeNull();
+        expect(view.queryByText("Photo capture unavailable")).toBeNull();
+        expect(view.queryByLabelText("Before photo")).toBeNull();
+        expect(view.queryByLabelText("After photo")).toBeNull();
+        expect(mockFlush).not.toHaveBeenCalled();
+    },
+);

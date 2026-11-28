@@ -489,172 +489,183 @@ export default function TrailIssueDetailScreen() {
                         placeholderTextColor="#B0A8C0"
                     />
 
-                    {/* PHOTOS */}
-                    <Text style={styles.sectionLabel}>PHOTOS</Text>
-                    {!photosLocked && photoBlockReason && (
-                        <View
-                            accessibilityRole="alert"
-                            style={styles.eventNotice}>
-                            <Feather
-                                name="info"
-                                size={20}
-                                color={PURPLE}
-                            />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.eventNoticeTitle}>
-                                    {eventLoading
-                                        ? "Loading event…"
-                                        : !eventId
-                                          ? "Open an event to add photos"
-                                          : "Photos unavailable"}
-                                </Text>
-                                <Text style={styles.eventNoticeText}>
-                                    {photoBlockReason}
-                                </Text>
-                                {!eventLoading && (
-                                    <TouchableOpacity
-                                        accessibilityRole="button"
-                                        style={styles.eventNoticeAction}
-                                        onPress={() =>
-                                            eventId && !event
-                                                ? setEventReload(
-                                                      (value) => value + 1,
-                                                  )
-                                                : router.replace("/home-screen")
-                                        }>
-                                        <Text
-                                            style={
-                                                styles.eventNoticeActionText
-                                            }>
-                                            {eventId && !event
-                                                ? "Retry loading event"
-                                                : "Go to Home"}
+                    {source !== "map" && (
+                        <>
+                            {/* PHOTOS */}
+                            <Text style={styles.sectionLabel}>PHOTOS</Text>
+                            {!photosLocked && photoBlockReason && (
+                                <View
+                                    accessibilityRole="alert"
+                                    style={styles.eventNotice}>
+                                    <Feather
+                                        name="info"
+                                        size={20}
+                                        color={PURPLE}
+                                    />
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.eventNoticeTitle}>
+                                            {eventLoading
+                                                ? "Loading event…"
+                                                : !eventId
+                                                  ? "Open an event to add photos"
+                                                  : "Photos unavailable"}
                                         </Text>
-                                    </TouchableOpacity>
-                                )}
+                                        <Text style={styles.eventNoticeText}>
+                                            {photoBlockReason}
+                                        </Text>
+                                        {!eventLoading && (
+                                            <TouchableOpacity
+                                                accessibilityRole="button"
+                                                style={styles.eventNoticeAction}
+                                                onPress={() =>
+                                                    eventId && !event
+                                                        ? setEventReload(
+                                                              (value) =>
+                                                                  value + 1,
+                                                          )
+                                                        : router.replace(
+                                                              "/home-screen",
+                                                          )
+                                                }>
+                                                <Text
+                                                    style={
+                                                        styles.eventNoticeActionText
+                                                    }>
+                                                    {eventId && !event
+                                                        ? "Retry loading event"
+                                                        : "Go to Home"}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                </View>
+                            )}
+                            <View
+                                testID="issue-photo-cards"
+                                style={styles.photoRow}>
+                                <PhotoCard
+                                    label="Before"
+                                    uri={photoUri("before")}
+                                    caption={photoCaption("before")}
+                                    locked={photosLocked}
+                                    onPress={() => {
+                                        handlePhotoPress("before").catch(
+                                            (e: unknown) =>
+                                                setError(getErrorMessage(e)),
+                                        );
+                                    }}
+                                />
+                                <PhotoCard
+                                    label="After"
+                                    uri={photoUri("after")}
+                                    caption={photoCaption("after")}
+                                    locked={photosLocked}
+                                    onPress={() => {
+                                        handlePhotoPress("after").catch(
+                                            (e: unknown) =>
+                                                setError(getErrorMessage(e)),
+                                        );
+                                    }}
+                                />
                             </View>
-                        </View>
-                    )}
-                    <View style={styles.photoRow}>
-                        <PhotoCard
-                            label="Before"
-                            uri={photoUri("before")}
-                            caption={photoCaption("before")}
-                            locked={photosLocked}
-                            onPress={() => {
-                                handlePhotoPress("before").catch((e: unknown) =>
-                                    setError(getErrorMessage(e)),
-                                );
-                            }}
-                        />
-                        <PhotoCard
-                            label="After"
-                            uri={photoUri("after")}
-                            caption={photoCaption("after")}
-                            locked={photosLocked}
-                            onPress={() => {
-                                handlePhotoPress("after").catch((e: unknown) =>
-                                    setError(getErrorMessage(e)),
-                                );
-                            }}
-                        />
-                    </View>
 
-                    {source !== "map" && failedPhotos > 0 && (
-                        <TouchableOpacity
-                            style={styles.retryButton}
-                            onPress={() => {
-                                const retry = () =>
-                                    flush(
-                                        failed
-                                            .filter(
-                                                (photo) =>
-                                                    photo.status ===
-                                                    "unconfirmed",
-                                            )
-                                            .map((photo) => photo.id),
-                                    ).catch((e: unknown) =>
-                                        setError(getErrorMessage(e)),
-                                    );
-                                if (hasUnconfirmed) {
-                                    setAlert({
-                                        title: "Check the album first",
-                                        message:
-                                            "These photos may already be uploaded. Retrying can create duplicates. Only retry if they are missing from the album.",
-                                        cancelText: "Cancel",
-                                        confirmText: "Retry anyway",
-                                        onConfirm: () => {
-                                            void retry();
-                                        },
-                                    });
-                                } else {
-                                    void retry();
-                                }
-                            }}>
-                            <Feather
-                                name="upload-cloud"
-                                size={16}
-                                color="#fff"
-                            />
-                            <Text style={styles.retryButtonText}>
-                                Retry {failedPhotos} upload
-                                {failedPhotos === 1 ? "" : "s"}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
-                    {source !== "map" && uploadErrors.length > 0 && (
-                        <View
-                            accessibilityRole="alert"
-                            accessibilityLiveRegion="polite"
-                            style={styles.uploadAlert}>
-                            <Feather
-                                name="alert-circle"
-                                size={22}
-                                color="#805500"
-                            />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.uploadAlertTitle}>
-                                    {hasUnconfirmed
-                                        ? "Check your photo album"
-                                        : failedPhotos > 0
-                                          ? "Photo uploads need attention"
-                                          : "Photos saved — waiting to retry"}
-                                </Text>
-                                <Text style={styles.uploadAlertText}>
-                                    {failedPhotos > 0
-                                        ? "Upload not confirmed. Check the album before retrying."
-                                        : "Keep this event open. Uploads retry automatically when the connection or Google Photos recovers."}
-                                </Text>
-                                {hasUnconfirmed && event?.albumUrl && (
-                                    <TouchableOpacity
-                                        accessibilityRole="link"
-                                        style={styles.eventNoticeAction}
-                                        onPress={() => {
-                                            void Linking.openURL(
-                                                event.albumUrl,
-                                            ).catch(() =>
-                                                setError(
-                                                    "Could not open the photo album.",
-                                                ),
+                            {failedPhotos > 0 && (
+                                <TouchableOpacity
+                                    style={styles.retryButton}
+                                    onPress={() => {
+                                        const retry = () =>
+                                            flush(
+                                                failed
+                                                    .filter(
+                                                        (photo) =>
+                                                            photo.status ===
+                                                            "unconfirmed",
+                                                    )
+                                                    .map((photo) => photo.id),
+                                            ).catch((e: unknown) =>
+                                                setError(getErrorMessage(e)),
                                             );
-                                        }}>
-                                        <Text
-                                            style={
-                                                styles.eventNoticeActionText
-                                            }>
-                                            Open Google Photos album
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-                                {uploadErrors.map((message) => (
-                                    <Text
-                                        key={message}
-                                        style={styles.uploadAlertText}>
-                                        {message}
+                                        if (hasUnconfirmed) {
+                                            setAlert({
+                                                title: "Check the album first",
+                                                message:
+                                                    "These photos may already be uploaded. Retrying can create duplicates. Only retry if they are missing from the album.",
+                                                cancelText: "Cancel",
+                                                confirmText: "Retry anyway",
+                                                onConfirm: () => {
+                                                    void retry();
+                                                },
+                                            });
+                                        } else {
+                                            void retry();
+                                        }
+                                    }}>
+                                    <Feather
+                                        name="upload-cloud"
+                                        size={16}
+                                        color="#fff"
+                                    />
+                                    <Text style={styles.retryButtonText}>
+                                        Retry {failedPhotos} upload
+                                        {failedPhotos === 1 ? "" : "s"}
                                     </Text>
-                                ))}
-                            </View>
-                        </View>
+                                </TouchableOpacity>
+                            )}
+                            {uploadErrors.length > 0 && (
+                                <View
+                                    accessibilityRole="alert"
+                                    accessibilityLiveRegion="polite"
+                                    style={styles.uploadAlert}>
+                                    <Feather
+                                        name="alert-circle"
+                                        size={22}
+                                        color="#805500"
+                                    />
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.uploadAlertTitle}>
+                                            {hasUnconfirmed
+                                                ? "Check your photo album"
+                                                : failedPhotos > 0
+                                                  ? "Photo uploads need attention"
+                                                  : "Photos saved — waiting to retry"}
+                                        </Text>
+                                        <Text style={styles.uploadAlertText}>
+                                            {failedPhotos > 0
+                                                ? "Upload not confirmed. Check the album before retrying."
+                                                : "Keep this event open. Uploads retry automatically when the connection or Google Photos recovers."}
+                                        </Text>
+                                        {hasUnconfirmed && event?.albumUrl && (
+                                            <TouchableOpacity
+                                                accessibilityRole="link"
+                                                style={styles.eventNoticeAction}
+                                                onPress={() => {
+                                                    void Linking.openURL(
+                                                        event.albumUrl,
+                                                    ).catch(() =>
+                                                        setError(
+                                                            "Could not open the photo album.",
+                                                        ),
+                                                    );
+                                                }}>
+                                                <Text
+                                                    style={
+                                                        styles.eventNoticeActionText
+                                                    }>
+                                                    Open Google Photos album
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
+                                        {uploadErrors.map((message) => (
+                                            <Text
+                                                key={message}
+                                                style={styles.uploadAlertText}>
+                                                {message}
+                                            </Text>
+                                        ))}
+                                    </View>
+                                </View>
+                            )}
+                        </>
                     )}
 
                     {/* NOTES */}
