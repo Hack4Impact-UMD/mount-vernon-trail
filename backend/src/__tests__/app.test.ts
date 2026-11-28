@@ -582,7 +582,7 @@ describe("POST /api/graphics", () => {
         asAdmin(h);
         mockPhotos.uploadBytes.mockResolvedValue("graphic-token");
         mockPhotos.batchCreate.mockResolvedValue({
-            newMediaItemResults: [{}],
+            newMediaItemResults: [{ mediaItem: { id: "graphic-media-id" } }],
         });
 
         const description =
