@@ -4,7 +4,7 @@
     "slug": "mount-vernon-trail",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-1024.png",
     "scheme": [
       "mount-vernon-trail",
       "com.googleusercontent.apps.405328478335-jrjdhobgia6q5kp5fo35kspn4immrfn7",
