@@ -1,3 +1,4 @@
+import * as queue from "@/services/photo-queue";
 import { auth } from "@/config/firebase";
 import {
     BackendError,
@@ -28,6 +29,8 @@ function json(body: unknown, status = 200): Response {
         ok: status >= 200 && status < 300,
         status,
         json: async () => body,
+        clone: () => json(body, status),
+        headers: { get: () => null },
     } as unknown as Response;
 }
 
@@ -346,4 +349,178 @@ describe("uploadPhotos", () => {
         });
         expect(fetchMock).toHaveBeenCalledTimes(11);
     });
+});
+
+describe("upload retry classification", () => {
+    const photo = {
+        uri: "file:///a.jpg",
+        fileName: "a.jpg",
+        mimeType: "image/jpeg",
+    };
+
+    it("leaves a lost upload response unconfirmed", async () => {
+        fetchMock.mockRejectedValueOnce(
+            new TypeError("Network request failed"),
+        );
+        const result = await uploadPhotos("album-1", [photo]);
+        expect(result.failed[0]).toMatchObject({
+            fileName: "a.jpg",
+            unconfirmed: true,
+        });
+        expect(result.failed[0].retryable).not.toBe(true);
+    });
+
+    it("honors a rate limit cooldown without retrying immediately", async () => {
+        fetchMock.mockResolvedValueOnce(json({ retryAfterMs: 90_000 }, 429));
+        const result = await uploadPhotos("album-1", [photo]);
+        expect(result.failed[0]).toMatchObject({
+            retryable: true,
+            retryAfterMs: 90_000,
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("preserves per-file retry metadata on a total failure", async () => {
+        fetchMock.mockResolvedValueOnce(
+            json(
+                {
+                    failed: [
+                        {
+                            fileName: "a.jpg",
+                            error: "Busy",
+                            retryable: true,
+                            retryAfterMs: 30_000,
+                        },
+                    ],
+                },
+                502,
+            ),
+        );
+        const result = await uploadPhotos("album-1", [photo]);
+        expect(result.failed[0]).toMatchObject({
+            retryable: true,
+            retryAfterMs: 30_000,
+        });
+    });
+
+    it("does not automatically retry permission errors", async () => {
+        fetchMock.mockResolvedValueOnce(
+            json({ error: "Permission denied" }, 403),
+        );
+        const result = await uploadPhotos("album-1", [photo]);
+        expect(result.failed[0].retryable).not.toBe(true);
+    });
+});
+
+it("defers remaining files after a rate limit instead of sending a burst", async () => {
+    fetchMock.mockResolvedValueOnce(json({ retryAfterMs: 30_000 }, 429));
+    const result = await uploadPhotos(
+        "album-1",
+        ["a", "b", "c"].map((name) => ({
+            uri: `file:///${name}.jpg`,
+            fileName: `${name}.jpg`,
+            mimeType: "image/jpeg",
+        })),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.failed).toHaveLength(3);
+    expect(
+        result.failed.every(
+            (photo) => photo.retryable && photo.retryAfterMs === 30_000,
+        ),
+    ).toBe(true);
+});
+
+describe("contradictory upload responses", () => {
+    const photo = {
+        uri: "file:///a.jpg",
+        fileName: "a.jpg",
+        mimeType: "image/jpeg",
+    };
+    it.each([207, 502])(
+        "does not treat Success in failed[] as proof of success or a retryable failure (%i)",
+        async (status) => {
+            fetchMock.mockResolvedValueOnce(
+                json(
+                    { failed: [{ fileName: "a.jpg", error: "Success" }] },
+                    status,
+                ),
+            );
+            const result = await uploadPhotos("album-1", [photo]);
+            expect(result.succeeded).toEqual([]);
+            expect(result.failed[0]).toMatchObject({
+                unconfirmed: true,
+                error: expect.stringContaining("conflicting"),
+            });
+            expect(result.failed[0].retryable).not.toBe(true);
+        },
+    );
+    it("drops a contradictory error for an explicitly confirmed photo", async () => {
+        fetchMock.mockResolvedValueOnce(
+            json(
+                {
+                    succeeded: ["a.jpg"],
+                    failed: [{ fileName: "a.jpg", error: "Success" }],
+                },
+                207,
+            ),
+        );
+        expect(await uploadPhotos("album-1", [photo])).toEqual({
+            created: 1,
+            succeeded: ["a.jpg"],
+            failed: [],
+        });
+    });
+});
+
+it("does not resend when creation succeeds but its response is lost", async () => {
+    let createdOnServer = 0;
+    fetchMock.mockImplementationOnce(async () => {
+        createdOnServer++;
+        throw new TypeError("Connection closed after creation");
+    });
+    await queue.enqueuePhoto({
+        eventId: "lost-response",
+        albumId: "album-1",
+        issueId: "issue-1",
+        issueName: "Test",
+        slot: "before",
+        uri: "file:///a.jpg",
+    });
+    await queue.flushEventPhotos("lost-response", true);
+    expect((await queue.getPhotosForEvent("lost-response"))[0]).toMatchObject({
+        status: "unconfirmed",
+        retryAt: undefined,
+    });
+    await queue.flushEventPhotos("lost-response", true);
+    await queue.flushEventPhotos("lost-response");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(createdOnServer).toBe(1);
+});
+
+it("keeps credential network failures retryable because no upload was sent", async () => {
+    getIdToken.mockRejectedValueOnce(
+        Object.assign(new Error("Offline"), {
+            code: "auth/network-request-failed",
+        }),
+    );
+    const result = await uploadPhotos("album-1", [
+        { uri: "file:///a.jpg", fileName: "a.jpg", mimeType: "image/jpeg" },
+    ]);
+    expect(result.failed[0]).toMatchObject({ retryable: true });
+    expect(result.failed[0].unconfirmed).not.toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it("treats a broken successful response body as uncertain delivery", async () => {
+    const response = json({}, 201);
+    response.json = async () => {
+        throw new TypeError("Connection reset reading body");
+    };
+    fetchMock.mockResolvedValueOnce(response);
+    const result = await uploadPhotos("album-1", [
+        { uri: "file:///a.jpg", fileName: "a.jpg", mimeType: "image/jpeg" },
+    ]);
+    expect(result.failed[0]).toMatchObject({ unconfirmed: true });
+    expect(result.failed[0].retryable).not.toBe(true);
 });
