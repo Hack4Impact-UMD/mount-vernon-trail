@@ -2,12 +2,16 @@ import { Router, type Request, type Response } from "express";
 import multer from "multer";
 import { mapSettledWithLimit } from "../concurrency";
 import type { Env } from "../env";
-import { sendError } from "../errors";
-import { type LockStore, withEventLock } from "../event-lock";
+import {
+	GooglePhotosError,
+	PhotoByteTransferError,
+	sendError,
+} from "../errors";
+import { withEventLock, type LockStore } from "../event-lock";
 import * as photos from "../google-photos";
+import { syncEventToGoogleSheets } from "../google-sheets";
 import type { TokenStore } from "../google-tokens";
 import { requireAdmin } from "../middleware/auth";
-import { syncEventToGoogleSheets } from "../google-sheets";
 import type { SheetEvent } from "../sheet-row";
 
 export type EventReader = (
@@ -16,7 +20,12 @@ export type EventReader = (
 
 const UPLOAD_CONCURRENCY = 4;
 
-type FailedUpload = { fileName: string; error: string };
+type FailedUpload = {
+    fileName: string;
+    error: string;
+    retryable?: boolean;
+    retryAfterMs?: number;
+};
 
 type BatchCreateResult = {
     newMediaItemResults?: unknown[];
@@ -27,12 +36,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function batchFailure(result: unknown): string | null {
-    if (!isRecord(result) || !("status" in result)) return null;
+    if (!isRecord(result)) return "Google Photos did not confirm this upload";
     const status = result.status;
-    if (!isRecord(status)) return "Google Photos did not create this photo";
-    return typeof status.message === "string" && status.message.trim()
-        ? status.message
-        : "Google Photos did not create this photo";
+    if (isRecord(status) && status.code !== undefined && status.code !== 0) {
+        return typeof status.message === "string" && status.message.trim()
+            ? status.message
+            : "Google Photos did not create this photo";
+    }
+    // A successful response can contain status: {code: 0} or status: {}.
+    // Require a media item, rather than treating an empty result as success.
+    return isRecord(result.mediaItem) &&
+        typeof result.mediaItem.id === "string" &&
+        result.mediaItem.id
+        ? null
+        : "Google Photos did not confirm this upload";
 }
 
 function readString(value: unknown): string | null {
@@ -142,59 +159,63 @@ export function createApiRouter(
         }
     });
 
-    router.post("/events/:eventId/sheets", async (req: Request, res: Response) => {
-        if (!env.googleSheetsSpreadsheetId) {
-            return res.status(503).json({
-                error: "Google Sheets export is not configured",
-            });
-        }
-        const eventId = readParam(req.params.eventId);
-        if (!eventId) {
-            return res.status(400).json({ error: "eventId is required" });
-        }
-
-        try {
-            const document = await readEvent(eventId);
-            if (!document) {
-                return res.status(404).json({ error: "Event not found" });
-            }
-            if (
-                !req.user?.admin &&
-                document.startedBy !== req.user?.uid
-            ) {
-                return res.status(403).json({
-                    error: "Only the event owner or an admin can export it",
+    router.post(
+        "/events/:eventId/sheets",
+        async (req: Request, res: Response) => {
+            if (!env.googleSheetsSpreadsheetId) {
+                return res.status(503).json({
+                    error: "Google Sheets export is not configured",
                 });
             }
-            if (!asDate(document.endDate)) {
-                return res.status(409).json({
-                    error: "The event must be ended before it can be exported",
-                });
-            }
-            const event = toSheetEvent(eventId, document);
-            if (!event) {
-                return res.status(422).json({
-                    error: "The event is missing fields required for Sheets export",
-                });
+            const eventId = readParam(req.params.eventId);
+            if (!eventId) {
+                return res.status(400).json({ error: "eventId is required" });
             }
 
-            const spreadsheetId = env.googleSheetsSpreadsheetId;
-            await withEventLock(locks, eventId, async (signal) => {
-                const token = await tokenStore.getAccessToken();
-                await syncEventToGoogleSheets(
-                    token,
-                    spreadsheetId,
-                    env.googleSheetsEventsTab,
-                    env.googleSheetsImprovementsTab,
-                    event,
-                    signal,
+            try {
+                const document = await readEvent(eventId);
+                if (!document) {
+                    return res.status(404).json({ error: "Event not found" });
+                }
+                if (!req.user?.admin && document.startedBy !== req.user?.uid) {
+                    return res.status(403).json({
+                        error: "Only the event owner or an admin can export it",
+                    });
+                }
+                if (!asDate(document.endDate)) {
+                    return res.status(409).json({
+                        error: "The event must be ended before it can be exported",
+                    });
+                }
+                const event = toSheetEvent(eventId, document);
+                if (!event) {
+                    return res.status(422).json({
+                        error: "The event is missing fields required for Sheets export",
+                    });
+                }
+
+                const spreadsheetId = env.googleSheetsSpreadsheetId;
+                await withEventLock(locks, eventId, async (signal) => {
+                    const token = await tokenStore.getAccessToken();
+                    await syncEventToGoogleSheets(
+                        token,
+                        spreadsheetId,
+                        env.googleSheetsEventsTab,
+                        env.googleSheetsImprovementsTab,
+                        event,
+                        signal,
+                    );
+                });
+                return res.status(200).json({ synced: true, eventId });
+            } catch (error) {
+                return sendError(
+                    res,
+                    "Failed to sync event to Google Sheets",
+                    error,
                 );
-            });
-            return res.status(200).json({ synced: true, eventId });
-        } catch (error) {
-            return sendError(res, "Failed to sync event to Google Sheets", error);
-        }
-    });
+            }
+        },
+    );
 
     router.post(
         "/upload",
@@ -239,6 +260,21 @@ export function createApiRouter(
                     } else {
                         failed.push({
                             fileName: file.originalname,
+                            ...(result.error instanceof GooglePhotosError &&
+                            result.error.status === 429
+                                ? {
+                                      retryable: true,
+                                      retryAfterMs: result.error.retryAfterMs,
+                                  }
+                                : result.error instanceof
+                                        PhotoByteTransferError ||
+                                    (result.error instanceof
+                                        GooglePhotosError &&
+                                        [408, 500, 502, 503, 504].includes(
+                                            result.error.status,
+                                        ))
+                                  ? { retryable: true }
+                                  : {}),
                             error:
                                 result.error instanceof Error
                                     ? result.error.message
@@ -269,6 +305,11 @@ export function createApiRouter(
                     if (result === undefined || error) {
                         failed.push({
                             fileName: item.fileName,
+                            ...(isRecord(result) &&
+                            isRecord(result.status) &&
+                            result.status.code === 8
+                                ? { retryable: true, retryAfterMs: 30_000 }
+                                : {}),
                             error:
                                 error ??
                                 "Google Photos did not return a result for this photo",
