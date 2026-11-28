@@ -327,10 +327,10 @@ export default function TrailIssueDetailScreen() {
 
     const handlePhotoPress = async (slot: PhotoSlot) => {
         if (photoBlockReason || !event) {
-            Alert.alert(
-                "Photo capture unavailable",
-                photoBlockReason ?? "This event is unavailable.",
-            );
+            setAlert({
+                title: "Photo capture unavailable",
+                message: photoBlockReason ?? "This event is unavailable.",
+            });
             return;
         }
         let activeId: string | null;
@@ -565,19 +565,19 @@ export default function TrailIssueDetailScreen() {
                                         setError(getErrorMessage(e)),
                                     );
                                 if (hasUnconfirmed) {
-                                    Alert.alert(
-                                        "Check the album first",
-                                        "These photos may already be uploaded. Retrying can create duplicates. Only retry if they are missing from the album.",
-                                        [
-                                            { text: "Cancel", style: "cancel" },
-                                            {
-                                                text: "Retry anyway",
-                                                onPress: () => {
-                                                    void retry();
-                                                },
-                                            },
-                                        ],
-                                    );
+                                    setAlert({
+                                        title: "Check the album first",
+                                        message: "These photos may already be uploaded. Retrying can create duplicates. Only retry if they are missing from the album.",
+                                        // [
+                                        //     { text: "Cancel", style: "cancel" },
+                                        //     {
+                                        //         text: "Retry anyway",
+                                        //         onPress: () => {
+                                        //             void retry();
+                                        //         },
+                                        //     },
+                                        // ],
+								});
                                 } else {
                                     void retry();
                                 }
