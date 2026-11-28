@@ -1,3 +1,4 @@
+import type { IssuePhotos } from "@/services/photo-queue";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import TrailIssueDetailScreen from "@/app/trail-issue-screen";
 import { getEventById } from "@/services/event-service";
@@ -5,6 +6,8 @@ import { getEventById } from "@/services/event-service";
 let mockParams: Record<string, string> = {};
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+const mockFlush = jest.fn(async () => ({ uploaded: 0, failed: 0 }));
+let mockIssuePhotos: IssuePhotos = {};
 jest.mock("expo-router", () => ({
     useLocalSearchParams: () => mockParams,
     useRouter: () => ({
@@ -23,10 +26,11 @@ jest.mock("@/services/trello-service", () => ({
     updateIssueCard: jest.fn(),
 }));
 jest.mock("@/hooks/use-photo-queue", () => ({
-    usePhotoQueue: () => ({ issuePhotos: {}, flush: jest.fn() }),
+    usePhotoQueue: () => ({ issuePhotos: mockIssuePhotos, flush: mockFlush }),
 }));
 
 beforeEach(() => {
+    mockIssuePhotos = {};
     mockParams = {
         issueId: "issue-1",
         issueName: "Test issue",
@@ -73,4 +77,53 @@ it("can retry a failed event lookup and then open the correct album's camera", a
             }),
         }),
     );
+});
+
+function addUnconfirmedPhoto() {
+    mockIssuePhotos = {
+        "issue-1": {
+            before: {
+                id: "photo-1",
+                eventId: "event-1",
+                albumId: "album-1",
+                issueId: "issue-1",
+                issueName: "Test issue",
+                slot: "before",
+                uri: "file:///a.jpg",
+                createdAt: 1,
+                status: "unconfirmed",
+                error: "Check the album before retrying.",
+            },
+        },
+    };
+}
+
+it("uses the new popup to cancel or explicitly confirm an uncertain retry", async () => {
+    addUnconfirmedPhoto();
+    const view = await render(<TrailIssueDetailScreen />);
+    await fireEvent.press(await view.findByText("Retry 1 upload"));
+    expect(view.getByText("Check the album first")).toBeTruthy();
+    expect(mockFlush).not.toHaveBeenCalled();
+    await fireEvent.press(view.getByText("Cancel"));
+    expect(view.queryByText("Check the album first")).toBeNull();
+    expect(mockFlush).not.toHaveBeenCalled();
+    await fireEvent.press(view.getByText("Retry 1 upload"));
+    await fireEvent.press(view.getByText("Retry anyway"));
+    expect(mockFlush).toHaveBeenCalledTimes(1);
+    expect(mockFlush).toHaveBeenCalledWith(["photo-1"]);
+    expect(view.queryByText("Check the album first")).toBeNull();
+});
+
+it("does not show photo alerts or capture actions for an issue opened from a map pin", async () => {
+    mockParams.source = "map";
+    addUnconfirmedPhoto();
+    const view = await render(<TrailIssueDetailScreen />);
+    await view.findByDisplayValue("Test issue");
+    expect(view.queryByText("Open an event to add photos")).toBeNull();
+    expect(view.queryByText("Check your photo album")).toBeNull();
+    expect(view.queryByText("Retry 1 upload")).toBeNull();
+    expect(view.queryByText("Photo capture unavailable")).toBeNull();
+    expect(view.queryByLabelText("Before photo")).toBeNull();
+    expect(view.queryByLabelText("After photo")).toBeNull();
+    expect(mockFlush).not.toHaveBeenCalled();
 });

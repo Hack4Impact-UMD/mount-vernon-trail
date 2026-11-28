@@ -11,16 +11,16 @@ import { Feather } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-	ActivityIndicator,
-	Dimensions,
-	Image,
-	Linking,
-	ScrollView,
-	StyleSheet,
-	Text,
-	TextInput,
-	TouchableOpacity,
-	View,
+    ActivityIndicator,
+    Dimensions,
+    Image,
+    Linking,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -75,7 +75,7 @@ function PhotoCard({
         </View>
     );
 
-    // A published draft is a record of a finished event: nothing left to shoot.
+    // Drafts and map previews display photos without starting capture.
     if (locked) return <View style={styles.photoCard}>{content}</View>;
 
     return (
@@ -147,12 +147,15 @@ export default function TrailIssueDetailScreen() {
     const [alert, setAlert] = useState<{
         title: string;
         message: string;
+        confirmText?: string;
+        onConfirm?: () => void;
+        cancelText?: string;
     } | null>(null);
 
     const { issuePhotos, flush } = usePhotoQueue(eventId);
     const queued = issuePhotos[cardId ?? issueId ?? ""] ?? {};
     const isUnsaved = cardId === null;
-    const photosLocked = isDraft === "true";
+    const photosLocked = isDraft === "true" || source === "map";
 
     // The upload queue is the source of truth for photos taken during an
     // event; the uri params stay supported for callers that still hand a
@@ -426,6 +429,15 @@ export default function TrailIssueDetailScreen() {
                 title={alert?.title ?? ""}
                 message={alert?.message ?? ""}
                 onClose={() => setAlert(null)}
+                confirmText={alert?.confirmText}
+                onConfirm={() => {
+                    const confirm = alert?.onConfirm;
+                    setAlert(null);
+                    confirm?.();
+                }}
+                cancelText={alert?.cancelText}
+                onCancel={() => setAlert(null)}
+                cancelVariant="neutral"
             />
             <Stack.Screen options={{ headerShown: false }} />
             {/* App Header — outside the ScrollView so it stays put */}
@@ -567,17 +579,14 @@ export default function TrailIssueDetailScreen() {
                                 if (hasUnconfirmed) {
                                     setAlert({
                                         title: "Check the album first",
-                                        message: "These photos may already be uploaded. Retrying can create duplicates. Only retry if they are missing from the album.",
-                                        // [
-                                        //     { text: "Cancel", style: "cancel" },
-                                        //     {
-                                        //         text: "Retry anyway",
-                                        //         onPress: () => {
-                                        //             void retry();
-                                        //         },
-                                        //     },
-                                        // ],
-								});
+                                        message:
+                                            "These photos may already be uploaded. Retrying can create duplicates. Only retry if they are missing from the album.",
+                                        cancelText: "Cancel",
+                                        confirmText: "Retry anyway",
+                                        onConfirm: () => {
+                                            void retry();
+                                        },
+                                    });
                                 } else {
                                     void retry();
                                 }
@@ -593,7 +602,7 @@ export default function TrailIssueDetailScreen() {
                             </Text>
                         </TouchableOpacity>
                     )}
-                    {uploadErrors.length > 0 && (
+                    {source !== "map" && uploadErrors.length > 0 && (
                         <View
                             accessibilityRole="alert"
                             accessibilityLiveRegion="polite"
