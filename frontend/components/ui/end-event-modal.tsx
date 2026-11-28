@@ -17,6 +17,9 @@ type Props = {
     onConfirm: (notes: string) => void;
     initialNotes?: string;
     loading?: boolean;
+    // Shown in this modal rather than in a separate AlertPopup: iOS presents
+    // only one modal at a time, so a sibling popup stayed hidden behind this one.
+    error?: string | null;
 };
 
 export default function EndEventModal({
@@ -26,6 +29,7 @@ export default function EndEventModal({
     onConfirm,
     initialNotes,
     loading = false,
+    error,
 }: Props) {
     // Passed straight through; this modal has no notes field of its own.
     const notes = initialNotes ?? "";
@@ -53,6 +57,14 @@ export default function EndEventModal({
                         Ending this event will lead you to the draft event
                         document page.
                     </Text>
+                    {error ? (
+                        <View style={styles.errorBox}>
+                            <Text style={styles.errorTitle}>
+                                Could not end the event
+                            </Text>
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                    ) : null}
                     <Pressable
                         style={[
                             styles.confirmBtn,
@@ -118,6 +130,24 @@ const styles = StyleSheet.create({
         color: "#555",
         fontFamily: "Lato_400Regular",
         lineHeight: 20,
+    },
+    errorBox: {
+        backgroundColor: "#FDECEC",
+        borderRadius: 10,
+        padding: 10,
+        gap: 2,
+    },
+    errorTitle: {
+        fontSize: 13,
+        color: "#A33B3D",
+        fontFamily: "Lato_700Bold",
+        fontWeight: "700",
+    },
+    errorText: {
+        fontSize: 13,
+        color: "#A33B3D",
+        fontFamily: "Lato_400Regular",
+        lineHeight: 18,
     },
     confirmBtn: {
         alignSelf: "flex-start",

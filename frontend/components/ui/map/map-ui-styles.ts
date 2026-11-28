@@ -1,0 +1,80 @@
+import { Colors, Palette } from "@/constants/theme";
+import { StyleSheet } from "react-native";
+
+/** Shared surfaces and controls for the map and its dialogs. */
+export const mapUi = StyleSheet.create({
+    surface: {
+        backgroundColor: Colors.light.background,
+        borderWidth: 1,
+        borderColor: Palette.primaryPurple30,
+        shadowColor: Palette.primaryBlack100,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+        elevation: 3,
+    },
+    backdrop: {
+        flex: 1,
+        justifyContent: "center",
+        padding: 24,
+        backgroundColor: "#00000066",
+    },
+    dialog: {
+        width: "100%",
+        maxWidth: 560,
+        alignSelf: "center",
+        maxHeight: "80%",
+        backgroundColor: Colors.light.background,
+        borderWidth: 1,
+        borderColor: Palette.primaryPurple30,
+        borderRadius: 20,
+        padding: 20,
+        gap: 16,
+    },
+    heading: {
+        fontFamily: "Lato_700Bold",
+        fontSize: 22,
+        lineHeight: 28,
+        color: Palette.primaryPurple100,
+    },
+    close: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#F3EEF9",
+    },
+    search: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        borderWidth: 1,
+        borderColor: Palette.primaryPurple30,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+    },
+    input: {
+        flex: 1,
+        minHeight: 48,
+        fontFamily: "Lato_400Regular",
+        fontSize: 14,
+        color: Palette.primaryBlack100,
+    },
+    button: {
+        minHeight: 48,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    primaryButton: { backgroundColor: Palette.primaryPurple100 },
+    buttonText: {
+        fontFamily: "Lato_700Bold",
+        fontSize: 14,
+        lineHeight: 20,
+        color: Palette.primaryPurple100,
+    },
+    primaryButtonText: { color: Colors.light.background },
+});

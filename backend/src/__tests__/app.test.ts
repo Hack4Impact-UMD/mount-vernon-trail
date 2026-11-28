@@ -3,16 +3,21 @@ import request from "supertest";
 import { createApp } from "../app";
 import type { Env } from "../env";
 import {
-    GooglePhotosError,
-    PhotoByteTransferError,
-    NotAuthenticatedError,
+	GooglePhotosError,
+	NotAuthenticatedError,
+	PhotoByteTransferError,
 } from "../errors";
+import { createInMemoryLockStore, type LockStore } from "../event-lock";
 import * as photos from "../google-photos";
+import * as sheets from "../google-sheets";
 import type { TokenStore } from "../google-tokens";
+import type { EventReader } from "../routes/api";
 
 jest.mock("../google-photos");
+jest.mock("../google-sheets");
 
 const mockPhotos = photos as jest.Mocked<typeof photos>;
+const mockSheets = sheets as jest.Mocked<typeof sheets>;
 
 const TEST_ENV: Env = {
     port: 8080,
@@ -20,6 +25,9 @@ const TEST_ENV: Env = {
     googleClientSecret: "client-secret",
     googleRedirectUri: "http://localhost:8080/auth/callback",
     googleRefreshToken: null,
+    googleSheetsSpreadsheetId: "spreadsheet-id",
+    googleSheetsEventsTab: "Events",
+    googleSheetsImprovementsTab: "Improvements",
     upstashRedisUrl: "https://redis.example",
     upstashRedisToken: "redis-token",
     firebaseServiceAccountJson: "{}",
@@ -32,9 +40,13 @@ type Harness = {
     app: ReturnType<typeof createApp>;
     verifyIdToken: jest.Mock;
     tokenStore: jest.Mocked<TokenStore>;
+    readEvent: jest.MockedFunction<EventReader>;
 };
 
-function harness(overrides: Partial<Env> = {}): Harness {
+function harness(
+    overrides: Partial<Env> = {},
+    locks: LockStore = createInMemoryLockStore(),
+): Harness {
     const verifyIdToken = jest.fn();
     const auth = { verifyIdToken } as unknown as Auth;
     const tokenStore: jest.Mocked<TokenStore> = {
@@ -46,10 +58,18 @@ function harness(overrides: Partial<Env> = {}): Harness {
         consumeState: jest.fn().mockResolvedValue(true),
         exchangeCode: jest.fn().mockResolvedValue(undefined),
     };
+    const readEvent: jest.MockedFunction<EventReader> = jest.fn();
     return {
-        app: createApp({ ...TEST_ENV, ...overrides }, auth, tokenStore),
+        app: createApp(
+            { ...TEST_ENV, ...overrides },
+            auth,
+            tokenStore,
+            readEvent,
+            locks,
+        ),
         verifyIdToken,
         tokenStore,
+        readEvent,
     };
 }
 
@@ -126,6 +146,114 @@ describe("CORS", () => {
         expect(res.headers["access-control-allow-origin"]).toBe(
             "https://app.example",
         );
+    });
+
+    describe("POST /api/events/:eventId/sheets", () => {
+        const completedEvent = {
+            eventId: "event-1",
+            title: "Trail cleanup",
+            date: new Date("2026-10-25T14:00:00.000Z"),
+            startDate: new Date("2026-10-25T14:00:00.000Z"),
+            endDate: new Date("2026-10-25T16:00:00.000Z"),
+            startedBy: "u1",
+            eventLeader: "Volunteer",
+            metrics: { trashBagsCollected: 2 },
+        };
+
+        beforeEach(() => {
+            mockSheets.syncEventToGoogleSheets.mockResolvedValue(undefined);
+        });
+
+        it("exports the stored event for its owner", async () => {
+            const h = harness();
+            asVolunteer(h);
+            h.readEvent.mockResolvedValue(completedEvent);
+            const res = await request(h.app)
+                .post("/api/events/event-1/sheets")
+                .set("Authorization", "Bearer good");
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({ synced: true, eventId: "event-1" });
+            expect(mockSheets.syncEventToGoogleSheets).toHaveBeenCalledWith(
+                "google-access-token",
+                "spreadsheet-id",
+                "Events",
+                "Improvements",
+                expect.objectContaining({
+                    eventId: "event-1",
+                    title: "Trail cleanup",
+                    metrics: { trashBagsCollected: 2 },
+                }),
+                expect.any(AbortSignal),
+            );
+        });
+
+        it("serializes simultaneous exports of one event across backend instances", async () => {
+            const shared = createInMemoryLockStore();
+            const replicas = [harness({}, shared), harness({}, shared)];
+            for (const h of replicas) {
+                asVolunteer(h);
+                h.readEvent.mockResolvedValue(completedEvent);
+            }
+            let inFlight = 0;
+            let peak = 0;
+            mockSheets.syncEventToGoogleSheets.mockImplementation(async () => {
+                inFlight++;
+                peak = Math.max(peak, inFlight);
+                await new Promise((resolve) => setTimeout(resolve, 50));
+                inFlight--;
+            });
+
+            const responses = await Promise.all(
+                replicas.map((h) =>
+                    request(h.app)
+                        .post("/api/events/event-1/sheets")
+                        .set("Authorization", "Bearer good"),
+                ),
+            );
+
+            expect(responses.map((res) => res.status)).toEqual([200, 200]);
+            expect(mockSheets.syncEventToGoogleSheets).toHaveBeenCalledTimes(2);
+            expect(peak).toBe(1);
+        });
+
+        it("does not let a different volunteer export another owner's event", async () => {
+            const h = harness();
+            asVolunteer(h);
+            h.readEvent.mockResolvedValue({
+                ...completedEvent,
+                startedBy: "someone-else",
+            });
+            const res = await request(h.app)
+                .post("/api/events/event-1/sheets")
+                .set("Authorization", "Bearer good");
+
+            expect(res.status).toBe(403);
+            expect(mockSheets.syncEventToGoogleSheets).not.toHaveBeenCalled();
+        });
+
+        it("requires the event to have ended", async () => {
+            const h = harness();
+            asVolunteer(h);
+            h.readEvent.mockResolvedValue({ ...completedEvent, endDate: null });
+            const res = await request(h.app)
+                .post("/api/events/event-1/sheets")
+                .set("Authorization", "Bearer good");
+
+            expect(res.status).toBe(409);
+            expect(mockSheets.syncEventToGoogleSheets).not.toHaveBeenCalled();
+        });
+
+        it("reports missing spreadsheet configuration", async () => {
+            const h = harness({ googleSheetsSpreadsheetId: null });
+            asVolunteer(h);
+            const res = await request(h.app)
+                .post("/api/events/event-1/sheets")
+                .set("Authorization", "Bearer good");
+
+            expect(res.status).toBe(503);
+            expect(h.readEvent).not.toHaveBeenCalled();
+        });
     });
 
     it("rejects an origin that is not on the allowlist", async () => {
@@ -415,6 +543,98 @@ describe("POST /api/upload", () => {
             .attach("photos", Buffer.alloc(64), "big.jpg");
         expect(res.status).toBe(413);
         expect(mockPhotos.uploadBytes).not.toHaveBeenCalled();
+    });
+});
+
+describe("POST /api/graphics", () => {
+    it("refuses a volunteer without uploading anything", async () => {
+        const h = harness();
+        asVolunteer(h);
+        const res = await request(h.app)
+            .post("/api/graphics")
+            .set("Authorization", "Bearer graphic-test-token")
+            .field("albumId", "event-album")
+            .attach("photo", Buffer.from("graphic"), "issue-before-after.jpg");
+
+        expect(res.status).toBe(403);
+        expect(mockPhotos.uploadBytes).not.toHaveBeenCalled();
+    });
+
+    it("requires a graphic and album id", async () => {
+        const h = harness();
+        asAdmin(h);
+        const missingPhoto = await request(h.app)
+            .post("/api/graphics")
+            .set("Authorization", "Bearer graphic-test-token")
+            .field("albumId", "event-album");
+        expect(missingPhoto.status).toBe(400);
+
+        const missingAlbum = await request(h.app)
+            .post("/api/graphics")
+            .set("Authorization", "Bearer graphic-test-token")
+            .attach("photo", Buffer.from("graphic"), "graphic.jpg");
+        expect(missingAlbum.status).toBe(400);
+        expect(mockPhotos.uploadBytes).not.toHaveBeenCalled();
+    });
+
+    it("uploads the approved graphic with its event and issue description", async () => {
+        const h = harness();
+        asAdmin(h);
+        mockPhotos.uploadBytes.mockResolvedValue("graphic-token");
+        mockPhotos.batchCreate.mockResolvedValue({
+            newMediaItemResults: [{}],
+        });
+
+        const description =
+            "issueId=issue-1; eventId=event-1; beforePhotoId=before-1; afterPhotoId=after-1";
+        const res = await request(h.app)
+            .post("/api/graphics")
+            .set("Authorization", "Bearer graphic-test-token")
+            .field("albumId", "event-album")
+            .field("description", description)
+            .attach(
+                "photo",
+                Buffer.from("graphic"),
+                "issue-1-event-1-before-after.jpg",
+            );
+
+        expect(res.status).toBe(201);
+        expect(res.body).toEqual({ created: true });
+        expect(mockPhotos.uploadBytes).toHaveBeenCalledWith(
+            "google-access-token",
+            expect.any(Uint8Array),
+            "image/jpeg",
+        );
+        expect(mockPhotos.batchCreate).toHaveBeenCalledWith(
+            "google-access-token",
+            "event-album",
+            [
+                {
+                    uploadToken: "graphic-token",
+                    fileName: "issue-1-event-1-before-after.jpg",
+                    description,
+                },
+            ],
+        );
+    });
+
+    it("does not claim success when Google Photos rejects the graphic", async () => {
+        const h = harness();
+        asAdmin(h);
+        mockPhotos.uploadBytes.mockResolvedValue("graphic-token");
+        mockPhotos.batchCreate.mockResolvedValue({
+            newMediaItemResults: [
+                { status: { code: 13, message: "graphic rejected" } },
+            ],
+        });
+
+        const res = await request(h.app)
+            .post("/api/graphics")
+            .set("Authorization", "Bearer graphic-test-token")
+            .field("albumId", "event-album")
+            .attach("photo", Buffer.from("graphic"), "graphic.jpg");
+        expect(res.status).toBe(502);
+        expect(res.body.error).toBe("graphic rejected");
     });
 });
 

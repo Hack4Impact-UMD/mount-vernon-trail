@@ -1,7 +1,10 @@
 import HomeHeader from "@/components/ui/header";
 import { TrailDocIssuesCard } from "@/components/ui/trail-doc-issues-card";
 import TrailEventHeader from "@/components/ui/trail-event-header";
-import TrailMetricsSection from "@/components/ui/trail-metrics-section";
+import TrailMetricsSection, {
+    type TrailMetricsSectionHandle,
+} from "@/components/ui/trail-metrics-section";
+import { useEventNotes } from "@/hooks/use-event-notes";
 import { usePhotoQueue } from "@/hooks/use-photo-queue";
 import type { Event } from "@/services/event-service";
 import { getEventById } from "@/services/event-service";
@@ -38,11 +41,17 @@ export default function TrailDocumentScreen() {
         eventId ? undefined : "No event ID provided.",
     );
     const pressedTrailIssueRef = useRef<boolean>(false);
+    const metricsRef = useRef<TrailMetricsSectionHandle | null>(null);
     const [issuesData, setIssuesData] = useState(
         [] as TrailDocumentIssueItem[],
     );
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [notes, setNotes] = useState("");
+    const {
+        notes,
+        setNotes,
+        saveError: notesSaveError,
+        ready: notesReady,
+    } = useEventNotes(eventId, event ? (event.notes ?? "") : undefined);
     const [issuesError, setIssuesError] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
 
@@ -66,8 +75,6 @@ export default function TrailDocumentScreen() {
             .then((e) => {
                 if (e) {
                     setEvent(e);
-                    // load existing notes from event creation
-                    setNotes(e.notes ?? "");
                 } else {
                     setError("Event not found.");
                 }
@@ -134,6 +141,7 @@ export default function TrailDocumentScreen() {
     // for a later retry).
     async function handleStop() {
         if (!event) return;
+        await metricsRef.current?.flushPendingUpdates();
         if (pendingCount > 0) {
             await flush().catch((err: unknown) => {
                 console.error(
@@ -296,14 +304,21 @@ export default function TrailDocumentScreen() {
                             }}
                             value={notes}
                             onChangeText={setNotes}
+                            editable={notesReady}
                             multiline
                             placeholder="Start documenting the event"
                             placeholderTextColor="#bbb"
                             textAlignVertical="top"
                         />
+                        {notesSaveError && (
+                            <Text style={styles.notesSaveError}>
+                                {notesSaveError}
+                            </Text>
+                        )}
 
                         {/* Metrics Section */}
                         <TrailMetricsSection
+                            ref={metricsRef}
                             eventId={event.eventId}
                             initialMetrics={event.metrics}
                         />
@@ -354,6 +369,12 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: "#888",
         textAlign: "center",
+    },
+    notesSaveError: {
+        fontSize: 13,
+        color: "#888",
+        marginTop: -16,
+        marginBottom: 24,
     },
     uploadBanner: {
         flexDirection: "row",

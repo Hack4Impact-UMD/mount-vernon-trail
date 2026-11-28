@@ -1,3 +1,4 @@
+import AlertPopup from "@/components/ui/alert-popup";
 import HomeHeader from "@/components/ui/header";
 import IssueMapPreview from "@/components/ui/map/issue-map-preview";
 import { usePhotoQueue } from "@/hooks/use-photo-queue";
@@ -8,19 +9,18 @@ import { createIssueCard, updateIssueCard } from "@/services/trello-service";
 import { getErrorMessage } from "@/utils/errors";
 import { Feather } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Image,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+	ActivityIndicator,
+	Dimensions,
+	Image,
+	Linking,
+	ScrollView,
+	StyleSheet,
+	Text,
+	TextInput,
+	TouchableOpacity,
+	View,
 } from "react-native";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -102,6 +102,7 @@ export default function TrailIssueDetailScreen() {
         isDraft,
         beforeImageUri,
         afterImageUri,
+        source,
     } = useLocalSearchParams<{
         issueId?: string;
         issueName?: string;
@@ -112,6 +113,7 @@ export default function TrailIssueDetailScreen() {
         isDraft?: string;
         beforeImageUri?: string;
         afterImageUri?: string;
+        source?: string;
     }>();
 
     // A brand new issue carries a placeholder id until its Trello card exists.
@@ -142,6 +144,10 @@ export default function TrailIssueDetailScreen() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [alert, setAlert] = useState<{
+        title: string;
+        message: string;
+    } | null>(null);
 
     const { issuePhotos, flush } = usePhotoQueue(eventId);
     const queued = issuePhotos[cardId ?? issueId ?? ""] ?? {};
@@ -331,14 +337,17 @@ export default function TrailIssueDetailScreen() {
         try {
             activeId = await ensureIssueCard();
         } catch (e) {
-            Alert.alert("Failed to save issue", getErrorMessage(e));
+            setAlert({
+                title: "Failed to save issue",
+                message: getErrorMessage(e),
+            });
             return;
         }
         if (!activeId) {
-            Alert.alert(
-                "Name this issue first",
-                "Add a name so the photo has somewhere to attach.",
-            );
+            setAlert({
+                title: "Missing name",
+                message: "Add a name so the photo has somewhere to attach.",
+            });
             return;
         }
 
@@ -412,6 +421,12 @@ export default function TrailIssueDetailScreen() {
 
     return (
         <View style={styles.screen}>
+            <AlertPopup
+                visible={alert !== null}
+                title={alert?.title ?? ""}
+                message={alert?.message ?? ""}
+                onClose={() => setAlert(null)}
+            />
             <Stack.Screen options={{ headerShown: false }} />
             {/* App Header — outside the ScrollView so it stays put */}
             <HomeHeader />
@@ -533,7 +548,7 @@ export default function TrailIssueDetailScreen() {
                         />
                     </View>
 
-                    {failedPhotos > 0 && (
+                    {source !== "map" && failedPhotos > 0 && (
                         <TouchableOpacity
                             style={styles.retryButton}
                             onPress={() => {

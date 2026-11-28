@@ -14,6 +14,9 @@ type Props = {
     onCancel: () => void;
     onConfirm: () => void;
     loading?: boolean;
+    // Shown in this modal rather than in a separate AlertPopup: iOS presents
+    // only one modal at a time, so a sibling popup stayed hidden behind this one.
+    error?: string | null;
 };
 
 export default function PublishEventModal({
@@ -21,6 +24,7 @@ export default function PublishEventModal({
     onCancel,
     onConfirm,
     loading = false,
+    error,
 }: Props) {
     return (
         <Modal
@@ -38,6 +42,12 @@ export default function PublishEventModal({
                     <Text style={styles.body}>
                         Please note: <Text style={styles.bodyEmph}>This action is irreversible.</Text>
                     </Text>
+                    {error ? (
+                        <View style={styles.errorBox}>
+                            <Text style={styles.errorTitle}>Publish failed</Text>
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                    ) : null}
                     <View style={styles.actions}>
                         <Pressable
                             style={[styles.btn, styles.cancelBtn]}
@@ -106,6 +116,24 @@ const styles = StyleSheet.create({
     bodyEmph: {
         fontFamily: "Lato_700Bold",
         fontWeight: "700",
+    },
+    errorBox: {
+        backgroundColor: "rgba(0,0,0,0.18)",
+        borderRadius: 10,
+        padding: 10,
+        gap: 2,
+    },
+    errorTitle: {
+        fontSize: 13,
+        color: "white",
+        fontFamily: "Lato_700Bold",
+        fontWeight: "700",
+    },
+    errorText: {
+        fontSize: 13,
+        color: "white",
+        fontFamily: "Lato_400Regular",
+        lineHeight: 18,
     },
     actions: {
         flexDirection: "row",

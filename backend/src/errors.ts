@@ -48,6 +48,42 @@ export class GooglePhotosError extends Error {
     }
 }
 
+export class GoogleSheetsError extends Error {
+    readonly status: number;
+    readonly body: string;
+
+    constructor(status: number, body: string) {
+        super(`Google Sheets API error (${status})`);
+        this.name = "GoogleSheetsError";
+        this.status = status;
+        this.body = body;
+    }
+}
+
+export class GoogleSheetsDataError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "GoogleSheetsDataError";
+    }
+}
+
+export class ExportInProgressError extends Error {
+    constructor(eventId: string) {
+        super(`An export of event ${eventId} is already in progress; try again shortly.`);
+        this.name = "ExportInProgressError";
+    }
+}
+
+// The export's lease could not be renewed in time, so another instance may
+// already hold it. Raised instead of letting the export keep writing, since
+// two exports writing at once is what duplicates rows.
+export class ExportLockLostError extends Error {
+    constructor(eventId: string) {
+        super(`The export of event ${eventId} lost its lock before finishing; try again.`);
+        this.name = "ExportLockLostError";
+    }
+}
+
 // Single place every /api route funnels failures through, so the 401/502/500
 // mapping stays identical across routes.
 export function sendError(
@@ -75,6 +111,23 @@ export function sendError(
             error: "Google Photos API error",
             status: error.status,
         });
+    }
+    if (error instanceof GoogleSheetsError) {
+        console.error(`${context}:`, error.status, error.body);
+        return res.status(error.status === 404 ? 404 : 502).json({
+            error:
+                error.status === 404
+                    ? "Google spreadsheet or configured tab was not found"
+                    : "Google Sheets request failed; verify OAuth consent and spreadsheet editor access",
+            status: error.status,
+        });
+    }
+    if (
+        error instanceof GoogleSheetsDataError ||
+        error instanceof ExportInProgressError ||
+        error instanceof ExportLockLostError
+    ) {
+        return res.status(409).json({ error: error.message });
     }
     console.error(`${context}:`, error);
     return res.status(500).json({ error: context });
